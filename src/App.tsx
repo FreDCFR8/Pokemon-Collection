@@ -1,3 +1,4 @@
+import { AuthStateCard } from './features/auth';
 import { ProfileStatusCard } from './features/profiles/ProfileStatusCard';
 
 const navigationItems = [
@@ -39,14 +40,15 @@ export function App() {
       </nav>
 
       <section className="hero-panel">
-        <p className="eyebrow">Profile planning only</p>
-        <h2>Profielen voorbereid zonder data-integratie</h2>
+        <p className="eyebrow">Auth state placeholder</p>
+        <h2>Loginstructuur voorbereid zonder echte login</h2>
         <p>
-          Deze fase bereidt parent/admin, Lars en Lore voor als gescheiden profielen. Er wordt nog geen
-          Supabase-data gelezen, geschreven of gemigreerd.
+          De technische Supabase-rand bestaat, maar de app doet nog geen auth-call en haalt nog geen
+          echte profiel- of collectiegegevens op.
         </p>
       </section>
 
+      <AuthStateCard />
       <ProfileStatusCard />
 
       <section className="placeholder-grid" aria-label="Lege hoofdschermen">
