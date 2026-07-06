@@ -19,12 +19,14 @@ No runtime files, package manager setup, build configuration, or application sou
 - Designing desktop-first by accident.
 - Treating Pokémon TCG API as source of truth.
 - Introducing AI before the core app is stable.
+- Adding write features before read-only collection access is proven.
 
 ### Dependencies
 
 - Existing Supabase schema inspection.
 - Confirmation of authentication strategy.
-- Confirmation of v1 scope.
+- Confirmation of parent/admin strategy.
+- Confirmation of v1 read-only scope.
 - Approval of stack decision.
 
 ### Acceptance criteria
@@ -37,6 +39,8 @@ No runtime files, package manager setup, build configuration, or application sou
 - Performance strategy exists.
 - Testing strategy exists.
 - Open questions are documented.
+- Supabase read-only inspection plan exists.
+- Migration plan exists.
 
 ### Test plan
 
@@ -45,6 +49,7 @@ No runtime files, package manager setup, build configuration, or application sou
 - Zero Legacy compliance review.
 - Mobile-first review.
 - Supabase ownership review.
+- Read-only v1 scope review.
 
 ### Definition of Done
 
@@ -63,6 +68,7 @@ Create the minimal application foundation after Phase 0 approval.
 - minimal mobile shell
 - Supabase client boundary
 - no real collection features yet
+- no collection writes
 - no AI
 - no Binder
 
@@ -73,34 +79,77 @@ Create the minimal application foundation after Phase 0 approval.
 - No legacy code exists.
 - No business feature is implemented prematurely.
 
-## Phase 2 – Authentication and Profiles
+## Phase 2 – Authentication, Profiles, and Roles
 
 ### Goal
 
-Implement secure login and user-owned access.
+Implement secure login and user-owned access foundations.
 
 ### Scope
 
 - Supabase Auth
 - separate accounts for Lars and Lore
+- parent/admin account support
 - profile model
+- role model
+- initial permission model design
 - Row Level Security validation
 
-## Phase 3 – Collection Core
+### Acceptance criteria
+
+- User identity is available to the app.
+- Parent/admin and child roles are represented.
+- No collection data is exposed across users accidentally.
+- Mutating permissions are not implemented before explicit approval.
+
+## Phase 3 – Supabase Read-only Inspection
 
 ### Goal
 
-Implement the first stable collection workflow.
+Understand the existing Supabase database before migration or collection implementation.
+
+### Scope
+
+- inspect existing tables read-only
+- identify Lars collection data
+- identify whether Lore data exists
+- identify Pokémon TCG API references
+- identify ownership fields
+- identify RLS and policies
+- document risks and migration route
+
+### Acceptance criteria
+
+- schema inventory exists
+- data ownership assessment exists
+- migration recommendation exists
+- no data changes were made
+
+## Phase 4 – Collection Read-only Viewer
+
+### Goal
+
+Implement the first stable collection workflow: viewing owned cards only.
 
 ### Scope
 
 - view own collection
-- add card to own collection
-- update quantity
-- remove own item with safeguards
-- mobile-first list design
+- mobile-first collection list
+- read-only card detail view if approved
+- no add card
+- no edit quantity
+- no delete
+- no import
 
-## Phase 4 – Sets and Pokédex
+### Acceptance criteria
+
+- Lars can view Lars collection only.
+- Lore can view Lore collection only, if data exists.
+- Parent/admin access behavior is defined before use.
+- No write action is available in the UI or data layer.
+- Mobile performance is acceptable for existing collection size.
+
+## Phase 5 – Sets and Pokédex
 
 ### Goal
 
@@ -114,19 +163,33 @@ Provide reference browsing without harming mobile performance.
 - pagination or virtualization strategy
 - Supabase reference cache decision
 
-## Phase 5 – Wishlist
+## Phase 6 – Permission-based Collection Writes
+
+### Goal
+
+Add collection mutations only after read-only flows, ownership, and permissions are stable.
+
+### Scope
+
+- add card to own collection
+- update quantity
+- delete card only when permission allows it
+- safeguards for destructive actions
+- audit strategy if required
+
+## Phase 7 – Wishlist
 
 ### Goal
 
 Allow each user to manage wanted cards separately.
 
-## Phase 6 – Dashboard
+## Phase 8 – Dashboard
 
 ### Goal
 
 Create a useful overview based on stable collection data.
 
-## Phase 7 – AI Assistant Preparation
+## Phase 9 – AI Assistant Preparation
 
 ### Goal
 
@@ -134,7 +197,7 @@ Design AI integration safely after the core app is stable.
 
 Implementation only after ADR approval.
 
-## Phase 8 – Binder
+## Phase 10 – Binder
 
 ### Goal
 
