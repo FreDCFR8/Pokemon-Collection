@@ -6,17 +6,25 @@ Draft
 
 ## Context
 
-The application starts with Lars and Lore but must be designed so additional users can be added later.
+The application starts with Lars and Lore, includes a parent/admin account, and must be designed so additional users can be added later.
 
 A simple profile switcher without real user ownership would be easier but would not provide strong separation.
 
 ## Decision
 
-Each user has a separate Supabase Auth account.
+Each person has a separate Supabase Auth account.
+
+Required account types:
+
+- parent/admin
+- Lars
+- Lore
 
 Each authenticated account has one application profile.
 
 Collections, wishlist items, and future user-owned records belong to the authenticated user, not to a client-selected profile value.
+
+Parent/admin access to multiple collections must be explicit and policy-driven.
 
 ## Consequences
 
@@ -25,19 +33,27 @@ Positive:
 - strong data separation
 - future multi-user support
 - simpler RLS model
-- less risk of accidentally mixing Lars and Lore data
+- less risk of mixing Lars and Lore data
+- parent/admin account can be designed safely
 
 Negative:
 
 - onboarding is more complex
-- parent/admin flows require explicit design later
+- parent/admin flows require explicit design
+- permission management adds complexity
 
-## Open questions
+## Resolved decisions
 
-- Should a parent/admin account exist?
-- Should a parent/admin account be allowed to view both collections?
-- Should children be allowed to delete records?
-- Should destructive actions require confirmation or parent approval?
+- A parent/admin account will exist.
+- v1 collection behavior starts with viewing cards only.
+- Existing Supabase data is analyzed read-only first.
+- Change permissions for collection records must be explicit.
+
+## Remaining questions
+
+- Can parent/admin view both collections in the first read-only version?
+- Can parent/admin grant and revoke permissions?
+- Should sensitive record changes create an audit trail?
 
 ## Enforcement
 
