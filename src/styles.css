@@ -48,6 +48,7 @@ button {
 
 .app-header h1,
 .hero-panel h2,
+.env-config-card h2,
 .auth-state-card h2,
 .profile-status-card h2,
 .placeholder-card h2 {
@@ -104,6 +105,7 @@ button {
 }
 
 .hero-panel,
+.env-config-card,
 .auth-state-card,
 .profile-status-card,
 .placeholder-card {
@@ -114,6 +116,7 @@ button {
 }
 
 .hero-panel,
+.env-config-card,
 .auth-state-card,
 .profile-status-card {
   padding: 22px;
@@ -124,17 +127,20 @@ button {
   line-height: 1.05;
 }
 
+.env-config-card,
 .auth-state-card,
 .profile-status-card {
   margin-top: 18px;
 }
 
+.env-config-card h2,
 .auth-state-card h2,
 .profile-status-card h2 {
   font-size: 1.25rem;
 }
 
 .hero-panel p:last-child,
+.env-config-card p,
 .auth-state-card p,
 .profile-status-card p,
 .placeholder-card p {

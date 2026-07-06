@@ -1,4 +1,5 @@
 import { AuthStateCard } from './features/auth';
+import { EnvConfigStatusCard } from './features/config';
 import { ProfileStatusCard } from './features/profiles/ProfileStatusCard';
 
 const navigationItems = [
@@ -40,14 +41,15 @@ export function App() {
       </nav>
 
       <section className="hero-panel">
-        <p className="eyebrow">Auth state placeholder</p>
-        <h2>Loginstructuur voorbereid zonder echte login</h2>
+        <p className="eyebrow">Config readiness</p>
+        <h2>Configuratie voorbereid zonder data-opvraging</h2>
         <p>
-          De technische Supabase-rand bestaat, maar de app doet nog geen auth-call en haalt nog geen
-          echte profiel- of collectiegegevens op.
+          De app kan nu tonen of de publieke configuratie aanwezig lijkt. Er wordt nog geen login gestart
+          en er wordt nog geen echte profiel- of collectiegegevens opgehaald.
         </p>
       </section>
 
+      <EnvConfigStatusCard />
       <AuthStateCard />
       <ProfileStatusCard />
 
