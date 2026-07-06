@@ -48,6 +48,7 @@ button {
 
 .app-header h1,
 .hero-panel h2,
+.auth-state-card h2,
 .profile-status-card h2,
 .placeholder-card h2 {
   margin: 0;
@@ -103,6 +104,7 @@ button {
 }
 
 .hero-panel,
+.auth-state-card,
 .profile-status-card,
 .placeholder-card {
   border: 1px solid #dbe3ef;
@@ -112,6 +114,7 @@ button {
 }
 
 .hero-panel,
+.auth-state-card,
 .profile-status-card {
   padding: 22px;
 }
@@ -121,20 +124,50 @@ button {
   line-height: 1.05;
 }
 
+.auth-state-card,
 .profile-status-card {
   margin-top: 18px;
 }
 
+.auth-state-card h2,
 .profile-status-card h2 {
   font-size: 1.25rem;
 }
 
 .hero-panel p:last-child,
+.auth-state-card p,
 .profile-status-card p,
 .placeholder-card p {
   margin-bottom: 0;
   color: #475569;
   line-height: 1.6;
+}
+
+.status-list {
+  display: grid;
+  gap: 10px;
+  margin: 16px 0 0;
+}
+
+.status-list div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 12px 14px;
+}
+
+.status-list dt {
+  font-weight: 800;
+}
+
+.status-list dd {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.82rem;
+  font-weight: 800;
 }
 
 .profile-list {
