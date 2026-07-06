@@ -11,15 +11,15 @@ Phase 0 draft.
 - ADR-003 Supabase Source of Truth
 - ADR-004 Application Architecture
 - ADR-005 Git Strategy
-- ADR-006 UI Philosophy, pending
-- ADR-007 Performance Strategy, pending
-- ADR-008 AI Integration, pending
-- ADR-009 Authentication Strategy, pending
-- ADR-010 Offline and Cache Policy, pending
-- ADR-011 Pokémon TCG API Sync Strategy, pending
-- ADR-012 User/Profile Separation, pending
-- ADR-013 Testing Pyramid, pending
-- ADR-014 Release and Rollback Strategy, pending
+- ADR-006 UI Philosophy
+- ADR-007 Performance Strategy
+- ADR-008 AI Integration
+- ADR-009 Authentication Strategy
+- ADR-010 Offline and Cache Policy
+- ADR-011 Pokémon TCG API Sync Strategy
+- ADR-012 User/Profile Separation
+- ADR-013 Testing Pyramid
+- ADR-014 Release and Rollback Strategy
 
 ## Rule
 
