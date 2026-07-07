@@ -1,11 +1,12 @@
 import { useState } from 'react';
 
-type LoginPanelStatus = 'idle' | 'not_enabled';
+import { prepareLoginAction } from './loginActionBoundary';
+import type { LoginActionStatus } from './loginActionTypes';
 
 type LoginPanelState = {
   email: string;
   password: string;
-  status: LoginPanelStatus;
+  status: LoginActionStatus;
   message: string;
 };
 
@@ -29,8 +30,10 @@ export function LoginPanel() {
   const prepareLogin = () => {
     setFormState((currentState) => ({
       ...currentState,
-      status: 'not_enabled',
-      message: 'Login UI is voorbereid. Echte login wordt in een volgende fase geactiveerd.',
+      ...prepareLoginAction({
+        email: currentState.email,
+        password: currentState.password,
+      }),
     }));
   };
 
@@ -93,7 +96,13 @@ export function LoginPanel() {
         </div>
         <div>
           <dt>Formulierstatus</dt>
-          <dd>{formState.status === 'not_enabled' ? 'Niet geactiveerd' : 'Idle'}</dd>
+          <dd>
+            {formState.status === 'ready_for_later'
+              ? 'Klaar voor latere activatie'
+              : formState.status === 'failed'
+                ? 'Validatie mislukt'
+                : 'Idle'}
+          </dd>
         </div>
       </dl>
     </section>
