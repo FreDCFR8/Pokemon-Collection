@@ -1,5 +1,11 @@
 # Changelog
 
+## Phase 2N — Profile Schema Migration Plan
+
+- Added a documentation-only SQL migration plan for the future `public.profiles` table.
+- Included manual Supabase SQL Editor steps for table creation, indexes, `updated_at` trigger, select-own RLS policy, placeholder-only seed data, verification queries, and rollback.
+- Confirmed no real UUIDs, runtime code, Supabase app queries, collection reads, cards-table usage, automatic migration execution, RLS production changes, or workflow changes are included.
+
 ## Phase 2M — Profile Schema Design
 
 - Added documentation for the future `profiles` table, roles, Lars/Lore/parent records, profile readiness flow, and RLS direction.
