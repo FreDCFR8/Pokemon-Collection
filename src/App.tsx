@@ -1,4 +1,4 @@
-import { AuthStateCard } from './features/auth';
+import { AuthStateCard, LoginPanel } from './features/auth';
 import { EnvConfigStatusCard } from './features/config';
 import { ProfileStatusCard } from './features/profiles/ProfileStatusCard';
 
@@ -50,7 +50,10 @@ export function App() {
       </section>
 
       <EnvConfigStatusCard />
-      <AuthStateCard />
+      <section className="auth-layout" aria-label="Authenticatie voorbereiding">
+        <AuthStateCard />
+        <LoginPanel />
+      </section>
       <ProfileStatusCard />
 
       <section className="placeholder-grid" aria-label="Lege hoofdschermen">

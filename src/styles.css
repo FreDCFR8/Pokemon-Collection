@@ -50,6 +50,7 @@ button {
 .hero-panel h2,
 .env-config-card h2,
 .auth-state-card h2,
+.login-panel h2,
 .profile-status-card h2,
 .placeholder-card h2 {
   margin: 0;
@@ -107,6 +108,7 @@ button {
 .hero-panel,
 .env-config-card,
 .auth-state-card,
+.login-panel,
 .profile-status-card,
 .placeholder-card {
   border: 1px solid #dbe3ef;
@@ -118,6 +120,7 @@ button {
 .hero-panel,
 .env-config-card,
 .auth-state-card,
+.login-panel,
 .profile-status-card {
   padding: 22px;
 }
@@ -128,13 +131,19 @@ button {
 }
 
 .env-config-card,
-.auth-state-card,
+.auth-layout,
 .profile-status-card {
   margin-top: 18px;
 }
 
+.auth-layout {
+  display: grid;
+  gap: 18px;
+}
+
 .env-config-card h2,
 .auth-state-card h2,
+.login-panel h2,
 .profile-status-card h2 {
   font-size: 1.25rem;
 }
@@ -142,11 +151,57 @@ button {
 .hero-panel p:last-child,
 .env-config-card p,
 .auth-state-card p,
+.login-panel p,
 .profile-status-card p,
 .placeholder-card p {
   margin-bottom: 0;
   color: #475569;
   line-height: 1.6;
+}
+
+
+.login-form {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.login-form label {
+  display: grid;
+  gap: 8px;
+  color: #334155;
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.login-form input {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 14px;
+  background: #f8fafc;
+  padding: 12px 14px;
+  color: #172033;
+  font: inherit;
+}
+
+.login-form input:focus {
+  border-color: #2563eb;
+  outline: 3px solid rgb(37 99 235 / 0.16);
+}
+
+.login-form button {
+  min-height: 46px;
+  border: 0;
+  border-radius: 999px;
+  background: #2563eb;
+  color: #ffffff;
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.login-message {
+  border-left: 4px solid #2563eb;
+  padding-left: 12px;
 }
 
 .status-list {
@@ -227,6 +282,7 @@ button {
     padding: 32px 24px 48px;
   }
 
+  .auth-layout,
   .placeholder-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
