@@ -2,3 +2,4 @@ export type { AuthReadinessState, AuthReadinessStatus } from './authReadinessTyp
 export { authReadinessCopy, createAuthReadinessState } from './authReadinessTypes';
 export { checkAuthReadinessSessionStatus } from './authReadinessService';
 export { AuthStateCard } from './AuthStateCard';
+export { LoginPanel } from './LoginPanel';
