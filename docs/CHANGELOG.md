@@ -1,5 +1,11 @@
 # Changelog
 
+## Phase 2P — Profile Readiness Service
+
+- Added a profile readiness service that checks the active Supabase session and reads the signed-in user's own `public.profiles` record through the existing browser client boundary.
+- Added a UI card that reports signed-out, missing config, missing profile, ready profile, and error states while showing display name, username, role, and child key when available.
+- Confirmed this phase does not load collection data, does not use the cards table, does not write data, and does not change migrations, RLS, GitHub Actions, or Vercel workflows.
+
 ## Phase 2N — Profile Schema Migration Plan
 
 - Added a documentation-only SQL migration plan for the future `public.profiles` table.
