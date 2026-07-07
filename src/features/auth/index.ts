@@ -1,3 +1,4 @@
-export type { AuthReadinessStatus, AuthStatePlaceholder } from './authStateTypes';
-export { phase2AuthStatePlaceholder } from './authStateTypes';
+export type { AuthReadinessState, AuthReadinessStatus } from './authReadinessTypes';
+export { authReadinessCopy, createAuthReadinessState } from './authReadinessTypes';
+export { checkAuthReadinessSessionStatus } from './authReadinessService';
 export { AuthStateCard } from './AuthStateCard';

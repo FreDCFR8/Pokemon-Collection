@@ -176,6 +176,11 @@ button {
   font-weight: 800;
 }
 
+.status-note {
+  border-left: 4px solid #f59e0b;
+  padding-left: 12px;
+}
+
 .profile-list {
   display: grid;
   gap: 10px;
