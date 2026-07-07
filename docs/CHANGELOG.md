@@ -1,5 +1,11 @@
 # Changelog
 
+## Phase 2Q — Collection Data Model Design
+
+- Documented option B as the selected collection architecture: new `collections`, `cards_catalog`, and `collection_cards` tables around existing `profiles`.
+- Clarified that legacy `public.cards` remains untouched as a possible import source only, not the source of truth or a security boundary.
+- Captured conceptual relationships, security/RLS direction, out-of-scope items, and the proposed Phase 2R migration-plan follow-up without adding SQL, migrations, runtime queries, or app code.
+
 ## Phase 2P — Profile Readiness Service
 
 - Added a profile readiness service that checks the active Supabase session and reads the signed-in user's own `public.profiles` record through the existing browser client boundary.
