@@ -1,25 +1,28 @@
 import { useState } from 'react';
 
-type LoginPanelStatus = 'idle' | 'not_enabled';
+import { prepareLoginAction } from './loginActionBoundary';
+import type { LoginActionInput, LoginActionResult } from './loginActionTypes';
 
-type LoginPanelState = {
-  email: string;
-  password: string;
-  status: LoginPanelStatus;
-  message: string;
-};
+type LoginPanelState = LoginActionInput & LoginActionResult;
 
 const initialLoginPanelState: LoginPanelState = {
-  email: '',
+  username: '',
   password: '',
   status: 'idle',
-  message: 'Vul je gegevens in om de toekomstige login-flow visueel voor te bereiden.',
+  message: 'Vul je gebruikersnaam en wachtwoord in om de toekomstige login-flow visueel voor te bereiden.',
+};
+
+const loginStatusLabels: Record<LoginPanelState['status'], string> = {
+  ready_for_later: 'Klaar voor latere activatie',
+  failed: 'Validatie mislukt',
+  idle: 'Idle',
+  disabled: 'Niet geactiveerd',
 };
 
 export function LoginPanel() {
   const [formState, setFormState] = useState<LoginPanelState>(initialLoginPanelState);
 
-  const updateField = (field: 'email' | 'password', value: string) => {
+  const updateField = (field: keyof LoginActionInput, value: string) => {
     setFormState((currentState) => ({
       ...currentState,
       [field]: value,
@@ -29,8 +32,10 @@ export function LoginPanel() {
   const prepareLogin = () => {
     setFormState((currentState) => ({
       ...currentState,
-      status: 'not_enabled',
-      message: 'Login UI is voorbereid. Echte login wordt in een volgende fase geactiveerd.',
+      ...prepareLoginAction({
+        username: currentState.username,
+        password: currentState.password,
+      }),
     }));
   };
 
@@ -43,16 +48,16 @@ export function LoginPanel() {
       </p>
 
       <form className="login-form" onSubmit={(event) => event.preventDefault()}>
-        <label htmlFor="login-email">
-          E-mail
+        <label htmlFor="login-username">
+          Gebruikersnaam
           <input
-            id="login-email"
-            name="email"
-            type="email"
-            autoComplete="email"
-            value={formState.email}
-            onChange={(event) => updateField('email', event.target.value)}
-            placeholder="trainer@example.com"
+            id="login-username"
+            name="username"
+            type="text"
+            autoComplete="username"
+            value={formState.username}
+            onChange={(event) => updateField('username', event.target.value)}
+            placeholder="trainernaam"
           />
         </label>
 
@@ -93,7 +98,7 @@ export function LoginPanel() {
         </div>
         <div>
           <dt>Formulierstatus</dt>
-          <dd>{formState.status === 'not_enabled' ? 'Niet geactiveerd' : 'Idle'}</dd>
+          <dd>{loginStatusLabels[formState.status]}</dd>
         </div>
       </dl>
     </section>
