@@ -1,5 +1,11 @@
 # Changelog
 
+## Phase 2M — Profile Schema Design
+
+- Added documentation for the future `profiles` table, roles, Lars/Lore/parent records, profile readiness flow, and RLS direction.
+- Clarified that `auth.uid()` is the security boundary and that collection data must remain unloaded until profile ownership and access rules are safely designed.
+- Confirmed this phase is documentation-only with no runtime code, SQL, migrations, RLS changes, queries, writes, cards access, or workflow changes.
+
 ## Phase 2L — Controlled Supabase Login Activation
 
 - Activated controlled Supabase Auth sign-in through the existing auth login service for known usernames only.
