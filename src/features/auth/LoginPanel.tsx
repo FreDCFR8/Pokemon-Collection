@@ -1,16 +1,17 @@
 import { useState } from 'react';
+import { prepareLoginAction } from './loginActionBoundary';
 
 type LoginPanelStatus = 'idle' | 'not_enabled';
 
 type LoginPanelState = {
-  email: string;
+  username: string;
   password: string;
   status: LoginPanelStatus;
   message: string;
 };
 
 const initialLoginPanelState: LoginPanelState = {
-  email: '',
+  username: '',
   password: '',
   status: 'idle',
   message: 'Vul je gegevens in om de toekomstige login-flow visueel voor te bereiden.',
@@ -19,7 +20,7 @@ const initialLoginPanelState: LoginPanelState = {
 export function LoginPanel() {
   const [formState, setFormState] = useState<LoginPanelState>(initialLoginPanelState);
 
-  const updateField = (field: 'email' | 'password', value: string) => {
+  const updateField = (field: 'username' | 'password', value: string) => {
     setFormState((currentState) => ({
       ...currentState,
       [field]: value,
@@ -27,11 +28,18 @@ export function LoginPanel() {
   };
 
   const prepareLogin = () => {
-    setFormState((currentState) => ({
-      ...currentState,
-      status: 'not_enabled',
-      message: 'Login UI is voorbereid. Echte login wordt in een volgende fase geactiveerd.',
-    }));
+    setFormState((currentState) => {
+      const loginAction = prepareLoginAction({
+        username: currentState.username,
+        password: currentState.password,
+      });
+
+      return {
+        ...currentState,
+        status: loginAction.prepared ? 'not_enabled' : 'idle',
+        message: loginAction.message,
+      };
+    });
   };
 
   return (
@@ -43,16 +51,16 @@ export function LoginPanel() {
       </p>
 
       <form className="login-form" onSubmit={(event) => event.preventDefault()}>
-        <label htmlFor="login-email">
-          E-mail
+        <label htmlFor="login-username">
+          Gebruikersnaam
           <input
-            id="login-email"
-            name="email"
-            type="email"
-            autoComplete="email"
-            value={formState.email}
-            onChange={(event) => updateField('email', event.target.value)}
-            placeholder="trainer@example.com"
+            id="login-username"
+            name="username"
+            type="text"
+            autoComplete="username"
+            value={formState.username}
+            onChange={(event) => updateField('username', event.target.value)}
+            placeholder="lars"
           />
         </label>
 

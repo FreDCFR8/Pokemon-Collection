@@ -3,3 +3,5 @@ export { authReadinessCopy, createAuthReadinessState } from './authReadinessType
 export { checkAuthReadinessSessionStatus } from './authReadinessService';
 export { AuthStateCard } from './AuthStateCard';
 export { LoginPanel } from './LoginPanel';
+export type { LoginActionBoundaryResult, LoginActionInput } from './loginActionBoundary';
+export { prepareLoginAction } from './loginActionBoundary';
