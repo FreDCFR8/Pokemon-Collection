@@ -1,4 +1,4 @@
-export type AuthLoginServiceStatus = 'disabled' | 'ready_for_later' | 'failed';
+export type AuthLoginServiceStatus = 'disabled' | 'ready_for_later' | 'failed' | 'authenticated';
 
 export type AuthLoginServiceInput = {
   username: string;
@@ -12,4 +12,5 @@ export type AuthLoginServiceResult = {
   resolvedUsername?: string;
   authTargetPrepared?: boolean;
   loginExecuted: boolean;
+  sessionPresent?: boolean;
 };

@@ -1,5 +1,11 @@
 # Changelog
 
+## Phase 2L — Controlled Supabase Login Activation
+
+- Activated controlled Supabase Auth sign-in through the existing auth login service for known usernames only.
+- Kept `hiddenAuthEmail` internal while reporting login execution and confirmed session status in LoginPanel.
+- Confirmed this phase does not load profile data, collection data, cards-table data, migrations, RLS changes, or workflow changes.
+
 ## Phase 2K — Auth Login Service Skeleton
 
 - Added a disabled Auth Login Service Skeleton that reuses the login action boundary without importing Supabase clients or executing auth calls.
