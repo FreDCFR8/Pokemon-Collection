@@ -1,6 +1,6 @@
 import { AuthStateCard, LoginPanel } from './features/auth';
 import { EnvConfigStatusCard } from './features/config';
-import { ProfileStatusCard } from './features/profiles/ProfileStatusCard';
+import { ProfileReadinessCard, ProfileStatusCard } from './features/profiles';
 
 const navigationItems = [
   'Dashboard',
@@ -53,6 +53,7 @@ export function App() {
       <section className="auth-layout" aria-label="Authenticatie voorbereiding">
         <AuthStateCard />
         <LoginPanel />
+        <ProfileReadinessCard />
       </section>
       <ProfileStatusCard />
 
