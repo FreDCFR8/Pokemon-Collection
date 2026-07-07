@@ -9,4 +9,6 @@ export type LoginActionResult = {
   status: LoginActionStatus;
   message: string;
   errorMessage?: string;
+  resolvedUsername?: string;
+  authTargetPrepared?: boolean;
 };
