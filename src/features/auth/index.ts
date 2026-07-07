@@ -3,5 +3,7 @@ export { authReadinessCopy, createAuthReadinessState } from './authReadinessType
 export { checkAuthReadinessSessionStatus } from './authReadinessService';
 export type { LoginActionInput, LoginActionResult, LoginActionStatus } from './loginActionTypes';
 export { prepareLoginAction } from './loginActionBoundary';
+export type { KnownChildUsername, UsernameAuthTarget } from './usernameAuthMappingTypes';
+export { isKnownChildUsername, normalizeUsername, resolveUsernameAuthTarget } from './usernameAuthMapping';
 export { AuthStateCard } from './AuthStateCard';
 export { LoginPanel } from './LoginPanel';

@@ -85,6 +85,10 @@ export function LoginPanel() {
 
       <dl className="status-list">
         <div>
+          <dt>Auth-target</dt>
+          <dd>{formState.authTargetPrepared ? 'Voorbereid' : 'Niet voorbereid'}</dd>
+        </div>
+        <div>
           <dt>Login-call</dt>
           <dd>Niet uitgevoerd</dd>
         </div>
