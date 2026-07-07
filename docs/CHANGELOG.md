@@ -1,5 +1,11 @@
 # Changelog
 
+## Phase 2K — Auth Login Service Skeleton
+
+- Added a disabled Auth Login Service Skeleton that reuses the login action boundary without importing Supabase clients or executing auth calls.
+- Updated LoginPanel to prepare login through the new service while keeping login execution, profile data, and collection data disabled/not loaded.
+- Documented that `loginExecuted` remains `false` and `hiddenAuthEmail` is not used for an auth call in this phase.
+
 ## Phase 2J — Login Activation Skeleton
 
 - Added a local username-to-hidden-auth-target mapping skeleton for `lars` and `lore`.

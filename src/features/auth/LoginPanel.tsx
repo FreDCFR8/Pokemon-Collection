@@ -1,28 +1,29 @@
 import { useState } from 'react';
 
-import { prepareLoginAction } from './loginActionBoundary';
-import type { LoginActionInput, LoginActionResult } from './loginActionTypes';
+import { prepareAuthLogin } from './authLoginService';
+import type { AuthLoginServiceInput, AuthLoginServiceResult } from './authLoginServiceTypes';
 
-type LoginPanelState = LoginActionInput & LoginActionResult;
+type LoginPanelState = AuthLoginServiceInput & AuthLoginServiceResult;
 
 const initialLoginPanelState: LoginPanelState = {
   username: '',
   password: '',
-  status: 'idle',
+  status: 'disabled',
   message: 'Vul je gebruikersnaam en wachtwoord in om de toekomstige login-flow visueel voor te bereiden.',
+  authTargetPrepared: false,
+  loginExecuted: false,
 };
 
-const loginStatusLabels: Record<LoginPanelState['status'], string> = {
+const authServiceStatusLabels: Record<LoginPanelState['status'], string> = {
+  disabled: 'Uitgeschakeld',
   ready_for_later: 'Klaar voor latere activatie',
-  failed: 'Validatie mislukt',
-  idle: 'Idle',
-  disabled: 'Niet geactiveerd',
+  failed: 'Niet klaar',
 };
 
 export function LoginPanel() {
   const [formState, setFormState] = useState<LoginPanelState>(initialLoginPanelState);
 
-  const updateField = (field: keyof LoginActionInput, value: string) => {
+  const updateField = (field: keyof AuthLoginServiceInput, value: string) => {
     setFormState((currentState) => ({
       ...currentState,
       [field]: value,
@@ -32,7 +33,7 @@ export function LoginPanel() {
   const prepareLogin = () => {
     setFormState((currentState) => ({
       ...currentState,
-      ...prepareLoginAction({
+      ...prepareAuthLogin({
         username: currentState.username,
         password: currentState.password,
       }),
@@ -90,7 +91,7 @@ export function LoginPanel() {
         </div>
         <div>
           <dt>Login-call</dt>
-          <dd>Niet uitgevoerd</dd>
+          <dd>{formState.loginExecuted ? 'Uitgevoerd' : 'Niet uitgevoerd'}</dd>
         </div>
         <div>
           <dt>Profieldata</dt>
@@ -101,8 +102,8 @@ export function LoginPanel() {
           <dd>Niet geladen</dd>
         </div>
         <div>
-          <dt>Formulierstatus</dt>
-          <dd>{loginStatusLabels[formState.status]}</dd>
+          <dt>Auth-service</dt>
+          <dd>{authServiceStatusLabels[formState.status]}</dd>
         </div>
       </dl>
     </section>

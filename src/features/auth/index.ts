@@ -3,6 +3,12 @@ export { authReadinessCopy, createAuthReadinessState } from './authReadinessType
 export { checkAuthReadinessSessionStatus } from './authReadinessService';
 export type { LoginActionInput, LoginActionResult, LoginActionStatus } from './loginActionTypes';
 export { prepareLoginAction } from './loginActionBoundary';
+export type {
+  AuthLoginServiceInput,
+  AuthLoginServiceResult,
+  AuthLoginServiceStatus,
+} from './authLoginServiceTypes';
+export { prepareAuthLogin } from './authLoginService';
 export type { KnownChildUsername, UsernameAuthTarget } from './usernameAuthMappingTypes';
 export { isKnownChildUsername, normalizeUsername, resolveUsernameAuthTarget } from './usernameAuthMapping';
 export { AuthStateCard } from './AuthStateCard';
