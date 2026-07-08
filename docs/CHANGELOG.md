@@ -1,5 +1,11 @@
 # Changelog
 
+## Phase 2Y — Preview Query Sorting Fix
+
+- Changed the collection cards preview query to start from `cards_catalog` with an inner `collection_cards` filter for the current main collection.
+- Moved preview sorting to root-level catalog fields (`pokemon`, `set_name`, `number`) so the first preview cards align with the direct alphabetic Supabase check.
+- Kept the count query on `collection_cards`, preserved read-only behavior, avoided `public.cards`, and documented that legacy technical names remain a data-quality cleanup outside this phase.
+
 ## Phase 2X — Read-only Collection Cards Service
 
 - Added a read-only collection cards preview service that reuses profile and collection readiness before reading `collection_cards` with nested `cards_catalog` data for the signed-in user's main collection.
