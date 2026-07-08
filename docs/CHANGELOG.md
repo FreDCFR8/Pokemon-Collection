@@ -1,5 +1,12 @@
 # Changelog
 
+## Phase 3B — App Shell & Collection Tab Cleanup
+
+- Moved the readiness, login, status, and collection preview stack into a dedicated Dashboard page.
+- Changed the Collection tab to render only the real read-only `CollectionPage`, without dashboard/debug blocks.
+- Kept hash navigation, Dashboard fallback behavior, `aria-current`, and placeholder-only Sets, Wishlist, and Pokédex tabs.
+- Documented the Phase 3B scope, tab split, non-goals, and rollback plan.
+
 ## Phase 3A — Read-only Collection Page Foundation
 
 - Added a read-only Collection-tab page for the signed-in user's main collection.
