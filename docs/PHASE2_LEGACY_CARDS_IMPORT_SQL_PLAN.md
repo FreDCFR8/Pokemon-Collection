@@ -41,11 +41,15 @@ The future SQL import must normalize nullable ownership fields as follows:
 
 - `coalesce(cards.status, 'owned') as status`
 - `coalesce(cards.quantity, 1) as quantity`
+- `coalesce(cards.added_at, current_date) as added_at`
+
+The import must validate status values against the target `public.collection_cards` status list: `owned`, `wishlist`, `trade`, and `missing`. Unknown effective statuses must be filtered out before insert so they cannot violate the target status check.
 
 The import must skip invalid rows:
 
 - Do not import rows where the effective quantity is `<= 0`.
 - Do not import rows where `public.cards.pokemon` is `null` or blank after trimming.
+- Do not import rows where the effective status is not one of the allowed target statuses.
 
 ## 5. Dry-run checks
 
@@ -73,12 +77,28 @@ where cards.collection = 'Lars'
 ```
 
 ```sql
+select coalesce(cards.status, 'owned') as effective_status, count(*) as legacy_rows
+from public.cards as cards
+where cards.collection = 'Lars'
+group by coalesce(cards.status, 'owned')
+order by effective_status;
+```
+
+```sql
+select count(*) as skipped_unknown_status
+from public.cards as cards
+where cards.collection = 'Lars'
+  and coalesce(cards.status, 'owned') not in ('owned', 'wishlist', 'trade', 'missing');
+```
+
+```sql
 select count(*) as importable_lars_rows
 from public.cards as cards
 where cards.collection = 'Lars'
   and cards.pokemon is not null
   and trim(cards.pokemon) <> ''
-  and coalesce(cards.quantity, 1) > 0;
+  and coalesce(cards.quantity, 1) > 0
+  and coalesce(cards.status, 'owned') in ('owned', 'wishlist', 'trade', 'missing');
 ```
 
 ## 6. Lars main collection guard
@@ -136,6 +156,7 @@ with candidates as (
     and cards.pokemon is not null
     and trim(cards.pokemon) <> ''
     and coalesce(cards.quantity, 1) > 0
+    and coalesce(cards.status, 'owned') in ('owned', 'wishlist', 'trade', 'missing')
 )
 insert into public.cards_catalog (
   external_source,
@@ -191,12 +212,13 @@ with candidates as (
     coalesce(cards.quantity, 1) as quantity,
     cards.condition,
     coalesce(cards.status, 'owned') as status,
-    cards.added_at
+    coalesce(cards.added_at, current_date) as added_at
   from public.cards as cards
   where cards.collection = 'Lars'
     and cards.pokemon is not null
     and trim(cards.pokemon) <> ''
     and coalesce(cards.quantity, 1) > 0
+    and coalesce(cards.status, 'owned') in ('owned', 'wishlist', 'trade', 'missing')
 ), ownership_source as (
   select
     lars_main_collection.collection_id,
