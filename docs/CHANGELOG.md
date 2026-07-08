@@ -1,5 +1,13 @@
 # Changelog
 
+## Phase 3A — Read-only Collection Page Foundation
+
+- Added a read-only Collection-tab page for the signed-in user's main collection.
+- Added server-side pagination with a fixed page size of 24 cards.
+- Added safe count and page queries through `collection_cards` and `cards_catalog`.
+- Added mobile-first card grid, empty state, and Previous / Next navigation.
+- Documented the Phase 3A scope, query path, pagination policy, performance rationale, security expectations, non-goals, and rollback plan.
+
 ## Phase 2Y — Preview Query Sorting Fix
 
 - Changed the collection cards preview query to start from `cards_catalog` with an inner `collection_cards` filter for the current main collection.
