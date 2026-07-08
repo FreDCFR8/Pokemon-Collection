@@ -1,5 +1,13 @@
 # Changelog
 
+## Phase 3C — Collection Page UX Polish
+
+- Improved the read-only Collection page summary with total cards, current page / total pages, and the fixed 24 cards per page.
+- Added bottom pagination while keeping the existing Previous / Next behavior and Phase 3A page size/count model.
+- Polished the mobile-first card UI with calmer image placement, compact set/number and rarity details, and quantity/status/condition meta badges.
+- Added a clean “Geen afbeelding” missing-image placeholder and a subtle legacy-import note without changing data.
+- Confirmed no new data functionality, writes, runtime `public.cards` query, search, filters, sorting, dependencies, SQL, or RLS changes were added.
+
 ## Phase 3B — App Shell & Collection Tab Cleanup
 
 - Moved the readiness, login, status, and collection preview stack into a dedicated Dashboard page.

@@ -485,7 +485,7 @@ button {
   background: #ffffff;
   box-shadow: 0 18px 50px rgb(15 23 42 / 0.08);
   margin-top: 18px;
-  padding: 22px;
+  padding: 18px;
 }
 
 .collection-page h2 {
@@ -505,32 +505,59 @@ button {
 }
 
 .collection-page-summary div {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  display: grid;
+  gap: 4px;
   border: 1px solid #e2e8f0;
-  border-radius: 16px;
+  border-radius: 18px;
+  background: #f8fafc;
   padding: 12px 14px;
 }
 
 .collection-page-summary dt {
   color: #64748b;
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   font-weight: 900;
+  text-transform: uppercase;
 }
 
 .collection-page-summary dd {
   margin: 0;
   color: #172033;
-  font-weight: 900;
+  font-size: 1.1rem;
+  font-weight: 950;
+}
+
+.collection-page-legacy-note,
+.collection-page-loading,
+.collection-page-empty {
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  margin: 16px 0 0;
+  padding: 12px 14px;
+  background: #f8fafc;
+  font-size: 0.9rem;
+  font-weight: 750;
+}
+
+.collection-page-legacy-note {
+  color: #64748b;
+}
+
+.collection-page-loading {
+  min-height: 56px;
+  color: #475569;
+}
+
+.collection-page-empty {
+  border-style: dashed;
+  font-weight: 800;
 }
 
 .collection-page-pagination {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   margin-top: 16px;
 }
 
@@ -551,18 +578,9 @@ button {
 
 .collection-page-pagination span {
   color: #475569;
-  font-size: 0.86rem;
+  font-size: 0.82rem;
   font-weight: 900;
   text-align: center;
-}
-
-.collection-page-empty {
-  border: 1px dashed #cbd5e1;
-  border-radius: 16px;
-  margin: 16px 0 0;
-  padding: 14px;
-  background: #f8fafc;
-  font-weight: 800;
 }
 
 .collection-page-grid {
@@ -575,43 +593,83 @@ button {
 
 .collection-page-grid li {
   display: grid;
-  grid-template-columns: 78px minmax(0, 1fr);
   gap: 12px;
   border: 1px solid #e2e8f0;
-  border-radius: 18px;
+  border-radius: 20px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
   padding: 12px;
 }
 
-.collection-page-grid img {
-  width: 78px;
-  min-height: 108px;
-  border-radius: 12px;
+.collection-page-grid img,
+.collection-page-grid .card-image-placeholder {
+  width: 100%;
+  max-width: 180px;
+  min-height: 188px;
+  justify-self: center;
+  border-radius: 14px;
   background: #e2e8f0;
-  object-fit: cover;
+  object-fit: contain;
+}
+
+.collection-page-grid .card-image-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed #cbd5e1;
+  background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 950;
+  text-align: center;
+}
+
+.collection-page-card-body {
+  min-width: 0;
 }
 
 .collection-page-card-body h3 {
   margin: 0;
   color: #172033;
-  font-size: 1rem;
+  font-size: 1.04rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
 }
 
-.collection-page-card-body p {
-  margin: 4px 0 0;
-  font-size: 0.86rem;
+.collection-page-card-set,
+.collection-page-card-rarity {
+  margin: 5px 0 0;
+  color: #64748b;
+  font-size: 0.84rem;
+  line-height: 1.35;
+}
+
+.collection-page-card-rarity {
+  display: inline-flex;
+  width: fit-content;
+  border-radius: 999px;
+  background: #eef2ff;
+  padding: 4px 9px;
+  color: #4338ca;
+  font-weight: 850;
 }
 
 .collection-page-card-meta {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin: 12px 0 0;
 }
 
 .collection-page-card-meta div {
-  border-radius: 12px;
-  background: #f8fafc;
-  padding: 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  background: #ffffff;
+  padding: 6px 9px;
+}
+
+.collection-page-card-meta dt,
+.collection-page-card-meta dd {
+  display: inline;
 }
 
 .collection-page-card-meta dt {
@@ -621,11 +679,36 @@ button {
   text-transform: uppercase;
 }
 
+.collection-page-card-meta dt::after {
+  content: ': ';
+}
+
 .collection-page-card-meta dd {
-  margin: 2px 0 0;
+  margin: 0;
   color: #172033;
-  font-size: 0.8rem;
-  font-weight: 800;
+  font-size: 0.78rem;
+  font-weight: 850;
+}
+
+@media (min-width: 560px) {
+  .collection-page {
+    padding: 22px;
+  }
+
+  .collection-page-summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .collection-page-grid li {
+    grid-template-columns: 92px minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .collection-page-grid img,
+  .collection-page-grid .card-image-placeholder {
+    width: 92px;
+    min-height: 128px;
+  }
 }
 
 @media (min-width: 720px) {
