@@ -8,6 +8,11 @@
 - Added a clean “Geen afbeelding” missing-image placeholder and a subtle legacy-import note without changing data.
 - Confirmed no new data functionality, writes, runtime `public.cards` query, search, filters, sorting, dependencies, SQL, or RLS changes were added.
 
+## Phase 3B Bugfix — Pokédex Navigation Slug
+
+- Fixed the Pokédex navigation hash to use `#pokedex` instead of an accented slug.
+- Kept the Pokédex tab as a placeholder-only page and did not add collection data behavior.
+
 ## Phase 3B — App Shell & Collection Tab Cleanup
 
 - Moved the readiness, login, status, and collection preview stack into a dedicated Dashboard page.

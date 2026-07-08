@@ -15,6 +15,10 @@ const navigationItems = [
 ];
 
 function toNavigationHash(item: string): string {
+  if (item === 'Pokédex') {
+    return 'pokedex';
+  }
+
   return item.toLowerCase();
 }
 
