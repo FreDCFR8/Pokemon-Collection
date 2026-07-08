@@ -12,12 +12,15 @@ type CardsCatalogPreviewRow = {
   image_small: string | null;
 };
 
-type CollectionCardPreviewRow = {
+type CollectionCardOwnershipRow = {
   quantity: number | null;
   condition: string | null;
   status: string | null;
   added_at: string | null;
-  cards_catalog: CardsCatalogPreviewRow | CardsCatalogPreviewRow[] | null;
+};
+
+type CollectionCardPreviewRow = CardsCatalogPreviewRow & {
+  collection_cards: CollectionCardOwnershipRow | CollectionCardOwnershipRow[] | null;
 };
 
 function toSafeErrorMessage(message: string | undefined): string {
@@ -31,27 +34,29 @@ function toSafeErrorMessage(message: string | undefined): string {
     .slice(0, 240);
 }
 
-function firstCatalogRow(cardsCatalog: CollectionCardPreviewRow['cards_catalog']): CardsCatalogPreviewRow | null {
-  if (Array.isArray(cardsCatalog)) {
-    return cardsCatalog[0] ?? null;
+function firstOwnershipRow(
+  collectionCards: CollectionCardPreviewRow['collection_cards'],
+): CollectionCardOwnershipRow | null {
+  if (Array.isArray(collectionCards)) {
+    return collectionCards[0] ?? null;
   }
 
-  return cardsCatalog;
+  return collectionCards;
 }
 
 function toPreviewItem(row: CollectionCardPreviewRow): CollectionCardPreviewItem {
-  const catalog = firstCatalogRow(row.cards_catalog);
+  const ownership = firstOwnershipRow(row.collection_cards);
 
   return {
-    pokemon: catalog?.pokemon ?? null,
-    setName: catalog?.set_name ?? null,
-    number: catalog?.number ?? null,
-    rarity: catalog?.rarity ?? null,
-    quantity: row.quantity,
-    condition: row.condition,
-    status: row.status,
-    imageSmall: catalog?.image_small ?? null,
-    addedAt: row.added_at,
+    pokemon: row.pokemon ?? null,
+    setName: row.set_name ?? null,
+    number: row.number ?? null,
+    rarity: row.rarity ?? null,
+    quantity: ownership?.quantity ?? null,
+    condition: ownership?.condition ?? null,
+    status: ownership?.status ?? null,
+    imageSmall: row.image_small ?? null,
+    addedAt: ownership?.added_at ?? null,
   };
 }
 
@@ -142,26 +147,26 @@ export async function loadCollectionCardsPreview(): Promise<CollectionCardsPrevi
   }
 
   const { data, error } = await supabase
-    .from('collection_cards')
+    .from('cards_catalog')
     .select(
       `
-        quantity,
-        condition,
-        status,
-        added_at,
-        cards_catalog (
-          pokemon,
-          set_name,
-          number,
-          rarity,
-          image_small
+        pokemon,
+        set_name,
+        number,
+        rarity,
+        image_small,
+        collection_cards!inner (
+          quantity,
+          condition,
+          status,
+          added_at
         )
       `,
     )
-    .eq('collection_id', mainCollectionId)
-    .order('pokemon', { referencedTable: 'cards_catalog', ascending: true })
-    .order('set_name', { referencedTable: 'cards_catalog', ascending: true })
-    .order('number', { referencedTable: 'cards_catalog', ascending: true })
+    .eq('collection_cards.collection_id', mainCollectionId)
+    .order('pokemon', { ascending: true })
+    .order('set_name', { ascending: true })
+    .order('number', { ascending: true })
     .limit(PREVIEW_LIMIT);
 
   if (error) {

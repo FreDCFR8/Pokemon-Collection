@@ -26,7 +26,18 @@ De service gebruikt de `collection_id` van de gevonden hoofdcollectie als client
 De preview gebruikt twee read-only queries:
 
 1. Een head/count query op `collection_cards` met `collection_id`.
-2. Een select query op `collection_cards` met geneste `cards_catalog` velden, gesorteerd op `pokemon`, `set_name` en `number`, met een limiet van 12 records.
+2. Een select query op `cards_catalog` als root table met een inner join naar `collection_cards`, gefilterd op de hoofdcollectie, root-level gesorteerd op `pokemon`, `set_name` en `number`, met een limiet van 12 records.
+
+
+## Phase 2Y — Preview Query Sorting Fix
+
+Phase 2Y corrigeert alleen de read-only preview-query. De count-query blijft op `collection_cards` met de `collection_id` van de hoofdcollectie, maar de preview start nu vanuit `cards_catalog` als root table en gebruikt een inner join naar `collection_cards` om alleen kaarten uit de huidige hoofdcollectie te tonen.
+
+Reden: de eerdere query startte vanuit `collection_cards` en sorteerde via nested `cards_catalog` velden met `referencedTable`. Die nested ordering gaf in de runtime preview geen betrouwbare alfabetische volgorde. Door root-level te sorteren op `cards_catalog.pokemon`, `cards_catalog.set_name` en `cards_catalog.number` sluit de app-preview aan op de directe Supabase controle waarin de eerste kaarten alfabetisch beginnen met Abra, Absol en Accelgor.
+
+De mapping blijft read-only en splitst catalogusvelden (`pokemon`, `set_name`, `number`, `rarity`, `image_small`) van ownershipvelden (`quantity`, `condition`, `status`, `added_at`). Omdat Supabase geneste joinresultaten als object of array kan teruggeven, neemt de service robuust de eerste `collection_cards` ownership row. UUIDs worden niet getoond.
+
+Data quality finding: sommige legacy rows bevatten nog technische kaartnamen of codes. Datacleanup is bewust out of scope voor Phase 2Y; deze fase wijzigt geen data en voert geen SQL uit.
 
 ## Read-only regels
 
