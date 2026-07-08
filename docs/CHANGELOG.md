@@ -1,5 +1,13 @@
 # Changelog
 
+## Phase 2V — Legacy Cards Import SQL Plan
+
+- Legacy Cards Import SQL Plan toegevoegd.
+- Bevat dry-run queries, idempotente import SQL, verification queries en rollback SQL.
+- Geen SQL uitgevoerd.
+- Geen runtime code gewijzigd.
+- Geen data geschreven.
+
 ## Phase 2U — Legacy Cards Import Design
 
 - Added a documentation-only design for a future controlled import from legacy `public.cards` into `cards_catalog` and `collection_cards`.

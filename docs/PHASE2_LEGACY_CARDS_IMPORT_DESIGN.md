@@ -289,3 +289,205 @@ Expliciet niet in scope voor deze fase:
 ### Phase 2V — Legacy Cards Import SQL Plan
 
 Doel: concrete SQL voorbereiden voor een idempotente, manuele import van `public.cards` naar `cards_catalog` en `collection_cards`, maar nog steeds niet uitvoeren.
+
+## 15. Phase 2V — Legacy Cards Import SQL Plan
+
+Status: documentation-only SQL plan. Deze SQL is voorbereid voor handmatige uitvoering in de Supabase SQL Editor, maar is in deze fase niet uitgevoerd.
+
+### 15.1 Veiligheidsregels
+
+- Voer eerst alle dry-run queries uit en controleer de resultaten handmatig.
+- Stop als er `0` of meer dan `1` Lars hoofdcollectie bestaat.
+- De import gebruikt geen `auth_user_id`; de mapping loopt via `profiles.username = 'lars'` en `collections.type = 'main'`.
+- Als er `0` of meer dan `1` Lars hoofdcollectie is, retourneert de guarded importselectie `0` rows. De uitvoerder moet dan stoppen en de oorzaak oplossen voordat er opnieuw SQL wordt voorbereid of uitgevoerd.
+- `status is null` wordt behandeld als `owned`.
+- `quantity is null` wordt behandeld als `1`.
+- `quantity <= 0` blijft ongeldig.
+- `pokemon is null` of leeg blijft ongeldig.
+- `public.cards` wordt alleen gelezen en nooit aangepast.
+- Er zijn geen echte UUIDs of secrets nodig in dit plan.
+
+### 15.2 Dry-run checks
+
+```sql
+-- Controleer of exact één Lars main collection bestaat.
+with lars_main_collection_candidates as (
+  select c.id
+  from public.collections c
+  join public.profiles p on p.id = c.profile_id
+  where p.username = 'lars'
+    and c.type = 'main'
+)
+select count(*) as lars_main_collection_count
+from lars_main_collection_candidates;
+```
+
+```sql
+-- Controleer legacy source data met dezelfde null-handling als de import.
+select
+  count(*) as total_legacy_cards,
+  count(*) filter (
+    where cards.pokemon is null
+       or btrim(cards.pokemon) = ''
+  ) as invalid_missing_pokemon,
+  count(*) filter (
+    where cards.quantity is not null
+      and cards.quantity <= 0
+  ) as invalid_non_positive_quantity,
+  count(*) filter (
+    where coalesce(cards.status, 'owned') not in ('owned', 'wishlist', 'trade', 'missing')
+  ) as invalid_status,
+  count(*) filter (
+    where cards.pokemon is not null
+      and btrim(cards.pokemon) <> ''
+      and (cards.quantity is null or cards.quantity > 0)
+      and coalesce(cards.status, 'owned') in ('owned', 'wishlist', 'trade', 'missing')
+  ) as importable_cards
+from public.cards cards;
+```
+
+```sql
+-- Preview de genormaliseerde importregels zonder writes.
+select
+  cards.id as legacy_card_id,
+  btrim(cards.pokemon) as pokemon_name,
+  cards.card_number,
+  cards.set_name,
+  coalesce(cards.quantity, 1) as quantity,
+  coalesce(cards.status, 'owned') as status
+from public.cards cards
+where cards.pokemon is not null
+  and btrim(cards.pokemon) <> ''
+  and (cards.quantity is null or cards.quantity > 0)
+  and coalesce(cards.status, 'owned') in ('owned', 'wishlist', 'trade', 'missing')
+order by cards.id;
+```
+
+### 15.3 Idempotente import SQL
+
+De guard in `lars_main_collection` zorgt ervoor dat de import alleen rows selecteert als exact één Lars hoofdcollectie bestaat. Bij `0` of meer dan `1` kandidaat-collectie importeert de query `0` rows; stop dan en los eerst de datakwaliteit of seed-data op.
+
+```sql
+begin;
+
+with lars_main_collection_candidates as (
+  select c.id
+  from public.collections c
+  join public.profiles p on p.id = c.profile_id
+  where p.username = 'lars'
+    and c.type = 'main'
+),
+lars_main_collection as (
+  select id
+  from lars_main_collection_candidates
+  where (select count(*) from lars_main_collection_candidates) = 1
+),
+legacy_cards as (
+  select
+    cards.id as legacy_card_id,
+    btrim(cards.pokemon) as pokemon_name,
+    cards.card_number,
+    cards.set_name,
+    coalesce(cards.quantity, 1) as quantity,
+    coalesce(cards.status, 'owned') as status
+  from public.cards cards
+  where cards.pokemon is not null
+    and btrim(cards.pokemon) <> ''
+    and (cards.quantity is null or cards.quantity > 0)
+    and coalesce(cards.status, 'owned') in ('owned', 'wishlist', 'trade', 'missing')
+),
+upsert_catalog as (
+  insert into public.cards_catalog (
+    external_source,
+    external_id,
+    name,
+    card_number,
+    set_name
+  )
+  select
+    'legacy_public_cards' as external_source,
+    legacy_cards.legacy_card_id::text as external_id,
+    legacy_cards.pokemon_name as name,
+    legacy_cards.card_number,
+    legacy_cards.set_name
+  from legacy_cards
+  cross join lars_main_collection
+  on conflict (external_source, external_id) do update set
+    name = excluded.name,
+    card_number = excluded.card_number,
+    set_name = excluded.set_name
+  returning id, external_id
+)
+insert into public.collection_cards (
+  collection_id,
+  card_catalog_id,
+  quantity,
+  status
+)
+select
+  lars_main_collection.id as collection_id,
+  upsert_catalog.id as card_catalog_id,
+  legacy_cards.quantity,
+  legacy_cards.status
+from legacy_cards
+join upsert_catalog on upsert_catalog.external_id = legacy_cards.legacy_card_id::text
+cross join lars_main_collection
+on conflict (collection_id, card_catalog_id) do update set
+  quantity = excluded.quantity,
+  status = excluded.status;
+
+commit;
+```
+
+### 15.4 Verification queries
+
+```sql
+select count(*) as imported_catalog_cards
+from public.cards_catalog
+where external_source = 'legacy_public_cards';
+```
+
+```sql
+select count(*) as imported_collection_cards
+from public.collection_cards cc
+join public.cards_catalog catalog on catalog.id = cc.card_catalog_id
+where catalog.external_source = 'legacy_public_cards';
+```
+
+```sql
+select
+  cc.collection_id,
+  catalog.external_id,
+  catalog.name,
+  cc.quantity,
+  cc.status
+from public.collection_cards cc
+join public.cards_catalog catalog on catalog.id = cc.card_catalog_id
+where catalog.external_source = 'legacy_public_cards'
+order by catalog.external_id;
+```
+
+### 15.5 Rollback SQL
+
+Rollback verwijdert eerst de collectie-koppelingen en daarna pas de catalogusregels. `public.cards` wordt nooit gewijzigd.
+
+```sql
+begin;
+
+delete from public.collection_cards cc
+using public.cards_catalog catalog
+where cc.card_catalog_id = catalog.id
+  and catalog.external_source = 'legacy_public_cards';
+
+delete from public.cards_catalog
+where external_source = 'legacy_public_cards';
+
+commit;
+```
+
+### 15.6 Niet uitgevoerd in deze fase
+
+- Geen SQL uitgevoerd.
+- Geen runtime code gewijzigd.
+- Geen data geschreven.
+- Geen app-query toegevoegd.
