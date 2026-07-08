@@ -52,6 +52,7 @@ button {
 .auth-state-card h2,
 .login-panel h2,
 .profile-readiness-card h2,
+.collection-readiness-card h2,
 .profile-status-card h2,
 .placeholder-card h2 {
   margin: 0;
@@ -111,6 +112,7 @@ button {
 .auth-state-card,
 .login-panel,
 .profile-readiness-card,
+.collection-readiness-card,
 .profile-status-card,
 .placeholder-card {
   border: 1px solid #dbe3ef;
@@ -124,6 +126,7 @@ button {
 .auth-state-card,
 .login-panel,
 .profile-readiness-card,
+.collection-readiness-card,
 .profile-status-card {
   padding: 22px;
 }
@@ -136,6 +139,7 @@ button {
 .env-config-card,
 .auth-layout,
 .profile-readiness-card,
+.collection-readiness-card,
 .profile-status-card {
   margin-top: 18px;
 }
@@ -149,6 +153,7 @@ button {
 .auth-state-card h2,
 .login-panel h2,
 .profile-readiness-card h2,
+.collection-readiness-card h2,
 .profile-status-card h2 {
   font-size: 1.25rem;
 }
@@ -158,6 +163,7 @@ button {
 .auth-state-card p,
 .login-panel p,
 .profile-readiness-card p,
+.collection-readiness-card p,
 .profile-status-card p,
 .placeholder-card p {
   margin-bottom: 0;
@@ -242,7 +248,8 @@ button {
   padding-left: 12px;
 }
 
-.profile-list {
+.profile-list,
+.collection-list {
   display: grid;
   gap: 10px;
   margin: 16px 0 0;
@@ -250,7 +257,8 @@ button {
   list-style: none;
 }
 
-.profile-list li {
+.profile-list li,
+.collection-list li {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -260,22 +268,26 @@ button {
   padding: 12px 14px;
 }
 
-.profile-list span {
+.profile-list span,
+.collection-list span {
   font-weight: 800;
 }
 
-.profile-list strong {
+.profile-list strong,
+.collection-list strong {
   color: #64748b;
   font-size: 0.82rem;
 }
 
-.profile-readiness-details {
+.profile-readiness-details,
+.collection-readiness-details {
   display: grid;
   gap: 10px;
   margin: 16px 0 0;
 }
 
-.profile-readiness-details div {
+.profile-readiness-details div,
+.collection-readiness-details div {
   display: grid;
   gap: 4px;
   border: 1px solid #e2e8f0;
@@ -283,19 +295,22 @@ button {
   padding: 12px 14px;
 }
 
-.profile-readiness-details dt {
+.profile-readiness-details dt,
+.collection-readiness-details dt {
   color: #64748b;
   font-size: 0.82rem;
   font-weight: 800;
 }
 
-.profile-readiness-details dd {
+.profile-readiness-details dd,
+.collection-readiness-details dd {
   margin: 0;
   color: #172033;
   font-weight: 900;
 }
 
-.profile-readiness-refresh {
+.profile-readiness-refresh,
+.collection-readiness-refresh {
   width: 100%;
   min-height: 46px;
   margin-top: 18px;
@@ -307,7 +322,8 @@ button {
   font-weight: 900;
 }
 
-.profile-readiness-refresh:disabled {
+.profile-readiness-refresh:disabled,
+.collection-readiness-refresh:disabled {
   cursor: not-allowed;
   opacity: 0.7;
 }
