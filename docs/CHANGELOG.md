@@ -1,5 +1,11 @@
 # Changelog
 
+## Phase 2U — Legacy Cards Import Design
+
+- Added a documentation-only design for a future controlled import from legacy `public.cards` into `cards_catalog` and `collection_cards`.
+- Documented known legacy source fields, target-model mapping, catalog import identity, Lars ownership mapping, dry-run analysis queries, import safety requirements, risks, rollback concept, and the Phase 2V follow-up.
+- Confirmed no SQL was executed, no import or migration was run, no runtime code was changed, and no app query or data write was added.
+
 ## Phase 2T - Collection Readiness Service
 
 - Toegevoegd: collection readiness service die na profile readiness alleen eigen `public.collections` leest via `profile.id`.
