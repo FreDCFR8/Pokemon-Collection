@@ -1,5 +1,11 @@
 # Changelog
 
+## Phase 2X — Read-only Collection Cards Service
+
+- Added a read-only collection cards preview service that reuses profile and collection readiness before reading `collection_cards` with nested `cards_catalog` data for the signed-in user's main collection.
+- Added a UI card that reports config, login, profile, collection, loading, ready, empty, and error states while showing total count and a maximum of 12 preview cards.
+- Documented that `public.cards` remains unused at runtime and that writes, imports, gallery, binder, wishlist, pricing, Pokémon TCG API, AI, local storage, SQL, and RLS changes remain out of scope.
+
 ## Phase 2W — Manual Legacy Cards Import Execution Log
 
 - Added a documentation-only execution log for the manually performed Lars legacy import in Supabase SQL Editor.

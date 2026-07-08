@@ -352,3 +352,123 @@ button {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+.collection-cards-preview-card {
+  border: 1px solid #dbe3ef;
+  border-radius: 24px;
+  background: #ffffff;
+  box-shadow: 0 18px 50px rgb(15 23 42 / 0.08);
+  margin-top: 18px;
+  padding: 22px;
+}
+
+.collection-cards-preview-card h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.collection-cards-preview-card p {
+  color: #475569;
+  line-height: 1.6;
+}
+
+.empty-preview {
+  border: 1px dashed #cbd5e1;
+  border-radius: 16px;
+  margin: 16px 0 0;
+  padding: 14px;
+  background: #f8fafc;
+  font-weight: 800;
+}
+
+.collection-cards-preview-list {
+  display: grid;
+  gap: 12px;
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.collection-cards-preview-list li {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  padding: 12px;
+}
+
+.collection-cards-preview-list img,
+.card-image-placeholder {
+  width: 72px;
+  min-height: 100px;
+  border-radius: 12px;
+  background: #e2e8f0;
+  object-fit: cover;
+}
+
+.card-image-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  color: #64748b;
+  font-size: 0.7rem;
+  font-weight: 900;
+  text-align: center;
+}
+
+.collection-cards-preview-list h3 {
+  margin: 0;
+  color: #172033;
+  font-size: 1rem;
+}
+
+.collection-cards-preview-list p {
+  margin: 4px 0 0;
+  font-size: 0.86rem;
+}
+
+.collection-card-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 12px 0 0;
+}
+
+.collection-card-meta div {
+  border-radius: 12px;
+  background: #f8fafc;
+  padding: 8px;
+}
+
+.collection-card-meta dt {
+  color: #64748b;
+  font-size: 0.7rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.collection-card-meta dd {
+  margin: 2px 0 0;
+  color: #172033;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.collection-cards-preview-refresh {
+  width: 100%;
+  min-height: 46px;
+  margin-top: 18px;
+  border: 0;
+  border-radius: 999px;
+  background: #7c3aed;
+  color: #ffffff;
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.collection-cards-preview-refresh:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
