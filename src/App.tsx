@@ -7,20 +7,37 @@ import { EnvConfigStatusCard } from './features/config';
 import { ProfileReadinessCard, ProfileStatusCard } from './features/profiles';
 
 const navigationItems = [
-  'Dashboard',
-  'Collection',
-  'Sets',
-  'Wishlist',
-  'Pokédex',
-];
+  { label: 'Dashboard', slug: 'dashboard' },
+  { label: 'Collection', slug: 'collection' },
+  { label: 'Sets', slug: 'sets' },
+  { label: 'Wishlist', slug: 'wishlist' },
+  { label: 'Pokédex', slug: 'pokedex' },
+] as const;
 
-function toNavigationHash(item: string): string {
-  return item.toLowerCase();
+type NavigationItem = (typeof navigationItems)[number];
+type NavigationLabel = NavigationItem['label'];
+
+const defaultNavigationItem = navigationItems[0];
+const legacyPokedexSlugs = new Set(['pokédex', 'pok%C3%A9dex']);
+
+function safelyDecodeHash(hash: string): string {
+  try {
+    return decodeURIComponent(hash);
+  } catch {
+    return hash;
+  }
 }
 
-function getActiveNavigationItem(): string {
-  const hash = window.location.hash.replace('#', '');
-  return navigationItems.find((item) => toNavigationHash(item) === hash) ?? 'Dashboard';
+function getActiveNavigationItem(): NavigationItem {
+  const rawHash = window.location.hash.replace('#', '');
+  const decodedHash = safelyDecodeHash(rawHash);
+  const normalizedHash = decodedHash.toLowerCase();
+
+  if (legacyPokedexSlugs.has(rawHash) || legacyPokedexSlugs.has(normalizedHash)) {
+    return navigationItems.find((item) => item.slug === 'pokedex') ?? defaultNavigationItem;
+  }
+
+  return navigationItems.find((item) => item.slug === normalizedHash) ?? defaultNavigationItem;
 }
 
 function PlaceholderCard({ title, description }: { title: string; description: string }) {
@@ -61,7 +78,7 @@ function DashboardPage() {
   );
 }
 
-function MainContent({ activeNavigationItem }: { activeNavigationItem: string }) {
+function MainContent({ activeNavigationItem }: { activeNavigationItem: NavigationLabel }) {
   switch (activeNavigationItem) {
     case 'Dashboard':
       return <DashboardPage />;
@@ -121,16 +138,16 @@ export function App() {
       <nav className="top-nav" aria-label="Hoofdnavigatie">
         {navigationItems.map((item) => (
           <a
-            href={`#${toNavigationHash(item)}`}
-            key={item}
-            aria-current={activeNavigationItem === item ? 'page' : undefined}
+            href={`#${item.slug}`}
+            key={item.slug}
+            aria-current={activeNavigationItem.slug === item.slug ? 'page' : undefined}
           >
-            {item}
+            {item.label}
           </a>
         ))}
       </nav>
 
-      <MainContent activeNavigationItem={activeNavigationItem} />
+      <MainContent activeNavigationItem={activeNavigationItem.label} />
     </main>
   );
 }

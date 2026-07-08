@@ -1,5 +1,10 @@
 # Changelog
 
+## Phase 3B Bugfix — Pokédex Navigation Slug
+
+- Replaced label-derived navigation hashes with explicit accent-safe slugs.
+- Canonicalized the Pokédex URL to `#pokedex` while preserving Dashboard fallback behavior for unknown hashes.
+
 ## Phase 3B — App Shell & Collection Tab Cleanup
 
 - Moved the readiness, login, status, and collection preview stack into a dedicated Dashboard page.
