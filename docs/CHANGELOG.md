@@ -1,5 +1,11 @@
 # Changelog
 
+## Phase 2W — Manual Legacy Cards Import Execution Log
+
+- Added a documentation-only execution log for the manually performed Lars legacy import in Supabase SQL Editor.
+- Documented dry-run, catalog import, collection ownership import, and final verification results for 2190 Lars records.
+- Confirmed no runtime code changed, no app query was added, no `public.cards` writes occurred, no Lore import was performed, no UUIDs or secrets were documented, and no rollback was executed.
+
 ## Phase 2V — Legacy Cards Import SQL Plan
 
 - Added a documentation-only SQL plan for a future Lars-only import from legacy `public.cards` into `public.cards_catalog` and `public.collection_cards`.
