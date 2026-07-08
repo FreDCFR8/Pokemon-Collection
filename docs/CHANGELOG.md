@@ -1,5 +1,11 @@
 # Changelog
 
+## Phase 2R — Collection Schema Migration Plan
+
+- Added a documentation-only SQL migration plan for the future `collections`, `cards_catalog`, and `collection_cards` tables.
+- Included manual Supabase SQL Editor drafts for table creation, indexes, `updated_at` triggers, select-only RLS policies, placeholder-only main collection seed data, verification queries, and rollback.
+- Confirmed this phase does not execute SQL, change runtime app code, import `public.cards`, seed catalog/card ownership data, add app queries, or introduce writes from the app.
+
 ## Phase 2Q — Collection Data Model Design
 
 - Documented option B as the selected collection architecture: new `collections`, `cards_catalog`, and `collection_cards` tables around existing `profiles`.
