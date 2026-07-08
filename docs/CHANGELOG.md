@@ -1,5 +1,11 @@
 # Changelog
 
+## Phase 2V — Legacy Cards Import SQL Plan
+
+- Added a documentation-only SQL plan for a future Lars-only import from legacy `public.cards` into `public.cards_catalog` and `public.collection_cards`.
+- Documented the correct `pokemon` and `number` column names, Lars source filtering, null handling, status validation, invalid-row skips, Lars main collection count guard, idempotent inserts, and rollback order.
+- Confirmed no SQL was executed, no runtime code was changed, no real UUIDs or secrets were added, and `public.cards` remains untouched.
+
 ## Phase 2U — Legacy Cards Import Design
 
 - Added a documentation-only design for a future controlled import from legacy `public.cards` into `cards_catalog` and `collection_cards`.
