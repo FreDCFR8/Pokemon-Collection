@@ -1,5 +1,12 @@
 # Changelog
 
+## Phase 2T - Collection Readiness Service
+
+- Toegevoegd: collection readiness service die na profile readiness alleen eigen `public.collections` leest via `profile.id`.
+- Toegevoegd: UI-kaart met refresh, hoofdcollectiestatus en expliciete bevestiging dat kaarttabellen en legacy `public.cards` niet gebruikt worden.
+- Geen SQL, RLS-wijzigingen, writes, imports of kaartqueries toegevoegd.
+
+
 ## Phase 2R — Collection Schema Migration Plan
 
 - Added a documentation-only SQL migration plan for the future `collections`, `cards_catalog`, and `collection_cards` tables.

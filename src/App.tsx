@@ -1,5 +1,6 @@
 import { AuthStateCard, LoginPanel } from './features/auth';
 import { EnvConfigStatusCard } from './features/config';
+import { CollectionReadinessCard } from './features/collections';
 import { ProfileReadinessCard, ProfileStatusCard } from './features/profiles';
 
 const navigationItems = [
@@ -54,6 +55,7 @@ export function App() {
         <AuthStateCard />
         <LoginPanel />
         <ProfileReadinessCard />
+        <CollectionReadinessCard />
       </section>
       <ProfileStatusCard />
 
