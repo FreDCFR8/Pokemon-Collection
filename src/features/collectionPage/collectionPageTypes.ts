@@ -20,8 +20,15 @@ export type CollectionPageCard = {
   status: string | null;
 };
 
+export type CollectionPageFilters = {
+  rarity?: string;
+  condition?: string;
+  status?: string;
+};
+
 export type CollectionPageLoadOptions = {
   searchQuery?: string;
+  filters?: CollectionPageFilters;
 };
 
 export type CollectionPageState = {

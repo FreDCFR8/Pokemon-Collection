@@ -1,6 +1,23 @@
 import { createBrowserSupabaseClient } from '../../lib/supabase';
 import { checkCollectionReadiness } from '../collections';
-import { COLLECTION_PAGE_SIZE, type CollectionPageCard, type CollectionPageLoadOptions, type CollectionPageState } from './collectionPageTypes';
+import {
+  COLLECTION_PAGE_SIZE,
+  type CollectionPageCard,
+  type CollectionPageFilters,
+  type CollectionPageLoadOptions,
+  type CollectionPageState,
+} from './collectionPageTypes';
+
+
+type SanitizedCollectionPageFilters = {
+  rarity: string | null;
+  condition: string | null;
+  status: string | null;
+};
+
+const ALLOWED_RARITY_FILTERS = new Set(['Common', 'Uncommon', 'Rare', 'Rare Holo', 'Ultra Rare', 'Secret Rare', 'Promo']);
+const ALLOWED_CONDITION_FILTERS = new Set(['mint', 'near_mint', 'excellent', 'good', 'played', 'poor', 'unknown']);
+const ALLOWED_STATUS_FILTERS = new Set(['owned', 'wanted', 'duplicate', 'traded', 'sold', 'unknown']);
 
 type CardsCatalogPageRow = {
   pokemon: string | null;
@@ -75,6 +92,43 @@ function sanitizeSearchQuery(searchQuery: string | undefined): string | null {
   return sanitized.length > 0 ? sanitized : null;
 }
 
+
+function sanitizeExactFilterValue(value: string | undefined, allowedValues: Set<string>): string | null {
+  const sanitized = (value ?? '').trim().slice(0, 40);
+
+  return allowedValues.has(sanitized) ? sanitized : null;
+}
+
+function sanitizeCollectionPageFilters(filters: CollectionPageFilters | undefined): SanitizedCollectionPageFilters {
+  return {
+    rarity: sanitizeExactFilterValue(filters?.rarity, ALLOWED_RARITY_FILTERS),
+    condition: sanitizeExactFilterValue(filters?.condition, ALLOWED_CONDITION_FILTERS),
+    status: sanitizeExactFilterValue(filters?.status, ALLOWED_STATUS_FILTERS),
+  };
+}
+
+function applyCollectionFilters<
+  T extends {
+    eq: (column: string, value: string) => T;
+  },
+>(query: T, filters: SanitizedCollectionPageFilters): T {
+  let filteredQuery = query;
+
+  if (filters.rarity) {
+    filteredQuery = filteredQuery.eq('rarity', filters.rarity);
+  }
+
+  if (filters.condition) {
+    filteredQuery = filteredQuery.eq('collection_cards.condition', filters.condition);
+  }
+
+  if (filters.status) {
+    filteredQuery = filteredQuery.eq('collection_cards.status', filters.status);
+  }
+
+  return filteredQuery;
+}
+
 function applyCollectionSearchFilter<T extends { or: (filters: string) => T }>(query: T, searchQuery: string | null): T {
   if (!searchQuery) {
     return query;
@@ -91,6 +145,7 @@ export async function loadCollectionPage(
 ): Promise<CollectionPageState> {
   const page = normalizePage(requestedPage);
   const searchQuery = sanitizeSearchQuery(options.searchQuery);
+  const filters = sanitizeCollectionPageFilters(options.filters);
   const collectionReadiness = await checkCollectionReadiness();
 
   if (collectionReadiness.status !== 'collection-ready') {
@@ -148,7 +203,7 @@ export async function loadCollectionPage(
     )
     .eq('collection_cards.collection_id', mainCollectionId);
 
-  const { count, error: countError } = await applyCollectionSearchFilter(countQuery, searchQuery);
+  const { count, error: countError } = await applyCollectionSearchFilter(applyCollectionFilters(countQuery, filters), searchQuery);
 
   if (countError) {
     return {
@@ -190,7 +245,7 @@ export async function loadCollectionPage(
     .order('number', { ascending: true })
     .range(from, to);
 
-  const { data, error } = await applyCollectionSearchFilter(pageQuery, searchQuery);
+  const { data, error } = await applyCollectionSearchFilter(applyCollectionFilters(pageQuery, filters), searchQuery);
 
   if (error) {
     return {

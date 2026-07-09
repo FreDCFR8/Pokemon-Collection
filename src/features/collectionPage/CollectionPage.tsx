@@ -1,6 +1,22 @@
 import { useEffect, useMemo, useState } from 'react';
 import { loadCollectionPage } from './collectionPageService';
-import { COLLECTION_PAGE_SIZE, type CollectionPageState } from './collectionPageTypes';
+import { COLLECTION_PAGE_SIZE, type CollectionPageFilters, type CollectionPageState } from './collectionPageTypes';
+
+const emptyCollectionPageFilters: CollectionPageFilters = {
+  rarity: '',
+  condition: '',
+  status: '',
+};
+
+const rarityFilterOptions = ['', 'Common', 'Uncommon', 'Rare', 'Rare Holo', 'Ultra Rare', 'Secret Rare', 'Promo'];
+const conditionFilterOptions = ['', 'mint', 'near_mint', 'excellent', 'good', 'played', 'poor', 'unknown'];
+const statusFilterOptions = ['', 'owned', 'wanted', 'duplicate', 'traded', 'sold', 'unknown'];
+
+const filterLabels: Record<keyof CollectionPageFilters, string> = {
+  rarity: 'rarity',
+  condition: 'condition',
+  status: 'status',
+};
 
 const initialCollectionPageState: CollectionPageState = {
   status: 'loading',
@@ -55,6 +71,7 @@ export function CollectionPage() {
   const [page, setPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeSearchTerm, setActiveSearchTerm] = useState('');
+  const [filters, setFilters] = useState<CollectionPageFilters>(emptyCollectionPageFilters);
   const [collectionPageState, setCollectionPageState] = useState<CollectionPageState>(initialCollectionPageState);
   const totalPages = useMemo(
     () => Math.max(1, Math.ceil(collectionPageState.totalCount / collectionPageState.pageSize)),
@@ -63,6 +80,9 @@ export function CollectionPage() {
   const isLoading = collectionPageState.status === 'loading';
   const trimmedSearchTerm = searchTerm.trim();
   const hasActiveSearch = activeSearchTerm.trim().length > 0;
+  const activeFilterEntries = Object.entries(filters).filter((entry): entry is [keyof CollectionPageFilters, string] => entry[1] !== undefined && entry[1].trim().length > 0);
+  const hasActiveFilters = activeFilterEntries.length > 0;
+  const hasActiveCriteria = hasActiveSearch || hasActiveFilters;
   const firstVisibleCard = collectionPageState.totalCount === 0 ? 0 : (collectionPageState.page - 1) * collectionPageState.pageSize + 1;
   const lastVisibleCard = Math.min(collectionPageState.page * collectionPageState.pageSize, collectionPageState.totalCount);
 
@@ -79,7 +99,7 @@ export function CollectionPage() {
     let isMounted = true;
 
     setCollectionPageState(initialCollectionPageState);
-    loadCollectionPage(page, { searchQuery: activeSearchTerm }).then((nextState) => {
+    loadCollectionPage(page, { searchQuery: activeSearchTerm, filters }).then((nextState) => {
       if (isMounted) {
         setCollectionPageState(nextState);
         setPage(nextState.page);
@@ -89,7 +109,7 @@ export function CollectionPage() {
     return () => {
       isMounted = false;
     };
-  }, [activeSearchTerm, page]);
+  }, [activeSearchTerm, filters, page]);
 
   const applySearchImmediately = () => {
     setPage(1);
@@ -100,6 +120,26 @@ export function CollectionPage() {
     setSearchTerm('');
     setPage(1);
     setActiveSearchTerm('');
+  };
+
+  const updateFilter = (filterName: keyof CollectionPageFilters, value: string) => {
+    setFilters((currentFilters) => ({
+      ...currentFilters,
+      [filterName]: value,
+    }));
+    setPage(1);
+  };
+
+  const clearFilters = () => {
+    setFilters(emptyCollectionPageFilters);
+    setPage(1);
+  };
+
+  const clearAllCriteria = () => {
+    setSearchTerm('');
+    setActiveSearchTerm('');
+    setFilters(emptyCollectionPageFilters);
+    setPage(1);
   };
 
   const goToPreviousPage = () => setPage((currentPage) => Math.max(1, currentPage - 1));
@@ -163,7 +203,44 @@ export function CollectionPage() {
             </button>
           ) : null}
         </div>
-        {hasActiveSearch ? <p className="collection-page-search-summary">Resultaten voor “{activeSearchTerm}”</p> : null}
+        <div className="collection-page-filters" aria-label="Collectiefilters">
+          <label>
+            Rarity
+            <select value={filters.rarity ?? ''} onChange={(event) => updateFilter('rarity', event.target.value)}>
+              {rarityFilterOptions.map((option) => (
+                <option key={option || 'all-rarity'} value={option}>{option || 'Alle'}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Condition
+            <select value={filters.condition ?? ''} onChange={(event) => updateFilter('condition', event.target.value)}>
+              {conditionFilterOptions.map((option) => (
+                <option key={option || 'all-condition'} value={option}>{option || 'Alle'}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Status
+            <select value={filters.status ?? ''} onChange={(event) => updateFilter('status', event.target.value)}>
+              {statusFilterOptions.map((option) => (
+                <option key={option || 'all-status'} value={option}>{option || 'Alle'}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <div className="collection-page-filter-actions">
+          <button type="button" onClick={clearFilters} disabled={!hasActiveFilters}>Reset filters</button>
+          {hasActiveCriteria ? <button type="button" onClick={clearAllCriteria}>Alles wissen</button> : null}
+        </div>
+        {hasActiveCriteria ? (
+          <p className="collection-page-search-summary">
+            Resultaten gefilterd op:{' '}
+            {[hasActiveSearch ? `search = ${activeSearchTerm}` : null, ...activeFilterEntries.map(([name, value]) => `${filterLabels[name]} = ${value}`)]
+              .filter(Boolean)
+              .join(', ')}
+          </p>
+        ) : null}
       </div>
 
       <CollectionPagination
@@ -177,10 +254,10 @@ export function CollectionPage() {
 
       {collectionPageState.status === 'ready' && collectionPageState.cards.length === 0 ? (
         <div className="collection-page-empty">
-          <p>{hasActiveSearch ? 'Geen kaarten gevonden voor deze zoekopdracht.' : 'Nog geen kaarten in deze collectie.'}</p>
-          {hasActiveSearch ? (
-            <button type="button" onClick={clearSearch}>
-              Zoekopdracht wissen
+          <p>{hasActiveCriteria ? 'Geen kaarten gevonden voor deze zoekopdracht en filters.' : 'Nog geen kaarten in deze collectie.'}</p>
+          {hasActiveCriteria ? (
+            <button type="button" onClick={clearAllCriteria}>
+              Zoekopdracht en filters wissen
             </button>
           ) : null}
         </div>
