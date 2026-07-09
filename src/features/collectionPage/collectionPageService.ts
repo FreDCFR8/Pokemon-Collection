@@ -11,13 +11,34 @@ import {
 
 type SanitizedCollectionPageFilters = {
   rarity: string | null;
-  condition: string | null;
-  status: string | null;
 };
 
-const ALLOWED_RARITY_FILTERS = new Set(['Common', 'Uncommon', 'Rare', 'Rare Holo', 'Ultra Rare', 'Secret Rare', 'Promo']);
-const ALLOWED_CONDITION_FILTERS = new Set(['mint', 'near_mint', 'excellent', 'good', 'played', 'poor', 'unknown']);
-const ALLOWED_STATUS_FILTERS = new Set(['owned', 'wanted', 'duplicate', 'traded', 'sold', 'unknown']);
+const ALLOWED_RARITY_FILTERS = new Set([
+  'ACE SPEC Rare',
+  'Black White Rare',
+  'Common',
+  'Double Rare',
+  'Holo Rare',
+  'Hyper Rare',
+  'Illustration Rare',
+  'MEGA_ATTACK_RARE',
+  'Onbekend',
+  'Promo',
+  'Radiant Rare',
+  'Rare',
+  'Rare Holo',
+  'Rare Holo V',
+  'Rare Holo VMAX',
+  'Rare Holo VSTAR',
+  'Rare Rainbow',
+  'Rare Ultra',
+  'Shiny Rare',
+  'Shiny Ultra Rare',
+  'Special Illustration Rare',
+  'Trainer Gallery Rare Holo',
+  'Ultra Rare',
+  'Uncommon',
+]);
 
 type CardsCatalogPageRow = {
   pokemon: string | null;
@@ -102,8 +123,6 @@ function sanitizeExactFilterValue(value: string | undefined, allowedValues: Set<
 function sanitizeCollectionPageFilters(filters: CollectionPageFilters | undefined): SanitizedCollectionPageFilters {
   return {
     rarity: sanitizeExactFilterValue(filters?.rarity, ALLOWED_RARITY_FILTERS),
-    condition: sanitizeExactFilterValue(filters?.condition, ALLOWED_CONDITION_FILTERS),
-    status: sanitizeExactFilterValue(filters?.status, ALLOWED_STATUS_FILTERS),
   };
 }
 
@@ -118,13 +137,6 @@ function applyCollectionFilters<
     filteredQuery = filteredQuery.eq('rarity', filters.rarity);
   }
 
-  if (filters.condition) {
-    filteredQuery = filteredQuery.eq('collection_cards.condition', filters.condition);
-  }
-
-  if (filters.status) {
-    filteredQuery = filteredQuery.eq('collection_cards.status', filters.status);
-  }
 
   return filteredQuery;
 }

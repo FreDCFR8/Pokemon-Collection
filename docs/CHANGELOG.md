@@ -1,5 +1,12 @@
 # Changelog
 
+## Phase 3G — Filter Cleanup Rarity Only
+
+- Removed Collection condition and status filters from the UI, filter state, sanitization, service predicates, and active criteria text.
+- Expanded the fixed rarity filter allowlist to all current rarity values while keeping exact server-side `cards_catalog.rarity` filtering.
+- Preserved search plus rarity predicate parity across the `cards_catalog` count and page queries with `collection_cards!inner`, fixed page size `24`, and fixed sorting.
+- Documented that set filters are deferred until a Sets page or canonical set catalog exists, and that generation/type filters require future data enrichment.
+
 ## Phase 3F — Basic Collection Filters
 
 - Added compact mobile-first Collection filters for rarity, condition, and status with an all/reset state.
