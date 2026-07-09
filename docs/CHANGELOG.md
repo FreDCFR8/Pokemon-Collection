@@ -1,5 +1,11 @@
 # Changelog
 
+## Phase 4C — Sets Catalog Migration Plan
+
+- Added a docs-only migration plan for the future `public.sets_catalog` table.
+- Documented the draft table, pre-check queries, constraints, indexes, timestamp trigger options, RLS direction, verification queries, rollback direction, and deferred seed/import work.
+- Confirmed no SQL execution, database changes, runtime code changes, UI changes, or seed data are included.
+
 ## Phase 4B — Canonical Sets Catalog Design
 
 - Added a docs-only design for a future `sets_catalog`.
