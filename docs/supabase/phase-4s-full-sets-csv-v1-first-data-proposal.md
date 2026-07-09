@@ -30,7 +30,8 @@ The source recorded in the CSV is `pokemon_tcg_api`.
 
 Rows use structured Pokémon TCG API set metadata fields only where the value is reviewable for this first proposal:
 
-- stable source set id as `set_code` and `source_id`;
+- project-canonical `set_code`, preserving existing codes from the current seed data when a set is already present;
+- stable Pokémon TCG API set id as `source_id`;
 - set `name`;
 - `series`;
 - `release_date`;
@@ -38,6 +39,14 @@ Rows use structured Pokémon TCG API set metadata fields only where the value is
 - `total`;
 - `symbol_url`;
 - `logo_url`.
+
+## Project set codes and source ids
+
+`set_code` is the project-canonical set code and must not be blindly treated as the same value as the Pokémon TCG API id. `source_id` records the Pokémon TCG API set id. These values can differ when the project already has an existing canonical code for the same set.
+
+For example, Paldean Fates keeps the existing project `set_code` `sv45`, while its Pokémon TCG API id remains recorded as `source_id` `sv4pt5`. This avoids introducing duplicate or conflicting catalog rows for the same set in later phases.
+
+Release dates are recorded as ISO dates in `YYYY-MM-DD` format when present.
 
 ## Rows added
 
