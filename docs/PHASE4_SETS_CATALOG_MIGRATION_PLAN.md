@@ -39,11 +39,51 @@ Before this migration is manually executed in Supabase, confirm:
 - The project still wants `public.sets_catalog` as the canonical table name.
 - The selected external source policy is understood well enough to choose initial uniqueness rules.
 - `gen_random_uuid()` is available in the Supabase project.
+- `public.sets_catalog` does not already exist.
 - The shared `public.set_updated_at()` trigger function exists, or the future executor has a separate approved plan to create it first.
+- Existing public tables are checked so the future executor can confirm the expected project state before creating a new catalog table.
 - No runtime code depends on `sets_catalog` yet, so the migration can be created safely before app integration.
 - The write path is admin/manual/service-role only; child users must not write catalog rows from the app.
 
-## 4. Future SQL migration draft
+## 4. Future pre-check SQL draft
+
+> Let op: onderstaande SQL is a draft for later manual execution in the Supabase SQL Editor after review. Phase 4C does not execute it.
+
+Before creating anything in a later phase, run read-only checks to confirm the current Supabase state.
+
+### A. Check whether `sets_catalog` already exists
+
+```sql
+select to_regclass('public.sets_catalog') as sets_catalog_regclass;
+```
+
+Expected before first manual creation: `null`. If this returns `public.sets_catalog`, stop and inspect the existing table before continuing.
+
+### B. Check existing updated timestamp routines
+
+```sql
+select routine_schema, routine_name, routine_type
+from information_schema.routines
+where routine_schema = 'public'
+  and routine_name in ('set_updated_at', 'update_updated_at_column')
+order by routine_name;
+```
+
+Use this to confirm whether `public.set_updated_at()` already exists or whether the future migration needs to create it with the reviewed option B below.
+
+### C. Check existing public tables
+
+```sql
+select table_schema, table_name
+from information_schema.tables
+where table_schema = 'public'
+  and table_type = 'BASE TABLE'
+order by table_name;
+```
+
+Use this to verify the expected public schema context before manually adding a new catalog table.
+
+## 5. Future SQL migration draft
 
 > Let op: onderstaande SQL is a draft for later manual execution in the Supabase SQL Editor after review. Phase 4C does not execute it.
 
@@ -52,7 +92,7 @@ Before this migration is manually executed in Supabase, confirm:
 ```sql
 create table public.sets_catalog (
   id uuid primary key default gen_random_uuid(),
-  external_source text null,
+  external_source text not null,
   external_id text null,
   set_code text null,
   name text not null,
@@ -91,8 +131,9 @@ create table public.sets_catalog (
 Notes:
 
 - `name` is required because every set needs a user-visible display name.
-- `external_source` and `external_id` are nullable to allow manual or curated rows when a stable external id is not available.
-- In PostgreSQL, a unique constraint on nullable columns allows multiple rows with `null` values. This is acceptable for manually curated rows unless a later seed/import policy requires stricter partial indexes.
+- `external_source` is required so every row remains traceable to a source policy such as `pokemon_tcg_api`, `manual`, or `curated`.
+- `external_id` may remain `null` for manual or curated rows when no stable external identifier exists.
+- In PostgreSQL, `unique(external_source, external_id)` still allows multiple rows with the same `external_source` when `external_id` is `null`. This is acceptable for manual/curated rows unless a later seed/import policy requires stricter partial indexes.
 - `name` is intentionally not unique. Display names may overlap, vary by language or region, or have special variants.
 - `set_code` is intentionally not unique in the first draft. It can become unique only if the selected source proves that codes are globally stable and collision-free.
 - `generation` is optional and should remain unused by runtime filters until a documented mapping policy exists.
@@ -118,7 +159,7 @@ where set_code is not null;
 
 These refinements are not required for the first manual table creation unless the accepted seed plan depends on them.
 
-## 5. Index plan
+## 6. Index plan
 
 Initial read patterns are expected to be lightweight set-list and set-detail queries. Future indexes should support sorting, grouping, and filtering without loading cards for every set.
 
@@ -139,9 +180,13 @@ Index notes:
 - `external_source, external_id` supports future import reconciliation.
 - Indexes are not a security boundary; RLS remains responsible for access control.
 
-## 6. `updated_at` trigger plan
+## 7. `updated_at` trigger plan
 
-Use the shared timestamp function if it already exists:
+Do not execute either option in Phase 4C. Choose the correct option in Phase 4D only after the pre-check routines query has confirmed the current Supabase state.
+
+### Option A — Reuse existing `public.set_updated_at()`
+
+Use this option only if the pre-check confirms that the shared timestamp function already exists:
 
 ```sql
 create trigger sets_catalog_set_updated_at
@@ -150,9 +195,30 @@ for each row
 execute function public.set_updated_at();
 ```
 
-Before manual execution, confirm that `public.set_updated_at()` exists. If it does not exist, do not improvise in the Supabase SQL Editor; use a separately reviewed migration plan for the function first.
+### Option B — Create reviewed helper function, then create trigger
 
-## 7. RLS direction
+Use this option only in Phase 4D after checking that the helper function does not exist and after confirming that creating it matches the accepted migration plan:
+
+```sql
+create or replace function public.set_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+create trigger sets_catalog_set_updated_at
+before update on public.sets_catalog
+for each row
+execute function public.set_updated_at();
+```
+
+Before manual execution, confirm whether `public.set_updated_at()` exists. If it does not exist, option B must still be treated as reviewed Phase 4D SQL, not as SQL to execute during Phase 4C.
+
+## 8. RLS direction
 
 `sets_catalog` is catalog/reference data. Runtime app users should be able to read it after login, but they should not create, update, or delete rows through the app.
 
@@ -182,7 +248,7 @@ Do not add app write policies in the first migration.
 - Admin, service-role, or manual Supabase dashboard workflows can manage rows outside normal app user policies.
 - If a future admin UI is added, it needs a separate security design and migration plan.
 
-## 8. Relationship to existing tables
+## 9. Relationship to existing tables
 
 Phase 4C does not add foreign keys or backfills.
 
@@ -194,7 +260,7 @@ Future relationship options remain:
 
 Do not infer canonical set identity from `cards_catalog.set_name` alone.
 
-## 9. Seed/import is explicitly deferred
+## 10. Seed/import is explicitly deferred
 
 This migration plan creates the structure only in a later phase. It does not decide or execute the initial catalog dataset.
 
@@ -207,23 +273,29 @@ A later seed plan should define:
 - Whether `set_code` can be treated as globally unique.
 - How future source updates are reconciled without breaking stable app ids.
 
-## 10. Verification after future manual execution
+## 11. Verification after future manual execution
 
 After the SQL is manually executed in a later phase, verify in Supabase:
 
 ```sql
-select table_schema, table_name
-from information_schema.tables
-where table_schema = 'public'
-  and table_name = 'sets_catalog';
+select count(*) as sets_catalog_row_count
+from public.sets_catalog;
 ```
 
 ```sql
-select column_name, data_type, is_nullable
+select column_name, data_type, is_nullable, column_default
 from information_schema.columns
 where table_schema = 'public'
   and table_name = 'sets_catalog'
 order by ordinal_position;
+```
+
+```sql
+select schemaname, tablename, indexname, indexdef
+from pg_indexes
+where schemaname = 'public'
+  and tablename = 'sets_catalog'
+order by indexname;
 ```
 
 ```sql
@@ -234,19 +306,19 @@ where schemaname = 'public'
 order by policyname;
 ```
 
-These verification queries are for the future manual execution phase only, not for Phase 4C.
+These verification queries are for the future manual execution phase only, not for Phase 4C. The expected row count immediately after structure-only creation is `0` unless a later approved seed phase has also run.
 
-## 11. Rollback direction for future manual execution
+## 12. Rollback direction for future manual execution
 
-If the table is created manually in a later phase before any runtime code depends on it, rollback can be simple:
+If the table is created manually in a later phase, this rollback is only safe while there is no production data, no foreign key dependency, and no runtime dependency on the table:
 
 ```sql
 drop table if exists public.sets_catalog;
 ```
 
-If future phases add foreign keys, seed data, runtime code, or user-visible dependencies, rollback must be redesigned and must not rely on this simple drop-table direction.
+If future phases add production data, foreign keys, seed/import history, runtime code, or user-visible dependencies, rollback must be redesigned and must not rely on this simple drop-table direction.
 
-## 12. Explicit non-goals
+## 13. Explicit non-goals
 
 Phase 4C explicitly does not include:
 
