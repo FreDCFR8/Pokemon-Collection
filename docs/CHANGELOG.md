@@ -1,5 +1,12 @@
 # Changelog
 
+## Phase 3C — Collection Page UX Polish
+
+- Polished the read-only Collection page summary with total cards, visible range, current page, and fixed page size.
+- Added pagination controls above and below the card grid while keeping the existing page size of 24.
+- Refined card visuals with a calmer layout, missing-image placeholder, badge-like metadata, and a subtle read-only legacy note.
+- Kept App shell, navigation, Pokédex, Supabase service/query behavior, database/SQL/RLS, writes, search/filter/sort, and runtime `public.cards` usage unchanged.
+
 ## Phase 3B Bugfix — Pokédex Navigation Slug
 
 - Replaced label-derived navigation hashes with explicit accent-safe slugs.

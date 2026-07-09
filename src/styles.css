@@ -510,7 +510,8 @@ button {
   justify-content: space-between;
   gap: 12px;
   border: 1px solid #e2e8f0;
-  border-radius: 16px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
   padding: 12px 14px;
 }
 
@@ -521,9 +522,23 @@ button {
 }
 
 .collection-page-summary dd {
+  border-radius: 999px;
   margin: 0;
-  color: #172033;
+  background: #eef2ff;
+  color: #3730a3;
+  padding: 4px 10px;
+  font-size: 0.84rem;
   font-weight: 900;
+}
+
+.collection-page-legacy-note {
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  margin: 16px 0 0;
+  background: #f8fafc;
+  padding: 10px 12px;
+  color: #64748b;
+  font-size: 0.86rem;
 }
 
 .collection-page-pagination {
@@ -578,15 +593,18 @@ button {
   grid-template-columns: 78px minmax(0, 1fr);
   gap: 12px;
   border: 1px solid #e2e8f0;
-  border-radius: 18px;
+  border-radius: 20px;
+  background: #ffffff;
+  box-shadow: 0 10px 30px rgb(15 23 42 / 0.06);
   padding: 12px;
 }
 
-.collection-page-grid img {
+.collection-page-grid img,
+.collection-page-grid .card-image-placeholder {
   width: 78px;
   min-height: 108px;
-  border-radius: 12px;
-  background: #e2e8f0;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #eef2ff 0%, #e2e8f0 100%);
   object-fit: cover;
 }
 
@@ -609,9 +627,10 @@ button {
 }
 
 .collection-page-card-meta div {
-  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
   background: #f8fafc;
-  padding: 8px;
+  padding: 7px 9px;
 }
 
 .collection-page-card-meta dt {
@@ -625,10 +644,19 @@ button {
   margin: 2px 0 0;
   color: #172033;
   font-size: 0.8rem;
-  font-weight: 800;
+  font-weight: 900;
 }
 
 @media (min-width: 720px) {
+  .collection-page-summary {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .collection-page-summary div {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
   .collection-page-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
