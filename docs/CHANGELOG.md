@@ -1,5 +1,12 @@
 # Changelog
 
+## Phase 3D — Collection Search & Filter Design
+
+- Added a documentation-only design for future Collection page search and filters.
+- Chose server-side search/filtering while preserving `cards_catalog` as the root query, the `collection_cards!inner` main-collection filter, separate count queries, RLS, fixed page size `24`, and fixed sorting by `pokemon`, `set_name`, and `number`.
+- Documented search scope, filter scope, performance rules, future index notes, mobile-first UX expectations, legacy-data impact, security constraints, and proposed Phase 3E/3F/3G follow-up phases.
+- Confirmed no runtime code, UI implementation, Supabase query, SQL, RLS, database, write, cache, dependency, Pokémon TCG API, AI, binder, wishlist, or pricing changes are included.
+
 ## Phase 3C — Collection Page UX Polish
 
 - Polished the read-only Collection page summary with total cards, visible range, current page, and fixed page size.
