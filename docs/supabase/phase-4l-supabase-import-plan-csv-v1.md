@@ -102,19 +102,19 @@ where set_code in (
   'swsh12',
   'swsh11',
   'swsh10',
-  'swsh9',
   'swsh8',
+  'swsh12pt5',
+  'pgo',
+  'swsh9',
   'swsh7',
-  'swsh6',
-  'swsh5',
-  'swsh4',
-  'swsh3',
-  'swsh2',
-  'swsh1',
-  'sm12',
-  'sm11',
-  'sm10',
-  'det1'
+  'sv1',
+  'sv2',
+  'sv45',
+  'sv6',
+  'sv7',
+  'sv8',
+  'sv9',
+  'sv10'
 )
 order by set_code;
 ```
@@ -151,19 +151,19 @@ where external_source = 'manual_review'
     'swsh12',
     'swsh11',
     'swsh10',
-    'swsh9',
     'swsh8',
+    'swsh12pt5',
+    'pgo',
+    'swsh9',
     'swsh7',
-    'swsh6',
-    'swsh5',
-    'swsh4',
-    'swsh3',
-    'swsh2',
-    'swsh1',
-    'sm12',
-    'sm11',
-    'sm10',
-    'det1'
+    'sv1',
+    'sv2',
+    'sv45',
+    'sv6',
+    'sv7',
+    'sv8',
+    'sv9',
+    'sv10'
   );
 ```
 
@@ -182,19 +182,19 @@ where external_source = 'manual_review'
     'swsh12',
     'swsh11',
     'swsh10',
-    'swsh9',
     'swsh8',
+    'swsh12pt5',
+    'pgo',
+    'swsh9',
     'swsh7',
-    'swsh6',
-    'swsh5',
-    'swsh4',
-    'swsh3',
-    'swsh2',
-    'swsh1',
-    'sm12',
-    'sm11',
-    'sm10',
-    'det1'
+    'sv1',
+    'sv2',
+    'sv45',
+    'sv6',
+    'sv7',
+    'sv8',
+    'sv9',
+    'sv10'
   )
   and (
     series is not null
