@@ -22,8 +22,6 @@ export type CollectionPageCard = {
 
 export type CollectionPageFilters = {
   rarity?: string;
-  condition?: string;
-  status?: string;
 };
 
 export type CollectionPageLoadOptions = {

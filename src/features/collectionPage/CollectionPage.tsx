@@ -4,18 +4,38 @@ import { COLLECTION_PAGE_SIZE, type CollectionPageFilters, type CollectionPageSt
 
 const emptyCollectionPageFilters: CollectionPageFilters = {
   rarity: '',
-  condition: '',
-  status: '',
 };
 
-const rarityFilterOptions = ['', 'Common', 'Uncommon', 'Rare', 'Rare Holo', 'Ultra Rare', 'Secret Rare', 'Promo'];
-const conditionFilterOptions = ['', 'mint', 'near_mint', 'excellent', 'good', 'played', 'poor', 'unknown'];
-const statusFilterOptions = ['', 'owned', 'wanted', 'duplicate', 'traded', 'sold', 'unknown'];
+const rarityFilterOptions = [
+  '',
+  'ACE SPEC Rare',
+  'Black White Rare',
+  'Common',
+  'Double Rare',
+  'Holo Rare',
+  'Hyper Rare',
+  'Illustration Rare',
+  'MEGA_ATTACK_RARE',
+  'Onbekend',
+  'Promo',
+  'Radiant Rare',
+  'Rare',
+  'Rare Holo',
+  'Rare Holo V',
+  'Rare Holo VMAX',
+  'Rare Holo VSTAR',
+  'Rare Rainbow',
+  'Rare Ultra',
+  'Shiny Rare',
+  'Shiny Ultra Rare',
+  'Special Illustration Rare',
+  'Trainer Gallery Rare Holo',
+  'Ultra Rare',
+  'Uncommon',
+];
 
 const filterLabels: Record<keyof CollectionPageFilters, string> = {
   rarity: 'rarity',
-  condition: 'condition',
-  status: 'status',
 };
 
 const initialCollectionPageState: CollectionPageState = {
@@ -209,22 +229,6 @@ export function CollectionPage() {
             <select value={filters.rarity ?? ''} onChange={(event) => updateFilter('rarity', event.target.value)}>
               {rarityFilterOptions.map((option) => (
                 <option key={option || 'all-rarity'} value={option}>{option || 'Alle'}</option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Condition
-            <select value={filters.condition ?? ''} onChange={(event) => updateFilter('condition', event.target.value)}>
-              {conditionFilterOptions.map((option) => (
-                <option key={option || 'all-condition'} value={option}>{option || 'Alle'}</option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Status
-            <select value={filters.status ?? ''} onChange={(event) => updateFilter('status', event.target.value)}>
-              {statusFilterOptions.map((option) => (
-                <option key={option || 'all-status'} value={option}>{option || 'Alle'}</option>
               ))}
             </select>
           </label>

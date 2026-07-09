@@ -20,3 +20,8 @@ Phase 3F adds simple server-side filters to the read-only Collection page.
 ## Out of scope
 
 No database changes, SQL execution, RLS changes, writes, full-collection client-side filtering, dynamic filter-option queries, sort UI, navigation changes, or `public.cards` runtime queries are included.
+
+
+## Phase 3G follow-up
+
+Phase 3G supersedes the Phase 3F filter set for the runtime Collection page by keeping only the rarity filter. Condition and status filters are removed because current inspected values are uniform, while set filtering is deferred until a Sets page or canonical set catalog can provide a complete set list. Generation and type filters remain future data-enrichment work because `cards_catalog` does not currently expose `generation` or `type`/`types` columns.
