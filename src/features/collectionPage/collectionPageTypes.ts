@@ -20,6 +20,10 @@ export type CollectionPageCard = {
   status: string | null;
 };
 
+export type CollectionPageLoadOptions = {
+  searchQuery?: string;
+};
+
 export type CollectionPageState = {
   status: CollectionPageStatus;
   message: string;

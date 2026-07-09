@@ -541,6 +541,75 @@ button {
   font-size: 0.86rem;
 }
 
+
+.collection-page-search {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.collection-page-search label {
+  color: #334155;
+  font-size: 0.86rem;
+  font-weight: 900;
+}
+
+.collection-page-search-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background: #ffffff;
+  padding: 4px 6px 4px 14px;
+}
+
+.collection-page-search-control:focus-within {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgb(37 99 235 / 0.14);
+}
+
+.collection-page-search-control input {
+  min-height: 40px;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  color: #172033;
+  font: inherit;
+}
+
+.collection-page-search-control input::placeholder {
+  color: #94a3b8;
+}
+
+.collection-page-search-control button,
+.collection-page-empty button {
+  min-height: 34px;
+  border: 0;
+  border-radius: 999px;
+  background: #e2e8f0;
+  color: #334155;
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.collection-page-search-control button {
+  width: 34px;
+  padding: 0;
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.collection-page-empty button {
+  margin-top: 8px;
+  padding: 0 12px;
+}
+
+.collection-page-search-summary {
+  margin: 0;
+  font-size: 0.86rem;
+}
+
 .collection-page-pagination {
   display: grid;
   grid-template-columns: 1fr auto 1fr;

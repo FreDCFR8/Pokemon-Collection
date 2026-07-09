@@ -1,6 +1,6 @@
 import { createBrowserSupabaseClient } from '../../lib/supabase';
 import { checkCollectionReadiness } from '../collections';
-import { COLLECTION_PAGE_SIZE, type CollectionPageCard, type CollectionPageState } from './collectionPageTypes';
+import { COLLECTION_PAGE_SIZE, type CollectionPageCard, type CollectionPageLoadOptions, type CollectionPageState } from './collectionPageTypes';
 
 type CardsCatalogPageRow = {
   pokemon: string | null;
@@ -64,8 +64,33 @@ function normalizePage(page: number): number {
   return Math.floor(page);
 }
 
-export async function loadCollectionPage(requestedPage: number): Promise<CollectionPageState> {
+function sanitizeSearchQuery(searchQuery: string | undefined): string | null {
+  const sanitized = (searchQuery ?? '')
+    .trim()
+    .slice(0, 80)
+    .replace(/[,%*_()]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  return sanitized.length > 0 ? sanitized : null;
+}
+
+function applyCollectionSearchFilter<T extends { or: (filters: string) => T }>(query: T, searchQuery: string | null): T {
+  if (!searchQuery) {
+    return query;
+  }
+
+  const pattern = `%${searchQuery}%`;
+
+  return query.or(`pokemon.ilike.${pattern},set_name.ilike.${pattern},number.ilike.${pattern}`);
+}
+
+export async function loadCollectionPage(
+  requestedPage: number,
+  options: CollectionPageLoadOptions = {},
+): Promise<CollectionPageState> {
   const page = normalizePage(requestedPage);
+  const searchQuery = sanitizeSearchQuery(options.searchQuery);
   const collectionReadiness = await checkCollectionReadiness();
 
   if (collectionReadiness.status !== 'collection-ready') {
@@ -110,10 +135,20 @@ export async function loadCollectionPage(requestedPage: number): Promise<Collect
     };
   }
 
-  const { count, error: countError } = await supabase
-    .from('collection_cards')
-    .select('id', { count: 'exact', head: true })
-    .eq('collection_id', mainCollectionId);
+  const countQuery = supabase
+    .from('cards_catalog')
+    .select(
+      `
+        id,
+        collection_cards!inner (
+          id
+        )
+      `,
+      { count: 'exact', head: true },
+    )
+    .eq('collection_cards.collection_id', mainCollectionId);
+
+  const { count, error: countError } = await applyCollectionSearchFilter(countQuery, searchQuery);
 
   if (countError) {
     return {
@@ -133,7 +168,7 @@ export async function loadCollectionPage(requestedPage: number): Promise<Collect
   const from = (safePage - 1) * COLLECTION_PAGE_SIZE;
   const to = from + COLLECTION_PAGE_SIZE - 1;
 
-  const { data, error } = await supabase
+  const pageQuery = supabase
     .from('cards_catalog')
     .select(
       `
@@ -154,6 +189,8 @@ export async function loadCollectionPage(requestedPage: number): Promise<Collect
     .order('set_name', { ascending: true })
     .order('number', { ascending: true })
     .range(from, to);
+
+  const { data, error } = await applyCollectionSearchFilter(pageQuery, searchQuery);
 
   if (error) {
     return {

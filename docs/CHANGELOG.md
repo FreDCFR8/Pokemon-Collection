@@ -1,5 +1,11 @@
 # Changelog
 
+## Phase 3E — Simple Collection Search
+
+- Added a single debounced Collection search field for Pokémon, set name, and card number.
+- Kept search server-side from `cards_catalog` with the `collection_cards!inner` main-collection ownership filter, fixed page size `24`, and fixed sorting by `pokemon`, `set_name`, and `number`.
+- Added search reset, active-search summary text, and a no-results empty state without adding filters, sort UI, writes, cache, external APIs, AI, binder, wishlist, pricing, or database/RLS changes.
+
 ## Phase 3D — Collection Search & Filter Design
 
 - Added a documentation-only design for future Collection page search and filters.

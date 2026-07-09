@@ -53,20 +53,33 @@ function CollectionPagination({
 
 export function CollectionPage() {
   const [page, setPage] = useState(1);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [activeSearchTerm, setActiveSearchTerm] = useState('');
   const [collectionPageState, setCollectionPageState] = useState<CollectionPageState>(initialCollectionPageState);
   const totalPages = useMemo(
     () => Math.max(1, Math.ceil(collectionPageState.totalCount / collectionPageState.pageSize)),
     [collectionPageState.pageSize, collectionPageState.totalCount],
   );
   const isLoading = collectionPageState.status === 'loading';
+  const trimmedSearchTerm = searchTerm.trim();
+  const hasActiveSearch = activeSearchTerm.trim().length > 0;
   const firstVisibleCard = collectionPageState.totalCount === 0 ? 0 : (collectionPageState.page - 1) * collectionPageState.pageSize + 1;
   const lastVisibleCard = Math.min(collectionPageState.page * collectionPageState.pageSize, collectionPageState.totalCount);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setPage(1);
+      setActiveSearchTerm(trimmedSearchTerm);
+    }, 400);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [trimmedSearchTerm]);
 
   useEffect(() => {
     let isMounted = true;
 
     setCollectionPageState(initialCollectionPageState);
-    loadCollectionPage(page).then((nextState) => {
+    loadCollectionPage(page, { searchQuery: activeSearchTerm }).then((nextState) => {
       if (isMounted) {
         setCollectionPageState(nextState);
         setPage(nextState.page);
@@ -76,7 +89,18 @@ export function CollectionPage() {
     return () => {
       isMounted = false;
     };
-  }, [page]);
+  }, [activeSearchTerm, page]);
+
+  const applySearchImmediately = () => {
+    setPage(1);
+    setActiveSearchTerm(trimmedSearchTerm);
+  };
+
+  const clearSearch = () => {
+    setSearchTerm('');
+    setPage(1);
+    setActiveSearchTerm('');
+  };
 
   const goToPreviousPage = () => setPage((currentPage) => Math.max(1, currentPage - 1));
   const goToNextPage = () => setPage((currentPage) => Math.min(totalPages, currentPage + 1));
@@ -115,7 +139,32 @@ export function CollectionPage() {
         </div>
       </dl>
 
-      <p className="collection-page-legacy-note">Legacy collectiegegevens worden hier rustig read-only getoond; bewerken, zoeken en importeren blijven buiten deze fase.</p>
+      <p className="collection-page-legacy-note">Legacy collectiegegevens worden hier rustig read-only getoond; bewerken en importeren blijven buiten deze fase.</p>
+
+      <div className="collection-page-search">
+        <label htmlFor="collection-page-search-input">Collectie zoeken</label>
+        <div className="collection-page-search-control">
+          <input
+            id="collection-page-search-input"
+            type="search"
+            value={searchTerm}
+            placeholder="Zoek op Pokémon, set of nummer"
+            onChange={(event) => setSearchTerm(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault();
+                applySearchImmediately();
+              }
+            }}
+          />
+          {searchTerm.length > 0 ? (
+            <button type="button" aria-label="Zoekterm wissen" onClick={clearSearch}>
+              ×
+            </button>
+          ) : null}
+        </div>
+        {hasActiveSearch ? <p className="collection-page-search-summary">Resultaten voor “{activeSearchTerm}”</p> : null}
+      </div>
 
       <CollectionPagination
         currentPage={collectionPageState.page}
@@ -127,7 +176,14 @@ export function CollectionPage() {
       />
 
       {collectionPageState.status === 'ready' && collectionPageState.cards.length === 0 ? (
-        <p className="collection-page-empty">Nog geen kaarten in deze collectie.</p>
+        <div className="collection-page-empty">
+          <p>{hasActiveSearch ? 'Geen kaarten gevonden voor deze zoekopdracht.' : 'Nog geen kaarten in deze collectie.'}</p>
+          {hasActiveSearch ? (
+            <button type="button" onClick={clearSearch}>
+              Zoekopdracht wissen
+            </button>
+          ) : null}
+        </div>
       ) : null}
 
       {collectionPageState.cards.length > 0 ? (
