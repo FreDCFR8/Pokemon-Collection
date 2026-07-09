@@ -1,5 +1,12 @@
 # Changelog
 
+## Phase 3F — Basic Collection Filters
+
+- Added compact mobile-first Collection filters for rarity, condition, and status with an all/reset state.
+- Combined search and filters server-side on the existing `cards_catalog` root query with `collection_cards!inner`, preserving exact count/page predicate parity, fixed page size `24`, and fixed sorting.
+- Added active criteria text, reset filters, clear-all behavior, and a no-results empty state that can clear search and filters.
+- Documented that filter options are fixed for this phase and can become dynamic later without adding runtime option queries now.
+
 ## Phase 3E — Simple Collection Search
 
 - Added a single debounced Collection search field for Pokémon, set name, and card number.
