@@ -1,5 +1,12 @@
 # Changelog
 
+## Phase 4A — Sets Page Foundation
+
+- Added a real read-only SetsPage feature and connected the existing Sets tab to it without changing navigation slugs.
+- Added a calm foundation state that explains the full Pokémon set catalog will be added later, without showing fake sets or a hardcoded set list.
+- Documented that `cards_catalog.set_name` is incomplete and must not be used as the complete set source.
+- Kept the Collection set filter, set details, set progress, database changes, runtime Supabase queries, public.cards usage, external APIs, writes, cache, and dependencies out of scope.
+
 ## Phase 3G — Filter Cleanup Rarity Only
 
 - Removed Collection condition and status filters from the UI, filter state, sanitization, service predicates, and active criteria text.

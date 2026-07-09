@@ -5,6 +5,7 @@ import { CollectionPage } from './features/collectionPage';
 import { CollectionReadinessCard } from './features/collections';
 import { EnvConfigStatusCard } from './features/config';
 import { ProfileReadinessCard, ProfileStatusCard } from './features/profiles';
+import { SetsPage } from './features/setsPage';
 
 const navigationItems = [
   { label: 'Dashboard', slug: 'dashboard' },
@@ -85,11 +86,7 @@ function MainContent({ activeNavigationItem }: { activeNavigationItem: Navigatio
     case 'Collection':
       return <CollectionPage />;
     case 'Sets':
-      return (
-        <section className="placeholder-grid" aria-label="Sets scherm">
-          <PlaceholderCard title="Sets" description="Placeholder voor setnavigatie en setoverzicht." />
-        </section>
-      );
+      return <SetsPage />;
     case 'Wishlist':
       return (
         <section className="placeholder-grid" aria-label="Wishlist scherm">
