@@ -64,12 +64,12 @@ export function SetsPage() {
         {isEmpty ? <p>Er zijn nog geen sets beschikbaar in de catalog.</p> : null}
 
         {setsPageState.sets.length > 0 ? (
-          <ul className="sets-page-status-list" aria-label="Beschikbare sets">
+          <ul className="sets-page-status-list sets-page-catalog-list" aria-label="Beschikbare sets">
             {setsPageState.sets.map((set) => (
-              <li key={set.id}>
-                <strong>{set.name}</strong>
-                <span>Setcode: {set.set_code}</span>
-                {set.source ? <small>Bron: {set.source}</small> : null}
+              <li key={set.id} className="sets-page-set-card">
+                <strong className="sets-page-set-name">{set.name}</strong>
+                <span className="sets-page-set-code">Setcode: {set.set_code}</span>
+                {set.source ? <small className="sets-page-set-source">Bron: {set.source}</small> : null}
               </li>
             ))}
           </ul>
