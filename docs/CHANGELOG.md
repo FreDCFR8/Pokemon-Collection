@@ -1,5 +1,11 @@
 # Changelog
 
+## Phase 4B — Canonical Sets Catalog Design
+
+- Added a docs-only design for a future `sets_catalog`.
+- Documented the set catalog purpose, proposed schema, relation to `cards_catalog`, security, performance, and future phases.
+- Confirmed no runtime or database changes are included.
+
 ## Phase 4A — Sets Page Foundation
 
 - Added a real read-only SetsPage feature and connected the existing Sets tab to it without changing navigation slugs.
