@@ -839,6 +839,33 @@ button {
   color: #166534;
 }
 
+.sets-page-catalog-list .sets-page-set-card {
+  display: grid;
+  gap: 6px;
+  align-items: start;
+  line-height: 1.35;
+}
+
+.sets-page-set-name,
+.sets-page-set-code,
+.sets-page-set-source {
+  display: block;
+}
+
+.sets-page-set-name {
+  color: #0f172a;
+}
+
+.sets-page-set-code,
+.sets-page-set-source {
+  color: #475569;
+  font-weight: 700;
+}
+
+.sets-page-set-source {
+  font-size: 0.82rem;
+}
+
 @media (min-width: 720px) {
   .sets-page {
     grid-template-columns: repeat(2, minmax(0, 1fr));
