@@ -8,7 +8,8 @@ Phase 3F adds simple server-side filters to the read-only Collection page.
 - Search and filters are combined server-side for both the exact count query and the paged card query.
 - Page size remains fixed at `24`.
 - Sorting remains fixed by `pokemon`, `set_name`, and `number`.
-- Filter option values are fixed in the UI for this phase and can be made dynamic in a later phase if needed.
+- Filter option values are fixed in the UI for this phase and only include known safe values.
+- Overige of afwijkende waarden worden in een latere fase via dynamische filteropties of datacleanup aangepakt, zonder daar nu extra runtime queries voor toe te voegen.
 
 ## Filters
 

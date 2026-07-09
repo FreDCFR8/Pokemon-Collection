@@ -15,9 +15,9 @@ type SanitizedCollectionPageFilters = {
   status: string | null;
 };
 
-const ALLOWED_RARITY_FILTERS = new Set(['Common', 'Uncommon', 'Rare', 'Rare Holo', 'Ultra Rare', 'Secret Rare', 'Promo', 'Other']);
-const ALLOWED_CONDITION_FILTERS = new Set(['mint', 'near_mint', 'excellent', 'good', 'played', 'poor', 'unknown', 'Other']);
-const ALLOWED_STATUS_FILTERS = new Set(['owned', 'wanted', 'duplicate', 'traded', 'sold', 'unknown', 'Other']);
+const ALLOWED_RARITY_FILTERS = new Set(['Common', 'Uncommon', 'Rare', 'Rare Holo', 'Ultra Rare', 'Secret Rare', 'Promo']);
+const ALLOWED_CONDITION_FILTERS = new Set(['mint', 'near_mint', 'excellent', 'good', 'played', 'poor', 'unknown']);
+const ALLOWED_STATUS_FILTERS = new Set(['owned', 'wanted', 'duplicate', 'traded', 'sold', 'unknown']);
 
 type CardsCatalogPageRow = {
   pokemon: string | null;

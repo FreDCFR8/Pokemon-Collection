@@ -8,9 +8,9 @@ const emptyCollectionPageFilters: CollectionPageFilters = {
   status: '',
 };
 
-const rarityFilterOptions = ['', 'Common', 'Uncommon', 'Rare', 'Rare Holo', 'Ultra Rare', 'Secret Rare', 'Promo', 'Other'];
-const conditionFilterOptions = ['', 'mint', 'near_mint', 'excellent', 'good', 'played', 'poor', 'unknown', 'Other'];
-const statusFilterOptions = ['', 'owned', 'wanted', 'duplicate', 'traded', 'sold', 'unknown', 'Other'];
+const rarityFilterOptions = ['', 'Common', 'Uncommon', 'Rare', 'Rare Holo', 'Ultra Rare', 'Secret Rare', 'Promo'];
+const conditionFilterOptions = ['', 'mint', 'near_mint', 'excellent', 'good', 'played', 'poor', 'unknown'];
+const statusFilterOptions = ['', 'owned', 'wanted', 'duplicate', 'traded', 'sold', 'unknown'];
 
 const filterLabels: Record<keyof CollectionPageFilters, string> = {
   rarity: 'rarity',
