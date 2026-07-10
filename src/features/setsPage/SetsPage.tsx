@@ -21,19 +21,23 @@ type GroupedSets = {
 
 const FALLBACK_SERIES_LABEL = 'Overige sets';
 
-function formatProgressText(ownedCount: number, total: number | null) {
-  if (total !== null) {
+function hasKnownSetTotal(total: number | null): total is number {
+  return total !== null && total > 0;
+}
+
+function formatSetProgressText(ownedCount: number, total: number | null) {
+  if (hasKnownSetTotal(total)) {
     return `${ownedCount} van ${total}`;
   }
 
-  return `${ownedCount} kaarten`;
-}
-
-function calculateProgressPercent(ownedCount: number, total: number | null) {
-  if (!total) {
-    return null;
+  if (ownedCount > 0) {
+    return `${ownedCount} kaarten verzameld`;
   }
 
+  return 'Nog geen totaal bekend';
+}
+
+function calculateProgressPercent(ownedCount: number, total: number) {
   return Math.min(100, Math.round((ownedCount / total) * 100));
 }
 
@@ -226,7 +230,9 @@ export function SetsPage() {
                     {group.sets.map((set) => {
                       const setProgress = setsProgressState.progressBySetCode.get(set.set_code);
                       const ownedCount = setProgress?.ownedCount ?? 0;
-                      const progressPercent = calculateProgressPercent(ownedCount, set.total);
+                      const progressPercent = hasKnownSetTotal(set.total)
+                        ? calculateProgressPercent(ownedCount, set.total)
+                        : null;
                       const setImageUrl = set.logo_url ?? set.symbol_url;
                       const setImageAlt = set.logo_url ? `${set.name} logo` : `${set.name} symbool`;
 
@@ -235,7 +241,9 @@ export function SetsPage() {
                           <div className="sets-page-set-media" aria-hidden={setImageUrl ? undefined : true}>
                             {setImageUrl ? (
                               <img src={setImageUrl} alt={setImageAlt} width="96" height="40" loading="lazy" />
-                            ) : null}
+                            ) : (
+                              <span className="sets-page-set-media-placeholder">Geen logo</span>
+                            )}
                           </div>
 
                           <div className="sets-page-set-content">
@@ -244,7 +252,7 @@ export function SetsPage() {
                             </div>
 
                             <div className="sets-page-set-progress" aria-label={`Collectievoortgang voor ${set.name}`}>
-                              <span>{formatProgressText(ownedCount, set.total)}</span>
+                              <span>{formatSetProgressText(ownedCount, set.total)}</span>
                               {progressPercent !== null ? (
                                 <div
                                   className="sets-page-set-progress-bar"
