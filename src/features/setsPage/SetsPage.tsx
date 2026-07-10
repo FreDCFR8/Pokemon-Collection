@@ -14,6 +14,13 @@ type SetsProgressState = {
   progressBySetCode: Map<string, SetProgress>;
 };
 
+type GroupedSets = {
+  series: string;
+  sets: SetsCatalogRow[];
+};
+
+const FALLBACK_SERIES_LABEL = 'Overige sets';
+
 function formatProgressText(ownedCount: number, total: number | null) {
   if (total !== null) {
     return `${ownedCount} van ${total}`;
@@ -123,6 +130,21 @@ export function SetsPage() {
     return setsPageState.sets.filter((set) => set.name.toLowerCase().includes(normalizedSearchTerm));
   }, [normalizedSearchTerm, setsPageState.sets]);
 
+  const groupedSets = useMemo(() => {
+    return filteredSets.reduce<GroupedSets[]>((groups, set) => {
+      const series = set.series ?? FALLBACK_SERIES_LABEL;
+      const existingGroup = groups.find((group) => group.series === series);
+
+      if (existingGroup) {
+        existingGroup.sets.push(set);
+      } else {
+        groups.push({ series, sets: [set] });
+      }
+
+      return groups;
+    }, []);
+  }, [filteredSets]);
+
   const isLoading = setsPageState.status === 'loading';
   const isError = setsPageState.status === 'error';
   const isEmpty = setsPageState.status === 'success' && setsPageState.sets.length === 0;
@@ -184,54 +206,62 @@ export function SetsPage() {
 
         {hasNoSearchResults ? <p>Geen sets gevonden.</p> : null}
 
-        {filteredSets.length > 0 ? (
-          <ul className="sets-page-catalog-grid" aria-label="Beschikbare sets">
-            {filteredSets.map((set) => {
-              const setProgress = setsProgressState.progressBySetCode.get(set.set_code);
-              const ownedCount = setProgress?.ownedCount ?? 0;
-              const progressPercent = calculateProgressPercent(ownedCount, set.total);
-              const setImageUrl = set.logo_url ?? set.symbol_url;
-              const setImageAlt = set.logo_url ? `${set.name} logo` : `${set.name} symbool`;
+        {groupedSets.length > 0 ? (
+          <div className="sets-page-series-list" aria-label="Beschikbare sets per series">
+            {groupedSets.map((group, index) => {
+              const seriesHeadingId = `sets-page-series-${index}`;
 
               return (
-                <li key={set.id} className="sets-page-set-card">
-                  <div className="sets-page-set-media" aria-hidden={setImageUrl ? undefined : true}>
-                    {setImageUrl ? (
-                      <img
-                        src={setImageUrl}
-                        alt={setImageAlt}
-                        width="96"
-                        height="40"
-                        loading="lazy"
-                      />
-                    ) : null}
-                  </div>
+                <section key={group.series} className="sets-page-series-group" aria-labelledby={seriesHeadingId}>
+                  <h4 id={seriesHeadingId} className="sets-page-series-heading">
+                    {group.series}
+                  </h4>
 
-                  <div className="sets-page-set-content">
-                    <div className="sets-page-set-heading">
-                      <strong className="sets-page-set-name">{set.name}</strong>
-                    </div>
+                  <ul className="sets-page-catalog-grid" aria-label={`${group.series} sets`}>
+                    {group.sets.map((set) => {
+                      const setProgress = setsProgressState.progressBySetCode.get(set.set_code);
+                      const ownedCount = setProgress?.ownedCount ?? 0;
+                      const progressPercent = calculateProgressPercent(ownedCount, set.total);
+                      const setImageUrl = set.logo_url ?? set.symbol_url;
+                      const setImageAlt = set.logo_url ? `${set.name} logo` : `${set.name} symbool`;
 
-                    <div className="sets-page-set-progress" aria-label={`Collectievoortgang voor ${set.name}`}>
-                      <span>{formatProgressText(ownedCount, set.total)}</span>
-                      {progressPercent !== null ? (
-                        <div
-                          className="sets-page-set-progress-bar"
-                          role="progressbar"
-                          aria-valuemin={0}
-                          aria-valuemax={100}
-                          aria-valuenow={progressPercent}
-                          aria-label={`${progressPercent}% compleet`}
-                        >
-                          <span style={{ width: `${progressPercent}%` }} />
-                        </div>
-                      ) : null}
-                    </div>
-                  </div>
-                </li>
+                      return (
+                        <li key={set.id} className="sets-page-set-card">
+                          <div className="sets-page-set-media" aria-hidden={setImageUrl ? undefined : true}>
+                            {setImageUrl ? (
+                              <img src={setImageUrl} alt={setImageAlt} width="96" height="40" loading="lazy" />
+                            ) : null}
+                          </div>
+
+                          <div className="sets-page-set-content">
+                            <div className="sets-page-set-heading">
+                              <strong className="sets-page-set-name">{set.name}</strong>
+                            </div>
+
+                            <div className="sets-page-set-progress" aria-label={`Collectievoortgang voor ${set.name}`}>
+                              <span>{formatProgressText(ownedCount, set.total)}</span>
+                              {progressPercent !== null ? (
+                                <div
+                                  className="sets-page-set-progress-bar"
+                                  role="progressbar"
+                                  aria-valuemin={0}
+                                  aria-valuemax={100}
+                                  aria-valuenow={progressPercent}
+                                  aria-label={`${progressPercent}% compleet`}
+                                >
+                                  <span style={{ width: `${progressPercent}%` }} />
+                                </div>
+                              ) : null}
+                            </div>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </section>
               );
             })}
-          </ul>
+          </div>
         ) : null}
       </section>
     </section>
