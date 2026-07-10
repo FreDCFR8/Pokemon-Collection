@@ -21,6 +21,19 @@ type GroupedSets = {
 
 const FALLBACK_SERIES_LABEL = 'Overige sets';
 
+function formatReleaseDate(releaseDate: string | null) {
+  if (!releaseDate) {
+    return 'Onbekend';
+  }
+
+  return new Intl.DateTimeFormat('nl-NL', {
+    day: 'numeric',
+    month: 'long',
+    timeZone: 'UTC',
+    year: 'numeric',
+  }).format(new Date(`${releaseDate}T00:00:00Z`));
+}
+
 function hasKnownSetTotal(total: number | null): total is number {
   return total !== null && total > 0;
 }
@@ -48,6 +61,7 @@ export function SetsPage() {
     progressBySetCode: new Map(),
   });
   const [searchTerm, setSearchTerm] = useState('');
+  const [openSetId, setOpenSetId] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -235,38 +249,87 @@ export function SetsPage() {
                         : null;
                       const setImageUrl = set.logo_url ?? set.symbol_url;
                       const setImageAlt = set.logo_url ? `${set.name} logo` : `${set.name} symbool`;
+                      const isOpen = openSetId === set.id;
 
                       return (
-                        <li key={set.id} className="sets-page-set-card">
-                          <div className="sets-page-set-media" aria-hidden={setImageUrl ? undefined : true}>
-                            {setImageUrl ? (
-                              <img src={setImageUrl} alt={setImageAlt} width="96" height="40" loading="lazy" />
-                            ) : (
-                              <span className="sets-page-set-media-placeholder">Geen logo</span>
-                            )}
-                          </div>
+                        <li key={set.id} className={`sets-page-set-card${isOpen ? ' sets-page-set-card-open' : ''}`}>
+                          <button
+                            type="button"
+                            className="sets-page-set-button"
+                            aria-expanded={isOpen}
+                            onClick={() => setOpenSetId(isOpen ? null : set.id)}
+                          >
+                            <div className="sets-page-set-summary">
+                              <div className="sets-page-set-media" aria-hidden={setImageUrl ? undefined : true}>
+                                {setImageUrl ? (
+                                  <img src={setImageUrl} alt={setImageAlt} width="96" height="40" loading="lazy" />
+                                ) : (
+                                  <span className="sets-page-set-media-placeholder">Geen logo</span>
+                                )}
+                              </div>
 
-                          <div className="sets-page-set-content">
-                            <div className="sets-page-set-heading">
-                              <strong className="sets-page-set-name">{set.name}</strong>
-                            </div>
-
-                            <div className="sets-page-set-progress" aria-label={`Collectievoortgang voor ${set.name}`}>
-                              <span>{formatSetProgressText(ownedCount, set.total)}</span>
-                              {progressPercent !== null ? (
-                                <div
-                                  className="sets-page-set-progress-bar"
-                                  role="progressbar"
-                                  aria-valuemin={0}
-                                  aria-valuemax={100}
-                                  aria-valuenow={progressPercent}
-                                  aria-label={`${progressPercent}% compleet`}
-                                >
-                                  <span style={{ width: `${progressPercent}%` }} />
+                              <div className="sets-page-set-content">
+                                <div className="sets-page-set-heading">
+                                  <strong className="sets-page-set-name">{set.name}</strong>
                                 </div>
-                              ) : null}
+
+                                <div className="sets-page-set-progress" aria-label={`Collectievoortgang voor ${set.name}`}>
+                                  <span>{formatSetProgressText(ownedCount, set.total)}</span>
+                                  {progressPercent !== null ? (
+                                    <div
+                                      className="sets-page-set-progress-bar"
+                                      role="progressbar"
+                                      aria-valuemin={0}
+                                      aria-valuemax={100}
+                                      aria-valuenow={progressPercent}
+                                      aria-label={`${progressPercent}% compleet`}
+                                    >
+                                      <span style={{ width: `${progressPercent}%` }} />
+                                    </div>
+                                  ) : null}
+                                </div>
+                              </div>
                             </div>
-                          </div>
+
+                            {isOpen ? (
+                              <div className="sets-page-set-details" aria-label={`Details van ${set.name}`}>
+                                <div className="sets-page-set-detail-media">
+                                  {setImageUrl ? (
+                                    <img src={setImageUrl} alt={setImageAlt} width="96" height="40" loading="lazy" />
+                                  ) : (
+                                    <span className="sets-page-set-media-placeholder">Geen logo</span>
+                                  )}
+                                </div>
+
+                                <dl className="sets-page-set-detail-list">
+                                  <div>
+                                    <dt>Set</dt>
+                                    <dd>{set.name}</dd>
+                                  </div>
+                                  {set.series ? (
+                                    <div>
+                                      <dt>Series</dt>
+                                      <dd>{set.series}</dd>
+                                    </div>
+                                  ) : null}
+                                  <div>
+                                    <dt>Release date</dt>
+                                    <dd>{formatReleaseDate(set.release_date)}</dd>
+                                  </div>
+                                  <div>
+                                    <dt>Verzameld</dt>
+                                    <dd>{ownedCount}</dd>
+                                  </div>
+                                  {hasKnownSetTotal(set.total) ? (
+                                    <div>
+                                      <dt>Totaal</dt>
+                                      <dd>{set.total}</dd>
+                                    </div>
+                                  ) : null}
+                                </dl>
+                              </div>
+                            ) : null}
+                          </button>
                         </li>
                       );
                     })}
