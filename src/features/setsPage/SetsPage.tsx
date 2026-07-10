@@ -52,15 +52,13 @@ export function SetsPage() {
     };
   }, []);
 
-  const catalogSummary = useMemo(() => {
-    const sources = Array.from(new Set(setsPageState.sets.map((set) => set.source).filter(Boolean)));
-
-    return {
+  const catalogSummary = useMemo(
+    () => ({
       loadedSetsCount: setsPageState.sets.length,
       setsWithMetadataCount: setsPageState.sets.filter((set) => set.release_date || set.total !== null).length,
-      sourceLabel: sources.length > 0 ? sources.join(', ') : 'public.sets_catalog',
-    };
-  }, [setsPageState.sets]);
+    }),
+    [setsPageState.sets],
+  );
 
   const isLoading = setsPageState.status === 'loading';
   const isError = setsPageState.status === 'error';
@@ -83,11 +81,9 @@ export function SetsPage() {
           <dt>Sets met metadata</dt>
           <dd>{catalogSummary.setsWithMetadataCount}</dd>
         </div>
-        <div>
-          <dt>Bron</dt>
-          <dd>{catalogSummary.sourceLabel}</dd>
-        </div>
       </dl>
+
+      <p className="sets-page-progress-note">Collectievoortgang per set volgt in een volgende fase.</p>
 
       <section className="sets-page-card" aria-labelledby="sets-page-catalog-title">
         <h3 id="sets-page-catalog-title">Set-catalog</h3>
@@ -150,28 +146,10 @@ export function SetsPage() {
                         <dd>{formattedReleaseDate}</dd>
                       </div>
                     ) : null}
-                    {set.printed_total !== null ? (
-                      <div>
-                        <dt>Printed total</dt>
-                        <dd>{set.printed_total}</dd>
-                      </div>
-                    ) : null}
                     {set.total !== null ? (
                       <div>
-                        <dt>Total</dt>
+                        <dt>Kaarten in set</dt>
                         <dd>{set.total}</dd>
-                      </div>
-                    ) : null}
-                    {set.source ? (
-                      <div>
-                        <dt>Source</dt>
-                        <dd>{set.source}</dd>
-                      </div>
-                    ) : null}
-                    {set.source_id ? (
-                      <div>
-                        <dt>Source ID</dt>
-                        <dd>{set.source_id}</dd>
                       </div>
                     ) : null}
                   </dl>
