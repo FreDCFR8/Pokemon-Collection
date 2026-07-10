@@ -127,7 +127,12 @@ export function SetsPage() {
       return setsPageState.sets;
     }
 
-    return setsPageState.sets.filter((set) => set.name.toLowerCase().includes(normalizedSearchTerm));
+    return setsPageState.sets.filter((set) => {
+      const setName = set.name.toLowerCase();
+      const seriesName = set.series?.toLowerCase() ?? '';
+
+      return setName.includes(normalizedSearchTerm) || seriesName.includes(normalizedSearchTerm);
+    });
   }, [normalizedSearchTerm, setsPageState.sets]);
 
   const groupedSets = useMemo(() => {
