@@ -36,6 +36,7 @@ export function SetsPage() {
     status: 'idle',
     progressBySetCode: new Map(),
   });
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     let isMounted = true;
@@ -113,9 +114,19 @@ export function SetsPage() {
     [setsPageState.sets],
   );
 
+  const normalizedSearchTerm = searchTerm.trim().toLowerCase();
+  const filteredSets = useMemo(() => {
+    if (!normalizedSearchTerm) {
+      return setsPageState.sets;
+    }
+
+    return setsPageState.sets.filter((set) => set.name.toLowerCase().includes(normalizedSearchTerm));
+  }, [normalizedSearchTerm, setsPageState.sets]);
+
   const isLoading = setsPageState.status === 'loading';
   const isError = setsPageState.status === 'error';
   const isEmpty = setsPageState.status === 'success' && setsPageState.sets.length === 0;
+  const hasNoSearchResults = setsPageState.status === 'success' && setsPageState.sets.length > 0 && filteredSets.length === 0;
 
   return (
     <section className="sets-page" aria-labelledby="sets-page-title">
@@ -145,6 +156,24 @@ export function SetsPage() {
       <section className="sets-page-card" aria-labelledby="sets-page-catalog-title">
         <h3 id="sets-page-catalog-title">Set-catalog</h3>
 
+        <div className="sets-page-search">
+          <label htmlFor="sets-page-search-input">Zoeken</label>
+          <div className="sets-page-search-control">
+            <input
+              id="sets-page-search-input"
+              type="search"
+              placeholder="Zoek set..."
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+            />
+            {searchTerm ? (
+              <button type="button" aria-label="Zoekterm wissen" onClick={() => setSearchTerm('')}>
+                ×
+              </button>
+            ) : null}
+          </div>
+        </div>
+
         {isLoading ? <p role="status">Sets worden geladen...</p> : null}
 
         {isError ? (
@@ -153,9 +182,11 @@ export function SetsPage() {
 
         {isEmpty ? <p>Er zijn nog geen sets beschikbaar in de catalog.</p> : null}
 
-        {setsPageState.sets.length > 0 ? (
+        {hasNoSearchResults ? <p>Geen sets gevonden.</p> : null}
+
+        {filteredSets.length > 0 ? (
           <ul className="sets-page-catalog-grid" aria-label="Beschikbare sets">
-            {setsPageState.sets.map((set) => {
+            {filteredSets.map((set) => {
               const setProgress = setsProgressState.progressBySetCode.get(set.set_code);
               const ownedCount = setProgress?.ownedCount ?? 0;
               const progressPercent = calculateProgressPercent(ownedCount, set.total);
