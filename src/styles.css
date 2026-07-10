@@ -821,8 +821,7 @@ button {
 }
 
 .sets-page-hero,
-.sets-page-card,
-.sets-page-detail {
+.sets-page-card {
   min-width: 0;
   width: 100%;
   max-width: 100%;
@@ -834,8 +833,7 @@ button {
 }
 
 .sets-page-hero h2,
-.sets-page-card h3,
-.sets-page-detail h3 {
+.sets-page-card h3 {
   margin: 0;
 }
 
@@ -913,7 +911,10 @@ button {
 }
 
 .sets-page-set-card {
-  display: block;
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
   box-sizing: border-box;
   min-width: 0;
   width: 100%;
@@ -921,98 +922,39 @@ button {
   border: 1px solid #e2e8f0;
   border-radius: 20px;
   background: #ffffff;
-  padding: 14px;
-  color: inherit;
-  cursor: pointer;
-  text-align: left;
+  padding: 12px;
 }
 
-.sets-page-set-card:hover,
-.sets-page-set-card:focus-visible,
-.sets-page-set-card[aria-pressed="true"] {
-  border-color: #2563eb;
-  box-shadow: 0 12px 28px rgb(37 99 235 / 0.12);
-}
-
-.sets-page-set-card:focus-visible,
-.sets-page-detail-close:focus-visible {
-  outline: 3px solid rgb(37 99 235 / 0.2);
-  outline-offset: 3px;
-}
-
-.sets-page-detail {
-  display: grid;
-  gap: 14px;
-}
-
-.sets-page-detail-header {
-  display: grid;
-  gap: 12px;
-  min-width: 0;
-}
-
-.sets-page-detail-logo {
-  justify-self: start;
-  width: min(160px, 100%);
-  max-width: 100%;
-  height: 56px;
-  object-fit: contain;
-  object-position: left center;
-}
-
-.sets-page-detail-metadata {
-  margin-top: 0;
-}
-
-.sets-page-detail-placeholder {
-  margin: 0;
-  color: #475569;
-  line-height: 1.6;
-}
-
-.sets-page-detail-close {
-  justify-self: start;
-  min-height: 42px;
-  border: 0;
-  border-radius: 999px;
-  background: #2563eb;
-  padding: 10px 16px;
-  color: #ffffff;
-  cursor: pointer;
-  font-weight: 900;
-}
-
-.sets-page-set-card-header {
-  display: grid;
-  gap: 10px;
+.sets-page-set-media {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   min-width: 0;
   width: 100%;
-  max-width: 100%;
+  height: 52px;
+  border-radius: 16px;
+  background: #f8fafc;
 }
 
-.sets-page-set-title-group {
+.sets-page-set-media img {
+  width: auto;
+  max-width: 100%;
+  max-height: 40px;
+  object-fit: contain;
+}
+
+.sets-page-set-content {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: center;
-  gap: 10px;
+  gap: 8px;
   min-width: 0;
 }
 
-.sets-page-set-symbol {
-  width: 32px;
-  height: 32px;
-  border-radius: 999px;
-  background: #f8fafc;
-  object-fit: contain;
-}
-
-.sets-page-set-logo {
-  justify-self: start;
-  width: min(120px, 100%);
-  max-width: 100%;
-  height: 42px;
-  object-fit: contain;
-  object-position: left center;
+.sets-page-set-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px;
+  min-width: 0;
 }
 
 .sets-page-set-name,
@@ -1023,71 +965,23 @@ button {
 
 .sets-page-set-name {
   color: #172033;
-  font-size: 1.05rem;
+  font-size: 0.98rem;
   line-height: 1.25;
 }
 
 .sets-page-set-code {
-  margin-top: 4px;
-  color: #64748b;
-  font-size: 0.82rem;
-  font-weight: 800;
-}
-
-.sets-page-set-details {
-  display: grid;
-  gap: 8px;
-  min-width: 0;
-  width: 100%;
-  max-width: 100%;
-  margin: 12px 0 0;
-}
-
-.sets-page-set-details div {
-  box-sizing: border-box;
-  min-width: 0;
-  width: 100%;
-  max-width: 100%;
-  border-radius: 14px;
-  background: #f8fafc;
-  padding: 9px 10px;
-}
-
-.sets-page-set-details dt {
-  color: #64748b;
-  font-size: 0.7rem;
+  border-radius: 999px;
+  background: #eef2ff;
+  padding: 4px 7px;
+  color: #475569;
+  font-size: 0.72rem;
   font-weight: 900;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-}
-
-.sets-page-set-details dd {
-  overflow-wrap: anywhere;
-  margin: 3px 0 0;
-  color: #172033;
-  font-size: 0.88rem;
-  font-weight: 800;
+  line-height: 1;
 }
 
 @media (min-width: 520px) {
-  .sets-page-summary,
-  .sets-page-set-details {
+  .sets-page-summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .sets-page-set-card-header {
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: start;
-  }
-
-  .sets-page-detail-header {
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: start;
-  }
-
-  .sets-page-set-logo,
-  .sets-page-detail-logo {
-    justify-self: end;
   }
 }
 
@@ -1103,7 +997,6 @@ button {
   min-width: 0;
   width: 100%;
   max-width: 100%;
-  margin-top: 12px;
   color: #2563eb;
   font-size: 0.82rem;
   font-weight: 900;
