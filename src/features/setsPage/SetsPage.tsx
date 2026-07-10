@@ -179,7 +179,6 @@ export function SetsPage() {
                   <div className="sets-page-set-content">
                     <div className="sets-page-set-heading">
                       <strong className="sets-page-set-name">{set.name}</strong>
-                      <span className="sets-page-set-code">{set.set_code}</span>
                     </div>
 
                     <div className="sets-page-set-progress" aria-label={`Collectievoortgang voor ${set.name}`}>

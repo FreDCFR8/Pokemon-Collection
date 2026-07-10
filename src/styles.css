@@ -951,14 +951,11 @@ button {
 
 .sets-page-set-heading {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
   align-items: start;
-  gap: 10px;
   min-width: 0;
 }
 
-.sets-page-set-name,
-.sets-page-set-code {
+.sets-page-set-name {
   display: block;
   overflow-wrap: anywhere;
 }
@@ -969,15 +966,6 @@ button {
   line-height: 1.25;
 }
 
-.sets-page-set-code {
-  border-radius: 999px;
-  background: #eef2ff;
-  padding: 4px 7px;
-  color: #475569;
-  font-size: 0.72rem;
-  font-weight: 900;
-  line-height: 1;
-}
 
 @media (min-width: 520px) {
   .sets-page-summary {
