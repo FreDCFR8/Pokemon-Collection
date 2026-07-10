@@ -14,26 +14,20 @@ type SetsProgressState = {
   progressBySetCode: Map<string, SetProgress>;
 };
 
-function formatSetDate(releaseDate: string | null) {
-  if (!releaseDate) {
+function formatProgressText(ownedCount: number, total: number | null) {
+  if (total !== null) {
+    return `${ownedCount} van ${total}`;
+  }
+
+  return `${ownedCount} kaarten`;
+}
+
+function calculateProgressPercent(ownedCount: number, total: number | null) {
+  if (!total) {
     return null;
   }
 
-  return new Intl.DateTimeFormat('nl-NL', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  }).format(new Date(releaseDate));
-}
-
-function formatProgressText(progress: SetProgress) {
-  if (progress.total !== null) {
-    const percentage = progress.progressPercent !== null ? ` (${progress.progressPercent}%)` : '';
-
-    return `${progress.ownedCount} / ${progress.total} kaarten${percentage}`;
-  }
-
-  return `${progress.ownedCount} kaarten`;
+  return Math.min(100, Math.round((ownedCount / total) * 100));
 }
 
 export function SetsPage() {
@@ -162,80 +156,48 @@ export function SetsPage() {
         {setsPageState.sets.length > 0 ? (
           <ul className="sets-page-catalog-grid" aria-label="Beschikbare sets">
             {setsPageState.sets.map((set) => {
-              const formattedReleaseDate = formatSetDate(set.release_date);
               const setProgress = setsProgressState.progressBySetCode.get(set.set_code);
-              const progressBarValue = setProgress?.progressPercent ?? 0;
+              const ownedCount = setProgress?.ownedCount ?? 0;
+              const progressPercent = calculateProgressPercent(ownedCount, set.total);
+              const setImageUrl = set.logo_url ?? set.symbol_url;
+              const setImageAlt = set.logo_url ? `${set.name} logo` : `${set.name} symbool`;
 
               return (
                 <li key={set.id} className="sets-page-set-card">
-                  <div className="sets-page-set-card-header">
-                    <div className="sets-page-set-title-group">
-                      {set.symbol_url ? (
-                        <img
-                          className="sets-page-set-symbol"
-                          src={set.symbol_url}
-                          alt={`${set.name} symbool`}
-                          width="32"
-                          height="32"
-                          loading="lazy"
-                        />
-                      ) : null}
-                      <div>
-                        <strong className="sets-page-set-name">{set.name}</strong>
-                        <span className="sets-page-set-code">{set.set_code}</span>
-                      </div>
-                    </div>
-
-                    {set.logo_url ? (
+                  <div className="sets-page-set-media" aria-hidden={setImageUrl ? undefined : true}>
+                    {setImageUrl ? (
                       <img
-                        className="sets-page-set-logo"
-                        src={set.logo_url}
-                        alt={`${set.name} logo`}
-                        width="120"
-                        height="48"
+                        src={setImageUrl}
+                        alt={setImageAlt}
+                        width="96"
+                        height="40"
                         loading="lazy"
                       />
                     ) : null}
                   </div>
 
-                  <dl className="sets-page-set-details">
-                    {set.series ? (
-                      <div>
-                        <dt>Series</dt>
-                        <dd>{set.series}</dd>
-                      </div>
-                    ) : null}
-                    {formattedReleaseDate ? (
-                      <div>
-                        <dt>Release date</dt>
-                        <dd>{formattedReleaseDate}</dd>
-                      </div>
-                    ) : null}
-                    {set.total !== null ? (
-                      <div>
-                        <dt>Kaarten in set</dt>
-                        <dd>{set.total}</dd>
-                      </div>
-                    ) : null}
-                  </dl>
+                  <div className="sets-page-set-content">
+                    <div className="sets-page-set-heading">
+                      <strong className="sets-page-set-name">{set.name}</strong>
+                      <span className="sets-page-set-code">{set.set_code}</span>
+                    </div>
 
-                  {setProgress ? (
                     <div className="sets-page-set-progress" aria-label={`Collectievoortgang voor ${set.name}`}>
-                      <span>{formatProgressText(setProgress)}</span>
-                      {setProgress.progressPercent !== null ? (
+                      <span>{formatProgressText(ownedCount, set.total)}</span>
+                      {progressPercent !== null ? (
                         <div
                           className="sets-page-set-progress-bar"
                           role="progressbar"
                           aria-valuemin={0}
                           aria-valuemax={100}
-                          aria-valuenow={setProgress.progressPercent}
-                          aria-label={`${setProgress.progressPercent}% compleet`}
+                          aria-valuenow={progressPercent}
+                          aria-label={`${progressPercent}% compleet`}
                         >
-                          <span style={{ width: `${progressBarValue}%` }} />
+                          <span style={{ width: `${progressPercent}%` }} />
                         </div>
                       ) : null}
                     </div>
-                  ) : null}
+                  </div>
                 </li>
               );
             })}
