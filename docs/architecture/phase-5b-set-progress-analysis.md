@@ -15,29 +15,30 @@ Conclusion: **not yet**. The current collection-to-card relation is reliable, bu
 
 ### `sets_catalog`
 
-The documented `public.sets_catalog` schema contains these fields:
+The current `public.sets_catalog` Supabase table contains these fields:
 
-- `id uuid primary key`
-- `external_source text not null`
-- `external_id text null`
-- `set_code text null`
+- `id uuid not null`
+- `set_code text not null`
 - `name text not null`
 - `series text null`
+- `generation text null`
+- `release_date date null`
 - `printed_total integer null`
 - `total integer null`
-- `release_date date null`
-- `generation integer null`
-- `logo_url text null`
 - `symbol_url text null`
-- `source_url text null`
+- `logo_url text null`
+- `source text null`
+- `source_id text null`
 - `created_at timestamptz not null`
 - `updated_at timestamptz not null`
 
 Important observations:
 
-- `sets_catalog.set_code` exists and is the project-facing set code used by the set catalog import work.
-- `sets_catalog.name` is intentionally not unique and is a display label, not a safe join key.
-- Earlier schema planning explicitly kept `set_code` non-unique at first, with optional future uniqueness only after the selected source proves codes are stable and collision-free.
+- `sets_catalog.set_code` is present, required, and unique through the `sets_catalog_set_code_unique` constraint.
+- `sets_catalog.name` is a display label and must not be used as the join key for collection progress.
+- `sets_catalog.generation` is `text null`, not an integer field.
+- `sets_catalog.source` and `sets_catalog.source_id` are the current source metadata fields.
+- Row Level Security is enabled on `sets_catalog`, and authenticated users can read from the table.
 - Some initially imported rows were `manual_review` rows with limited metadata, so the set catalog is curated/reviewed data rather than a complete mapping from every card row.
 
 ### `cards_catalog`
@@ -45,8 +46,6 @@ Important observations:
 The documented `public.cards_catalog` schema contains these fields:
 
 - `id uuid primary key`
-- `external_source text null`
-- `external_id text null`
 - `pokemon text not null`
 - `set_name text null`
 - `number text null`
@@ -153,11 +152,11 @@ Advantages:
 - Aligns well with Pokémon TCG API-style set identifiers and the existing project-facing `sets_catalog.set_code` concept.
 - Easy to use for joins once set-code uniqueness/normalization rules are documented.
 - Allows staged backfill without immediately requiring every historical card to resolve to a UUID.
+- Because `sets_catalog.set_code` is already unique, this becomes an attractive next step: it can later be used as an FK-like relation or as a real constraint to `sets_catalog(set_code)`.
 
 Disadvantages:
 
-- It is a textual foreign key unless the project later adds a formal constraint or uniqueness rule on `sets_catalog.set_code`.
-- It still needs a careful mapping/import strategy so codes are not guessed from loose names.
+- It still starts as a textual mapping and needs a careful mapping/import strategy before any constraint is added, so codes are not guessed from loose names.
 
 ### Option B — `cards_catalog.set_id uuid null references sets_catalog(id)`
 
@@ -184,7 +183,7 @@ Recommended path:
 3. Build a read-only progress query only after enough mapping reliability exists.
 4. Show set progress on the Sets page only after the read-only query is verified.
 
-This balances safety and incremental delivery. It creates an explicit mapping without prematurely requiring a full UUID foreign-key migration. A later phase can still add a stronger `set_id` relation if the project needs stricter relational guarantees.
+This balances safety and incremental delivery. Because `sets_catalog.set_code` is already unique, `cards_catalog.set_code` can later become an FK-like relation or a real constraint to `sets_catalog(set_code)` after safe backfill/mapping. A later phase can still add a stronger `set_id` relation if the project needs stricter relational guarantees.
 
 ## Proposed phasing
 
