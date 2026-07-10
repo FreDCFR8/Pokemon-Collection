@@ -1035,6 +1035,15 @@ button {
   object-fit: contain;
 }
 
+.sets-page-set-media-placeholder {
+  color: #94a3b8;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
 .sets-page-set-content {
   display: grid;
   gap: 8px;
