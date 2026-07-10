@@ -41,7 +41,7 @@ export async function getSetsCatalog(): Promise<SetsCatalogRow[]> {
     .from('sets_catalog')
     .select(SETS_CATALOG_SELECT)
     .returns<SetsCatalogRow[]>()
-    .order('release_date', { ascending: true, nullsFirst: false })
+    .order('release_date', { ascending: false, nullsFirst: false })
     .order('name', { ascending: true });
 
   if (error) {
