@@ -1,11 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
 
+import { checkCollectionReadiness } from '../collections';
 import { getSetsCatalog, type SetsCatalogRow } from '../../services/setsCatalogService';
+import { getSetProgressForCollection, type SetProgress } from './services/setsProgressService';
 
 type SetsPageState =
   | { status: 'loading'; sets: SetsCatalogRow[]; errorMessage?: undefined }
   | { status: 'success'; sets: SetsCatalogRow[]; errorMessage?: undefined }
   | { status: 'error'; sets: SetsCatalogRow[]; errorMessage: string };
+
+type SetsProgressState = {
+  status: 'idle' | 'loading' | 'success' | 'unavailable';
+  progressBySetCode: Map<string, SetProgress>;
+};
 
 function formatSetDate(releaseDate: string | null) {
   if (!releaseDate) {
@@ -19,8 +26,22 @@ function formatSetDate(releaseDate: string | null) {
   }).format(new Date(releaseDate));
 }
 
+function formatProgressText(progress: SetProgress) {
+  if (progress.total !== null) {
+    const percentage = progress.progressPercent !== null ? ` (${progress.progressPercent}%)` : '';
+
+    return `${progress.ownedCount} / ${progress.total} kaarten${percentage}`;
+  }
+
+  return `${progress.ownedCount} kaarten`;
+}
+
 export function SetsPage() {
   const [setsPageState, setSetsPageState] = useState<SetsPageState>({ status: 'loading', sets: [] });
+  const [setsProgressState, setSetsProgressState] = useState<SetsProgressState>({
+    status: 'idle',
+    progressBySetCode: new Map(),
+  });
 
   useEffect(() => {
     let isMounted = true;
@@ -52,6 +73,44 @@ export function SetsPage() {
     };
   }, []);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadSetsProgress() {
+      setSetsProgressState({ status: 'loading', progressBySetCode: new Map() });
+
+      try {
+        const collectionReadiness = await checkCollectionReadiness();
+        const collectionId = collectionReadiness.mainCollection?.id;
+
+        if (collectionReadiness.status !== 'collection-ready' || !collectionId) {
+          if (isMounted) {
+            setSetsProgressState({ status: 'unavailable', progressBySetCode: new Map() });
+          }
+
+          return;
+        }
+
+        const setProgress = await getSetProgressForCollection(collectionId);
+        const progressBySetCode = new Map(setProgress.map((progress) => [progress.setCode, progress]));
+
+        if (isMounted) {
+          setSetsProgressState({ status: 'success', progressBySetCode });
+        }
+      } catch {
+        if (isMounted) {
+          setSetsProgressState({ status: 'unavailable', progressBySetCode: new Map() });
+        }
+      }
+    }
+
+    void loadSetsProgress();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const catalogSummary = useMemo(
     () => ({
       loadedSetsCount: setsPageState.sets.length,
@@ -69,7 +128,7 @@ export function SetsPage() {
       <div className="sets-page-hero">
         <p className="eyebrow">Set-catalogus</p>
         <h2 id="sets-page-title">Sets</h2>
-        <p>Volledige set-catalogus, onafhankelijk van de Lars/Lore collectie.</p>
+        <p>Volledige set-catalogus met collectievoortgang wanneer die beschikbaar is.</p>
       </div>
 
       <dl className="sets-page-summary" aria-label="Samenvatting van de set-catalogus">
@@ -83,7 +142,11 @@ export function SetsPage() {
         </div>
       </dl>
 
-      <p className="sets-page-progress-note">Collectievoortgang per set volgt in een volgende fase.</p>
+      {setsProgressState.status === 'loading' ? (
+        <p className="sets-page-progress-note" role="status">
+          Collectievoortgang wordt geladen...
+        </p>
+      ) : null}
 
       <section className="sets-page-card" aria-labelledby="sets-page-catalog-title">
         <h3 id="sets-page-catalog-title">Set-catalog</h3>
@@ -100,6 +163,8 @@ export function SetsPage() {
           <ul className="sets-page-catalog-grid" aria-label="Beschikbare sets">
             {setsPageState.sets.map((set) => {
               const formattedReleaseDate = formatSetDate(set.release_date);
+              const setProgress = setsProgressState.progressBySetCode.get(set.set_code);
+              const progressBarValue = setProgress?.progressPercent ?? 0;
 
               return (
                 <li key={set.id} className="sets-page-set-card">
@@ -153,6 +218,24 @@ export function SetsPage() {
                       </div>
                     ) : null}
                   </dl>
+
+                  {setProgress ? (
+                    <div className="sets-page-set-progress" aria-label={`Collectievoortgang voor ${set.name}`}>
+                      <span>{formatProgressText(setProgress)}</span>
+                      {setProgress.progressPercent !== null ? (
+                        <div
+                          className="sets-page-set-progress-bar"
+                          role="progressbar"
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                          aria-valuenow={setProgress.progressPercent}
+                          aria-label={`${setProgress.progressPercent}% compleet`}
+                        >
+                          <span style={{ width: `${progressBarValue}%` }} />
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </li>
               );
             })}
