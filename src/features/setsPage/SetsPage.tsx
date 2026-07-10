@@ -250,12 +250,14 @@ export function SetsPage() {
                       const setImageUrl = set.logo_url ?? set.symbol_url;
                       const setImageAlt = set.logo_url ? `${set.name} logo` : `${set.name} symbool`;
                       const isOpen = openSetId === set.id;
+                      const detailPanelId = `sets-page-set-details-${set.id}`;
 
                       return (
                         <li key={set.id} className={`sets-page-set-card${isOpen ? ' sets-page-set-card-open' : ''}`}>
                           <button
                             type="button"
                             className="sets-page-set-button"
+                            aria-controls={detailPanelId}
                             aria-expanded={isOpen}
                             onClick={() => setOpenSetId(isOpen ? null : set.id)}
                           >
@@ -290,46 +292,46 @@ export function SetsPage() {
                                 </div>
                               </div>
                             </div>
-
-                            {isOpen ? (
-                              <div className="sets-page-set-details" aria-label={`Details van ${set.name}`}>
-                                <div className="sets-page-set-detail-media">
-                                  {setImageUrl ? (
-                                    <img src={setImageUrl} alt={setImageAlt} width="96" height="40" loading="lazy" />
-                                  ) : (
-                                    <span className="sets-page-set-media-placeholder">Geen logo</span>
-                                  )}
-                                </div>
-
-                                <dl className="sets-page-set-detail-list">
-                                  <div>
-                                    <dt>Set</dt>
-                                    <dd>{set.name}</dd>
-                                  </div>
-                                  {set.series ? (
-                                    <div>
-                                      <dt>Series</dt>
-                                      <dd>{set.series}</dd>
-                                    </div>
-                                  ) : null}
-                                  <div>
-                                    <dt>Release date</dt>
-                                    <dd>{formatReleaseDate(set.release_date)}</dd>
-                                  </div>
-                                  <div>
-                                    <dt>Verzameld</dt>
-                                    <dd>{ownedCount}</dd>
-                                  </div>
-                                  {hasKnownSetTotal(set.total) ? (
-                                    <div>
-                                      <dt>Totaal</dt>
-                                      <dd>{set.total}</dd>
-                                    </div>
-                                  ) : null}
-                                </dl>
-                              </div>
-                            ) : null}
                           </button>
+
+                          {isOpen ? (
+                            <div id={detailPanelId} className="sets-page-set-details" aria-label={`Details van ${set.name}`}>
+                              <div className="sets-page-set-detail-media">
+                                {setImageUrl ? (
+                                  <img src={setImageUrl} alt={setImageAlt} width="96" height="40" loading="lazy" />
+                                ) : (
+                                  <span className="sets-page-set-media-placeholder">Geen logo</span>
+                                )}
+                              </div>
+
+                              <dl className="sets-page-set-detail-list">
+                                <div>
+                                  <dt>Set</dt>
+                                  <dd>{set.name}</dd>
+                                </div>
+                                {set.series ? (
+                                  <div>
+                                    <dt>Series</dt>
+                                    <dd>{set.series}</dd>
+                                  </div>
+                                ) : null}
+                                <div>
+                                  <dt>Releasedatum</dt>
+                                  <dd>{formatReleaseDate(set.release_date)}</dd>
+                                </div>
+                                <div>
+                                  <dt>Verzameld</dt>
+                                  <dd>{ownedCount}</dd>
+                                </div>
+                                {hasKnownSetTotal(set.total) ? (
+                                  <div>
+                                    <dt>Totaal</dt>
+                                    <dd>{set.total}</dd>
+                                  </div>
+                                ) : null}
+                              </dl>
+                            </div>
+                          ) : null}
                         </li>
                       );
                     })}
