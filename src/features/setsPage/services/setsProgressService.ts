@@ -14,7 +14,12 @@ type CollectionCardSetCodeRelation = {
   set_code: string | null;
 };
 
+type CollectionCardCollectionStatus = 'owned' | 'wishlist' | 'trade' | 'missing' | string;
+
 type CollectionCardSetCodeRow = {
+  id: string;
+  card_catalog_id: string | null;
+  status: CollectionCardCollectionStatus | null;
   cards_catalog: CollectionCardSetCodeRelation | CollectionCardSetCodeRelation[] | null;
 };
 
@@ -25,6 +30,9 @@ type SetsCatalogTotalsRow = {
 };
 
 const COLLECTION_CARD_SET_CODE_SELECT = `
+  id,
+  card_catalog_id,
+  status,
   cards_catalog!inner (
     set_code
   )
@@ -37,6 +45,10 @@ function getSetCodeFromCollectionCardRow(row: CollectionCardSetCodeRow): string 
   const relation = Array.isArray(row.cards_catalog) ? row.cards_catalog[0] : row.cards_catalog;
 
   return relation?.set_code ?? null;
+}
+
+function isCollectionCardStatusCollected(status: CollectionCardSetCodeRow['status']): boolean {
+  return status === 'owned' || status === 'trade';
 }
 
 async function fetchAllCollectionCardSetCodeRows(
@@ -52,6 +64,7 @@ async function fetchAllCollectionCardSetCodeRows(
       .from('collection_cards')
       .select(COLLECTION_CARD_SET_CODE_SELECT)
       .eq('collection_id', collectionId)
+      .order('id', { ascending: true })
       .range(from, to)
       .returns<CollectionCardSetCodeRow[]>();
 
@@ -85,19 +98,21 @@ export async function getSetProgressForCollection(collectionId: string): Promise
 
   const ownershipRows = await fetchAllCollectionCardSetCodeRows(supabase, collectionId);
 
-  const ownedCountsBySetCode = new Map<string, number>();
+  const collectedCardCatalogIdsBySetCode = new Map<string, Set<string>>();
 
   for (const row of ownershipRows) {
     const setCode = getSetCodeFromCollectionCardRow(row);
 
-    if (!setCode) {
+    if (!setCode || !row.card_catalog_id || !isCollectionCardStatusCollected(row.status)) {
       continue;
     }
 
-    ownedCountsBySetCode.set(setCode, (ownedCountsBySetCode.get(setCode) ?? 0) + 1);
+    const collectedCardCatalogIds = collectedCardCatalogIdsBySetCode.get(setCode) ?? new Set<string>();
+    collectedCardCatalogIds.add(row.card_catalog_id);
+    collectedCardCatalogIdsBySetCode.set(setCode, collectedCardCatalogIds);
   }
 
-  const setCodes = [...ownedCountsBySetCode.keys()].sort((a, b) => a.localeCompare(b));
+  const setCodes = [...collectedCardCatalogIdsBySetCode.keys()].sort((a, b) => a.localeCompare(b));
 
   if (setCodes.length === 0) {
     return [];
@@ -116,7 +131,7 @@ export async function getSetProgressForCollection(collectionId: string): Promise
   const totalsBySetCode = new Map((setTotalsRows ?? []).map((row) => [row.set_code, row]));
 
   return setCodes.map((setCode) => {
-    const ownedCount = ownedCountsBySetCode.get(setCode) ?? 0;
+    const ownedCount = collectedCardCatalogIdsBySetCode.get(setCode)?.size ?? 0;
     const totals = totalsBySetCode.get(setCode);
     const total = totals?.total ?? null;
     const printedTotal = totals?.printed_total ?? null;
