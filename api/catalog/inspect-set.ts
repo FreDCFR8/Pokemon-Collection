@@ -53,10 +53,13 @@ class UpstreamError extends Error {
   }
 }
 
-function jsonResponse(status: number, body: unknown): Response {
+function jsonResponse(status: number, body: unknown, headers?: HeadersInit): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: jsonHeaders,
+    headers: {
+      ...jsonHeaders,
+      ...headers,
+    },
   });
 }
 
@@ -160,7 +163,11 @@ async function fetchSetCards(setId: string, apiKey: string): Promise<PokemonCard
   return cards;
 }
 
-export async function GET(request: Request): Promise<Response> {
+export default async function handler(request: Request): Promise<Response> {
+  if (request.method !== "GET") {
+    return jsonResponse(405, { error: "Method not allowed." }, { Allow: "GET" });
+  }
+
   if (process.env.VERCEL_ENV === "production") {
     return jsonResponse(404, { error: "Not found." });
   }
