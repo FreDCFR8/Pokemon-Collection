@@ -1,0 +1,36 @@
+# Pokémon Collection V3 — Decision Log
+
+This living document records important architectural and product decisions and, crucially, why they were made.
+
+| Date | Phase | Decision | Reason and lasting effect |
+|---|---|---|---|
+| 2026-07 | Project restart | Build Pokémon Collection V3 as a clean React, TypeScript and Supabase project instead of continuing the previous patched application. | The previous application had accumulated overlapping patches, regressions and technical debt. V3 prioritizes long-term maintainability and stable evolution. |
+| 2026-07 | Workflow | Keep `main` stable and use one branch and PR per clear objective. | Small isolated changes are easier to review, test, revert and reason about. |
+| 2026-07 | Core model | Use `cards_catalog` for card metadata and `collection_cards` for collection-specific ownership and status. | It prevents per-user metadata duplication and supports multiple profiles, collections, wishlist and trade using one catalog. |
+| 2026-07 | Legacy | Treat `public.cards` as legacy and exclude it from new runtime functionality. | New functionality must use the normalized V3 model and must not recreate dependencies on historical structures. |
+| 2026-07 | Sets | Use `sets_catalog` as the canonical source for set metadata and project `set_code` as the internal identifier. | Consistent set identity is required for progress, filtering, catalog synchronization and future set browsing. Internal codes remain hidden from end users. |
+| 2026-07 | Phase 5V | Keep intelligent collection filter options in a database function. | Set and rarity options must reflect the active collection and each other without loading all cards into the browser. Search text intentionally does not alter those option lists. |
+| 2026-07 | Phase 5W | Apply only proven set-code mappings and reject uncertain automatic mappings. | Incorrect set identity would contaminate progress and future imports. Controlled mappings linked 287 cards with zero remaining incorrect targets in the verified scope. |
+| 2026-07 | Phase 5Z | Interpret the 2,190-row imported collection as a duplicated Dex-import structure containing placeholder and enriched versions. | Read-only analysis showed a systematic overlap rather than a genuine 2,190-card collection. This justified a guarded cleanup instead of treating every row as unique ownership. |
+| 2026-07 | Phase 6A | Reduce Lars' collection from 2,190 rows to a verified baseline of 1,095 unique catalog links. | Placeholder links were replaced by enriched links where proven safe, preserving real ownership while removing the duplicate import structure. |
+| 2026-07 | Phase 6A | During the one-time repair, reduce imported duplicate quantities of 2 to 1. | The user confirmed these quantities came from the faulty doubled import. This is not a general future rule for genuine duplicate physical cards. |
+| 2026-07 | Phase 6B | Preserve 15 unresolved placeholders. | They represent real cards in Lars' collection but have no proven unique enriched target. Automatic cleanup or deletion is therefore forbidden. |
+| 2026-07 | Collection status | Keep `owned`, `wishlist`, `trade` and `missing` in `collection_cards`. | These are collection-specific states of the same catalog card. A separate wishlist catalog would duplicate identity and complicate future transitions. |
+| 2026-07 | Phase 7A | Permit narrowly constrained inserts into a user's own `collection_cards`. | The ownership path is authenticated user → profile → collection. Initial inserts are limited to quantity 1, Near Mint and owned until later UI and policy phases add broader editing. |
+| 2026-07 | PR 89 | Close the initial Collection-page add-card PR without merge. | The implementation was technically functional, but the product flow was wrong and the catalog was nearly identical to Lars' collection. Correct add flows start from an opened set or a global full-catalog search. |
+| 2026-07 | Phase 7B | Make Supabase `cards_catalog` the runtime catalog and use external APIs only for import and synchronization. | Direct external runtime search would expose the user experience to latency, outages and rate limits and would make owned and wishlist joins inefficient. |
+| 2026-07 | Phase 7B | Support multiple external sources through `card_external_references`. | Stable internal card IDs must survive source changes. One card can carry legacy, Pokémon TCG API and future source references without duplicating the internal record. |
+| 2026-07 | Phase 7B-1A | Remove exactly 1,095 unused legacy placeholders from `cards_catalog`. | After collection cleanup, these records had no collection links, no images and no market data. Removing them created a clean 1,095-record baseline without touching active cards. |
+| 2026-07 | Phase 7B-1B | Backfill 1,058 proven Pokémon TCG API references without replacing internal IDs. | Existing URL data allowed exact source-ID derivation. The backfill improves future idempotent matching while preserving all collection links. |
+| 2026-07 | Phase 7B-1C | Add trigram and set/number indexes before expanding the catalog. | Global search and set pages must remain server-side, paginated and fast as the catalog grows to thousands of cards. |
+| 2026-07 | Import strategy | Import and synchronize in small resumable batches, preferably one set per run. | A full catalog operation in one serverless request is difficult to retry, validate and recover. Per-set batches isolate failures and allow expected/received checks. |
+| 2026-07 | Import safety | Prohibit automatic catalog deletes and changes to collection quantity, condition or status during synchronization. | External sources can be temporarily incomplete or inconsistent. Source instability must never cause user-data loss. |
+| 2026-07 | Images | Store external small and large image URLs initially; use thumbnails, detail loading and lazy loading. | This avoids unnecessary storage and keeps lists fast. Local caching can be reconsidered only if reliability or performance evidence requires it. |
+| 2026-07 | Price data | Keep price synchronization separate from core card metadata. | Prices change much faster and have different source, refresh and history requirements than stable card identity and artwork metadata. |
+| 2026-07 | Documentation | Maintain a stable charter, living project status, decision log and AI working agreement. | New chats, Codex tasks and future contributors need a shared source of truth without copying entire historical conversations. |
+
+## How to add decisions
+
+Add a row when a phase changes architecture, schema, RLS/security, data invariants, external integrations, import behavior or a foundational product flow. Do not record every small implementation detail.
+
+When a decision is superseded, keep the original row and add a new row that states what changed and why. This preserves project memory instead of rewriting history.
