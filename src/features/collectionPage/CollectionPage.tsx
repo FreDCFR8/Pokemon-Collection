@@ -282,7 +282,7 @@ export function CollectionPage() {
     <section className="collection-page" aria-labelledby="collection-page-title">
       <div className="collection-page-header">
         <div>
-          <p className="eyebrow">Read-only main collection</p>
+          <p className="eyebrow">Hoofdcollectie</p>
           <h2 id="collection-page-title">Collection</h2>
           <p>{collectionPageState.message}</p>
           {collectionPageState.errorMessage ? <p className="status-note">Foutmelding: {collectionPageState.errorMessage}</p> : null}
@@ -312,7 +312,7 @@ export function CollectionPage() {
         </div>
       </dl>
 
-      <p className="collection-page-legacy-note">Legacy collectiegegevens worden hier rustig read-only getoond; bewerken en importeren blijven buiten deze fase.</p>
+      <p className="collection-page-legacy-note">Bekijk je collectie of voeg een kaart toe vanuit de kaartcatalogus.</p>
 
       <section className="collection-page-add-card" aria-labelledby="collection-page-add-card-title">
         <h3 id="collection-page-add-card-title">Kaart toevoegen</h3>
