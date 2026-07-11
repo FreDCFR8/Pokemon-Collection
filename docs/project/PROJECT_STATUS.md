@@ -6,19 +6,18 @@ This is a living document. Update it after meaningful merges, database phases or
 
 ## Current phase
 
-**Phase 7B-2 — controlled test-set import preparation**
+**Phase 7B-2B — controlled test-set import design**
 
-The current immediate objective is to validate a reliable source and import method for one complete test set before writing external catalog data to Supabase.
+The current immediate objective is to design and validate a robust local import method for one complete test set before writing external catalog data to Supabase.
 
 ## Repository state
 
 - Default branch: `main`
 - Latest merged documentation milestone: PR 90 — architecture consolidation
-- Open technical PR: PR 91 — read-only Pokémon TCG API set inspection
-- PR 91 currently contains one Vercel Function: `api/catalog/inspect-set.js`
-- The latest PR 91 preview deployment is green
-- The read-only inspection request for `sv3pt5` returned a Pokémon TCG API timeout
-- PR 91 must not be merged until its purpose and next adjustment are agreed
+- PR 91 — read-only Pokémon TCG API set inspection — was closed without merge
+- PR 91 proved that the Vercel integration works
+- PR 91 also showed that live API calls from a Vercel Function are not the preferred architecture for reliable bulk import because of timeout and recoverability limits
+- No import implementation is currently approved for merge
 
 ## Current architecture baseline
 
@@ -110,30 +109,38 @@ Not yet available:
 - catalog synchronization must not alter collection quantity, condition or status
 - catalog synchronization must not replace internal card IDs
 - active collection links must never break
+- `collection_cards` is never modified by the catalog import process
 - `public.cards` remains legacy and is not used for new runtime functionality
 
-## Active technical question
+## Approved import direction
 
-The current Pokémon TCG API inspection approach timed out when reading the `sv3pt5` test set. The architecture remains valid, but the inspection/import mechanism must become smaller and more reliable.
+The catalog import will use a controlled local Node/TypeScript script instead of a live Vercel Function request.
 
-Preferred direction under evaluation:
+Mandatory design rules:
 
-- one external source request per set where possible;
-- batch processing per set;
-- idempotent matching through `card_external_references`;
-- dry-run and expected/received validation;
-- independent retries per set;
-- synchronization logging;
-- no automatic deletes.
+- processing happens in small resumable batches, preferably one set per run;
+- dry-run is always the default behavior;
+- database writes are allowed only when the operator explicitly supplies `--write`;
+- without `--write`, the script must perform no database writes;
+- matching happens primarily through `card_external_references` using source and external card ID;
+- existing matches always preserve the current `cards_catalog.id`;
+- repeated imports are fully idempotent and must not create duplicate cards or references;
+- `collection_cards` is never inserted, updated or deleted by catalog import;
+- ambiguous or conflicting matches block writes;
+- expected and received counts are validated before writes;
+- failed sets can be retried independently;
+- synchronization produces a clear report or log;
+- no automatic deletes are allowed.
 
 ## Next steps
 
-1. Decide whether PR 91 is simplified, replaced or closed.
-2. Validate one reliable read-only source response for `sv3pt5`.
-3. Define Phase 7B-2B dry-run matching for existing versus new cards.
-4. Import one complete test set with transaction safeguards.
-5. Verify duplicates, counts, collection stability and query performance.
-6. Only then prepare full catalog synchronization.
+1. Define the exact command-line interface and dry-run report for the local import script.
+2. Validate one complete read-only source response for `sv3pt5` through that script.
+3. Define deterministic matching outcomes for existing, new, changed, ambiguous and conflicting cards.
+4. Review the dry-run result before any use of `--write`.
+5. Import one complete test set with transaction safeguards.
+6. Verify duplicates, counts, stable internal IDs, collection stability and query performance.
+7. Only then prepare full catalog synchronization.
 
 ## Roadmap
 
