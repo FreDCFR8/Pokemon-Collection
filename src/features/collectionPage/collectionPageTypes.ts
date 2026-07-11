@@ -25,6 +25,16 @@ export type CollectionPageFilters = {
   setCode?: string;
 };
 
+export type CollectionFilterSetOption = {
+  setCode: string;
+  name: string;
+};
+
+export type CollectionFilterOptions = {
+  sets: CollectionFilterSetOption[];
+  rarities: string[];
+};
+
 export type CollectionPageLoadOptions = {
   searchQuery?: string;
   filters?: CollectionPageFilters;

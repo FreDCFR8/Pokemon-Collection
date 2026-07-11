@@ -3,6 +3,7 @@ import { checkCollectionReadiness } from '../collections';
 import {
   COLLECTION_PAGE_SIZE,
   type CollectionPageCard,
+  type CollectionFilterOptions,
   type CollectionPageFilters,
   type CollectionPageLoadOptions,
   type CollectionPageState,
@@ -13,33 +14,6 @@ type SanitizedCollectionPageFilters = {
   rarity: string | null;
   setCode: string | null;
 };
-
-const ALLOWED_RARITY_FILTERS = new Set([
-  'ACE SPEC Rare',
-  'Black White Rare',
-  'Common',
-  'Double Rare',
-  'Holo Rare',
-  'Hyper Rare',
-  'Illustration Rare',
-  'MEGA_ATTACK_RARE',
-  'Onbekend',
-  'Promo',
-  'Radiant Rare',
-  'Rare',
-  'Rare Holo',
-  'Rare Holo V',
-  'Rare Holo VMAX',
-  'Rare Holo VSTAR',
-  'Rare Rainbow',
-  'Rare Ultra',
-  'Shiny Rare',
-  'Shiny Ultra Rare',
-  'Special Illustration Rare',
-  'Trainer Gallery Rare Holo',
-  'Ultra Rare',
-  'Uncommon',
-]);
 
 type CardsCatalogPageRow = {
   pokemon: string | null;
@@ -116,10 +90,10 @@ function sanitizeSearchQuery(searchQuery: string | undefined): string | null {
 }
 
 
-function sanitizeExactFilterValue(value: string | undefined, allowedValues: Set<string>): string | null {
-  const sanitized = (value ?? '').trim().slice(0, 40);
+function sanitizeRarityFilter(value: string | undefined): string | null {
+  const sanitized = (value ?? '').trim().slice(0, 80);
 
-  return allowedValues.has(sanitized) ? sanitized : null;
+  return sanitized.length > 0 && !/[\0\r\n]/.test(sanitized) ? sanitized : null;
 }
 
 function sanitizeSetCodeFilter(value: string | undefined): string | null {
@@ -130,9 +104,85 @@ function sanitizeSetCodeFilter(value: string | undefined): string | null {
 
 function sanitizeCollectionPageFilters(filters: CollectionPageFilters | undefined): SanitizedCollectionPageFilters {
   return {
-    rarity: sanitizeExactFilterValue(filters?.rarity, ALLOWED_RARITY_FILTERS),
+    rarity: sanitizeRarityFilter(filters?.rarity),
     setCode: sanitizeSetCodeFilter(filters?.setCode),
   };
+}
+
+
+type CollectionFilterOptionsRpcSet = {
+  set_code?: unknown;
+  name?: unknown;
+};
+
+type CollectionFilterOptionsRpcResponse = {
+  sets?: unknown;
+  rarities?: unknown;
+};
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function sanitizeRpcText(value: unknown, maxLength = 120): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const sanitized = value.trim().slice(0, maxLength);
+
+  return sanitized.length > 0 && !/[\0\r\n]/.test(sanitized) ? sanitized : null;
+}
+
+function toCollectionFilterOptions(response: unknown): CollectionFilterOptions {
+  const payload = isPlainObject(response) ? (response as CollectionFilterOptionsRpcResponse) : {};
+  const setRows = Array.isArray(payload.sets) ? payload.sets : [];
+  const rarityRows = Array.isArray(payload.rarities) ? payload.rarities : [];
+
+  const setsByCode = new Map<string, string>();
+
+  for (const row of setRows) {
+    if (!isPlainObject(row)) {
+      continue;
+    }
+
+    const setCode = sanitizeSetCodeFilter((row as CollectionFilterOptionsRpcSet).set_code as string | undefined);
+    const name = sanitizeRpcText((row as CollectionFilterOptionsRpcSet).name);
+
+    if (setCode && name) {
+      setsByCode.set(setCode, name);
+    }
+  }
+
+  const rarities = [...new Set(rarityRows.map((rarity) => sanitizeRpcText(rarity, 80)).filter((rarity): rarity is string => rarity !== null))].sort((firstRarity, secondRarity) =>
+    firstRarity.localeCompare(secondRarity, 'nl', { sensitivity: 'base' }),
+  );
+
+  const sets = [...setsByCode.entries()]
+    .map(([setCode, name]) => ({ setCode, name }))
+    .sort((firstSet, secondSet) => firstSet.name.localeCompare(secondSet.name, 'nl', { sensitivity: 'base' }));
+
+  return { sets, rarities };
+}
+
+export async function getCollectionFilterOptions(collectionId: string, filters: CollectionPageFilters = {}): Promise<CollectionFilterOptions> {
+  const supabase = createBrowserSupabaseClient();
+
+  if (!supabase) {
+    throw new Error('Collectiefilters kunnen niet worden opgehaald omdat de publieke Supabase configuratie ontbreekt.');
+  }
+
+  const { data, error } = await supabase.rpc('get_collection_filter_options', {
+    p_collection_id: collectionId,
+    p_set_code: sanitizeSetCodeFilter(filters.setCode),
+    p_rarity: sanitizeRarityFilter(filters.rarity),
+  });
+
+  if (error) {
+    throw new Error(`Slimme collectiefilters ophalen is mislukt: ${error.message}`);
+  }
+
+  return toCollectionFilterOptions(data);
 }
 
 function applyCollectionFilters<
