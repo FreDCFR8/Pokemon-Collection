@@ -11,6 +11,7 @@ import {
 
 type SanitizedCollectionPageFilters = {
   rarity: string | null;
+  setCode: string | null;
 };
 
 const ALLOWED_RARITY_FILTERS = new Set([
@@ -43,6 +44,7 @@ const ALLOWED_RARITY_FILTERS = new Set([
 type CardsCatalogPageRow = {
   pokemon: string | null;
   set_name: string | null;
+  set_code: string | null;
   number: string | null;
   rarity: string | null;
   image_small: string | null;
@@ -120,9 +122,16 @@ function sanitizeExactFilterValue(value: string | undefined, allowedValues: Set<
   return allowedValues.has(sanitized) ? sanitized : null;
 }
 
+function sanitizeSetCodeFilter(value: string | undefined): string | null {
+  const sanitized = (value ?? '').trim().slice(0, 40);
+
+  return /^[A-Za-z0-9_-]+$/.test(sanitized) ? sanitized : null;
+}
+
 function sanitizeCollectionPageFilters(filters: CollectionPageFilters | undefined): SanitizedCollectionPageFilters {
   return {
     rarity: sanitizeExactFilterValue(filters?.rarity, ALLOWED_RARITY_FILTERS),
+    setCode: sanitizeSetCodeFilter(filters?.setCode),
   };
 }
 
@@ -137,6 +146,9 @@ function applyCollectionFilters<
     filteredQuery = filteredQuery.eq('rarity', filters.rarity);
   }
 
+  if (filters.setCode) {
+    filteredQuery = filteredQuery.eq('set_code', filters.setCode);
+  }
 
   return filteredQuery;
 }
@@ -241,6 +253,7 @@ export async function loadCollectionPage(
       `
         pokemon,
         set_name,
+        set_code,
         number,
         rarity,
         image_small,
