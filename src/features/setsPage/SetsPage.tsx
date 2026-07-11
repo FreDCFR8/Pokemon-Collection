@@ -50,7 +50,6 @@ const INITIAL_SET_CARDS_OVERLAY_STATE: SetCardsOverlayState = {
 const SET_CARDS_SORT_LABELS: Record<SetCardsSortOption, string> = {
   'name-asc': 'Naam A–Z',
   'name-desc': 'Naam Z–A',
-  'rarity-asc': 'Rarity A–Z',
 };
 
 function formatSetProgressText(ownedCount: number, total: number | null) {

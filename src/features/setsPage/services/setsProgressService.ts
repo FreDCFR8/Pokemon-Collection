@@ -10,10 +10,12 @@ export type SetProgress = {
   progressPercent: number | null;
 };
 
+type CollectionCardSetCodeRelation = {
+  set_code: string | null;
+};
+
 type CollectionCardSetCodeRow = {
-  cards_catalog: {
-    set_code: string | null;
-  } | null;
+  cards_catalog: CollectionCardSetCodeRelation | CollectionCardSetCodeRelation[] | null;
 };
 
 type SetsCatalogTotalsRow = {
@@ -29,6 +31,12 @@ const COLLECTION_CARD_SET_CODE_SELECT = `
 `;
 
 const SETS_CATALOG_TOTALS_SELECT = 'set_code, total, printed_total';
+
+function getSetCodeFromCollectionCardRow(row: CollectionCardSetCodeRow): string | null {
+  const relation = Array.isArray(row.cards_catalog) ? row.cards_catalog[0] : row.cards_catalog;
+
+  return relation?.set_code ?? null;
+}
 
 export async function getSetProgressForCollection(collectionId: string): Promise<SetProgress[]> {
   if (!collectionId) {
@@ -54,7 +62,7 @@ export async function getSetProgressForCollection(collectionId: string): Promise
   const ownedCountsBySetCode = new Map<string, number>();
 
   for (const row of ownershipRows ?? []) {
-    const setCode = row.cards_catalog?.set_code;
+    const setCode = getSetCodeFromCollectionCardRow(row);
 
     if (!setCode) {
       continue;
