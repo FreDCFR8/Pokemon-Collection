@@ -196,7 +196,7 @@ async function fetchJson(url: URL, apiKey: string, stats: FetchStats): Promise<u
           continue;
         }
 
-        if (PERMANENT_STATUSES.has(response.status) || !RETRY_STATUSES.has(response.status)) {
+        if (PERMANENT_STATUSES.has(response.status) || !RETRY_STATUSES.has(response.status) || attempt >= MAX_ATTEMPTS) {
           throw new RequestError(`Request mislukt met HTTP ${response.status} voor ${url.pathname}.`);
         }
       }
