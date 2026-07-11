@@ -4,8 +4,9 @@ import { checkCollectionReadiness } from '../collections';
 import { getSetsCatalog, type SetsCatalogRow } from '../../services/setsCatalogService';
 import {
   getSetCards,
-  SET_CARDS_PAGE_SIZE,
+  SET_CARDS_BATCH_SIZE,
   type SetCatalogCard,
+  type SetCardsSortOption,
 } from './services/setCardsService';
 import { getSetProgressForCollection, type SetProgress } from './services/setsProgressService';
 
@@ -24,44 +25,33 @@ type GroupedSets = {
   sets: SetsCatalogRow[];
 };
 
-type SetCardsState =
-  | {
-      status: 'idle' | 'loading';
-      cards: SetCatalogCard[];
-      totalCount: number;
-      page: number;
-      pageSize: number;
-      totalPages: number;
-      errorMessage?: undefined;
-    }
-  | {
-      status: 'success';
-      cards: SetCatalogCard[];
-      totalCount: number;
-      page: number;
-      pageSize: number;
-      totalPages: number;
-      errorMessage?: undefined;
-    }
-  | {
-      status: 'error';
-      cards: SetCatalogCard[];
-      totalCount: number;
-      page: number;
-      pageSize: number;
-      totalPages: number;
-      errorMessage: string;
-    };
+type SetCardsStatus = 'closed' | 'loading' | 'success' | 'loadingMore' | 'error';
+
+type SetCardsOverlayState = {
+  status: SetCardsStatus;
+  cards: SetCatalogCard[];
+  totalCount: number;
+  offset: number;
+  hasMore: boolean;
+  errorMessage?: string;
+};
 
 const FALLBACK_SERIES_LABEL = 'Overige sets';
 
-const INITIAL_SET_CARDS_STATE: SetCardsState = {
-  status: 'idle',
+const INITIAL_SET_CARDS_OVERLAY_STATE: SetCardsOverlayState = {
+  status: 'closed',
   cards: [],
   totalCount: 0,
-  page: 1,
-  pageSize: SET_CARDS_PAGE_SIZE,
-  totalPages: 0,
+  offset: 0,
+  hasMore: false,
+};
+
+const SET_CARDS_SORT_LABELS: Record<SetCardsSortOption, string> = {
+  'number-asc': 'Kaartnummer oplopend',
+  'number-desc': 'Kaartnummer aflopend',
+  'name-asc': 'Naam A–Z',
+  'name-desc': 'Naam Z–A',
+  'rarity-asc': 'Rarity A–Z',
 };
 
 function hasKnownSetTotal(total: number | null): total is number {
@@ -92,8 +82,16 @@ export function SetsPage() {
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [openSetId, setOpenSetId] = useState<string | null>(null);
-  const [setCardsState, setSetCardsState] = useState<SetCardsState>(INITIAL_SET_CARDS_STATE);
+  const [setCardSearchTerm, setSetCardSearchTerm] = useState('');
+  const [debouncedSetCardSearchTerm, setDebouncedSetCardSearchTerm] = useState('');
+  const [setCardsSortOption, setSetCardsSortOption] = useState<SetCardsSortOption>('number-asc');
+  const [setCardsRetryNonce, setSetCardsRetryNonce] = useState(0);
+  const [setCardsOverlayState, setSetCardsOverlayState] =
+    useState<SetCardsOverlayState>(INITIAL_SET_CARDS_OVERLAY_STATE);
   const setCardsRequestIdRef = useRef(0);
+  const setButtonRefs = useRef(new Map<string, HTMLButtonElement>());
+  const overlayCloseButtonRef = useRef<HTMLButtonElement | null>(null);
+  const overlayScrollRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -134,9 +132,44 @@ export function SetsPage() {
   }, [openSetId, setsPageState.sets]);
 
   useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedSetCardSearchTerm(setCardSearchTerm.trim());
+    }, 300);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [setCardSearchTerm]);
+
+  useEffect(() => {
+    if (!openSet) {
+      return;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    overlayScrollRef.current?.scrollTo({ top: 0 });
+    window.setTimeout(() => overlayCloseButtonRef.current?.focus(), 0);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [openSet]);
+
+  useEffect(() => {
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape' && openSet) {
+        closeSetOverlay();
+      }
+    }
+
+    window.addEventListener('keydown', handleEscape);
+
+    return () => window.removeEventListener('keydown', handleEscape);
+  });
+
+  useEffect(() => {
     if (!openSet) {
       setCardsRequestIdRef.current += 1;
-      setSetCardsState(INITIAL_SET_CARDS_STATE);
+      setSetCardsOverlayState(INITIAL_SET_CARDS_OVERLAY_STATE);
       return;
     }
 
@@ -144,70 +177,130 @@ export function SetsPage() {
     const requestId = setCardsRequestIdRef.current + 1;
     setCardsRequestIdRef.current = requestId;
     const setCode = openSet.set_code;
+    const searchTermForRequest = debouncedSetCardSearchTerm;
+    const sortOptionForRequest = setCardsSortOption;
 
-    async function loadSetCards() {
-      setSetCardsState({
+    async function loadInitialSetCards() {
+      overlayScrollRef.current?.scrollTo({ top: 0 });
+      setSetCardsOverlayState({
         status: 'loading',
         cards: [],
         totalCount: 0,
-        page: 1,
-        pageSize: SET_CARDS_PAGE_SIZE,
-        totalPages: 0,
+        offset: 0,
+        hasMore: false,
       });
 
       try {
-        const result = await getSetCards(setCode, 1);
+        const result = await getSetCards({
+          setCode,
+          offset: 0,
+          limit: SET_CARDS_BATCH_SIZE,
+          searchTerm: searchTermForRequest,
+          sortOption: sortOptionForRequest,
+        });
 
         if (!isCancelled && setCardsRequestIdRef.current === requestId) {
-          setSetCardsState({ status: 'success', ...result });
+          setSetCardsOverlayState({
+            status: 'success',
+            cards: result.cards,
+            totalCount: result.totalCount,
+            offset: result.cards.length,
+            hasMore: result.hasMore,
+          });
         }
       } catch {
         if (!isCancelled && setCardsRequestIdRef.current === requestId) {
-          setSetCardsState({
+          setSetCardsOverlayState({
             status: 'error',
             cards: [],
             totalCount: 0,
-            page: 1,
-            pageSize: SET_CARDS_PAGE_SIZE,
-            totalPages: 0,
+            offset: 0,
+            hasMore: false,
             errorMessage: 'Kaarten laden is mislukt.',
           });
         }
       }
     }
 
-    void loadSetCards();
+    void loadInitialSetCards();
 
     return () => {
       isCancelled = true;
     };
-  }, [openSet]);
+  }, [debouncedSetCardSearchTerm, openSet, setCardsRetryNonce, setCardsSortOption]);
 
-  async function loadSetCardsPage(setCode: string, page: number) {
+  async function loadMoreSetCards() {
+    if (!openSet || setCardsOverlayState.status === 'loading' || setCardsOverlayState.status === 'loadingMore') {
+      return;
+    }
+
     const requestId = setCardsRequestIdRef.current + 1;
     setCardsRequestIdRef.current = requestId;
+    const setCode = openSet.set_code;
+    const currentOffset = setCardsOverlayState.offset;
+    const existingCards = setCardsOverlayState.cards;
 
-    setSetCardsState((currentState) => ({
+    setSetCardsOverlayState((currentState) => ({
       ...currentState,
-      status: 'loading',
-      page,
+      status: 'loadingMore',
       errorMessage: undefined,
     }));
 
     try {
-      const result = await getSetCards(setCode, page);
+      const result = await getSetCards({
+        setCode,
+        offset: currentOffset,
+        limit: SET_CARDS_BATCH_SIZE,
+        searchTerm: debouncedSetCardSearchTerm,
+        sortOption: setCardsSortOption,
+      });
+
       if (setCardsRequestIdRef.current === requestId) {
-        setSetCardsState({ status: 'success', ...result });
+        const seenCardIds = new Set(existingCards.map((card) => card.id));
+        const newCards = result.cards.filter((card) => !seenCardIds.has(card.id));
+        const cards = [...existingCards, ...newCards];
+
+        setSetCardsOverlayState({
+          status: 'success',
+          cards,
+          totalCount: result.totalCount,
+          offset: currentOffset + result.cards.length,
+          hasMore: cards.length < result.totalCount,
+        });
       }
     } catch {
       if (setCardsRequestIdRef.current === requestId) {
-        setSetCardsState((currentState) => ({
+        setSetCardsOverlayState((currentState) => ({
           ...currentState,
           status: 'error',
-          errorMessage: 'Kaarten laden is mislukt.',
+          errorMessage: 'Meer kaarten laden is mislukt.',
         }));
       }
     }
+  }
+
+  function openSetOverlay(setId: string) {
+    setSetCardSearchTerm('');
+    setDebouncedSetCardSearchTerm('');
+    setSetCardsSortOption('number-asc');
+    setSetCardsRetryNonce(0);
+    setOpenSetId(setId);
+  }
+
+  function closeSetOverlay() {
+    const closingSetId = openSetId;
+    setOpenSetId(null);
+    setSetCardSearchTerm('');
+    setDebouncedSetCardSearchTerm('');
+    setSetCardsSortOption('number-asc');
+    setSetCardsRetryNonce(0);
+    setCardsRequestIdRef.current += 1;
+    setSetCardsOverlayState(INITIAL_SET_CARDS_OVERLAY_STATE);
+    window.setTimeout(() => {
+      if (closingSetId) {
+        setButtonRefs.current.get(closingSetId)?.focus();
+      }
+    }, 0);
   }
 
   useEffect(() => {
@@ -367,16 +460,20 @@ export function SetsPage() {
                       const setImageUrl = set.logo_url ?? set.symbol_url;
                       const setImageAlt = set.logo_url ? `${set.name} logo` : `${set.name} symbool`;
                       const isOpen = openSetId === set.id;
-                      const detailPanelId = `sets-page-set-details-${set.id}`;
 
                       return (
                         <li key={set.id} className={`sets-page-set-card${isOpen ? ' is-open' : ''}`}>
                           <button
+                            ref={(buttonElement) => {
+                              if (buttonElement) {
+                                setButtonRefs.current.set(set.id, buttonElement);
+                              }
+                            }}
                             type="button"
                             className="sets-page-set-summary-button"
                             aria-expanded={isOpen}
-                            aria-controls={detailPanelId}
-                            onClick={() => setOpenSetId(isOpen ? null : set.id)}
+                            aria-controls={isOpen ? 'sets-page-set-overlay' : undefined}
+                            onClick={() => openSetOverlay(set.id)}
                           >
                             <span className="sets-page-set-media" aria-hidden={setImageUrl ? undefined : true}>
                               {setImageUrl ? (
@@ -408,122 +505,6 @@ export function SetsPage() {
                               </span>
                             </span>
                           </button>
-
-                          {isOpen ? (
-                            <div id={detailPanelId} className="sets-page-set-details">
-                              <dl>
-                                <div>
-                                  <dt>Setnaam</dt>
-                                  <dd>{set.name}</dd>
-                                </div>
-                                {set.series ? (
-                                  <div>
-                                    <dt>Series</dt>
-                                    <dd>{set.series}</dd>
-                                  </div>
-                                ) : null}
-                                <div>
-                                  <dt>Releasedatum</dt>
-                                  <dd>{set.release_date ?? 'Onbekend'}</dd>
-                                </div>
-                                <div>
-                                  <dt>Verzamelde kaarten</dt>
-                                  <dd>{ownedCount}</dd>
-                                </div>
-                                {hasKnownSetTotal(set.total) ? (
-                                  <div>
-                                    <dt>Totaal aantal kaarten</dt>
-                                    <dd>{set.total}</dd>
-                                  </div>
-                                ) : null}
-                              </dl>
-
-                              <div className="sets-page-set-cards" aria-label={`Cataloguskaarten voor ${set.name}`}>
-                                {setCardsState.status === 'loading' ? (
-                                  <p className="sets-page-set-cards-status" role="status" aria-live="polite">
-                                    Kaarten laden…
-                                  </p>
-                                ) : null}
-
-                                {setCardsState.status === 'error' ? (
-                                  <div className="sets-page-set-cards-message" role="alert">
-                                    <p>{setCardsState.errorMessage}</p>
-                                    <button
-                                      type="button"
-                                      onClick={() => void loadSetCardsPage(set.set_code, setCardsState.page)}
-                                    >
-                                      Opnieuw proberen
-                                    </button>
-                                  </div>
-                                ) : null}
-
-                                {setCardsState.status === 'success' && setCardsState.totalCount === 0 ? (
-                                  <p className="sets-page-set-cards-empty">
-                                    Voor deze set zijn nog geen cataloguskaarten beschikbaar.
-                                  </p>
-                                ) : null}
-
-                                {setCardsState.totalCount > 0 ? (
-                                  <p className="sets-page-set-cards-count">
-                                    {setCardsState.totalCount} cataloguskaarten beschikbaar
-                                  </p>
-                                ) : null}
-
-                                {setCardsState.cards.length > 0 ? (
-                                  <ul className="sets-page-set-cards-grid">
-                                    {setCardsState.cards.map((card) => (
-                                      <li key={card.id} className="sets-page-set-catalog-card">
-                                        {card.image_small ? (
-                                          <img
-                                            src={card.image_small}
-                                            alt={`${card.pokemon} kaart ${card.number ?? ''}`.trim()}
-                                            width="72"
-                                            height="100"
-                                            loading="lazy"
-                                            decoding="async"
-                                          />
-                                        ) : (
-                                          <span className="sets-page-set-card-image-placeholder" aria-hidden="true">
-                                            Geen afbeelding
-                                          </span>
-                                        )}
-                                        <span className="sets-page-set-card-body">
-                                          <strong>{card.pokemon}</strong>
-                                          <span>Nr. {card.number ?? 'onbekend'}</span>
-                                          {card.rarity ? <span>{card.rarity}</span> : null}
-                                        </span>
-                                      </li>
-                                    ))}
-                                  </ul>
-                                ) : null}
-
-                                {setCardsState.totalPages > 1 ? (
-                                  <nav className="sets-page-set-cards-pagination" aria-label="Cataloguskaartpagina's">
-                                    <button
-                                      type="button"
-                                      disabled={setCardsState.page <= 1 || setCardsState.status === 'loading'}
-                                      onClick={() => void loadSetCardsPage(set.set_code, setCardsState.page - 1)}
-                                    >
-                                      Vorige
-                                    </button>
-                                    <span>
-                                      Pagina {setCardsState.page} van {setCardsState.totalPages}
-                                    </span>
-                                    <button
-                                      type="button"
-                                      disabled={
-                                        setCardsState.page >= setCardsState.totalPages ||
-                                        setCardsState.status === 'loading'
-                                      }
-                                      onClick={() => void loadSetCardsPage(set.set_code, setCardsState.page + 1)}
-                                    >
-                                      Volgende
-                                    </button>
-                                  </nav>
-                                ) : null}
-                              </div>
-                            </div>
-                          ) : null}
                         </li>
                       );
                     })}
@@ -534,6 +515,198 @@ export function SetsPage() {
           </div>
         ) : null}
       </section>
+
+      {openSet ? (() => {
+        const setProgress = setsProgressState.progressBySetCode.get(openSet.set_code);
+        const ownedCount = setProgress?.ownedCount ?? 0;
+        const progressPercent = hasKnownSetTotal(openSet.total)
+          ? calculateProgressPercent(ownedCount, openSet.total)
+          : null;
+        const isInitialLoading = setCardsOverlayState.status === 'loading';
+        const isLoadingMore = setCardsOverlayState.status === 'loadingMore';
+        const hasCards = setCardsOverlayState.cards.length > 0;
+        const isSearchActive = debouncedSetCardSearchTerm.length > 0;
+        const showInitialError = setCardsOverlayState.status === 'error' && !hasCards;
+        const showLoadMoreError = setCardsOverlayState.status === 'error' && hasCards;
+        const showEmptyState =
+          setCardsOverlayState.status === 'success' && setCardsOverlayState.totalCount === 0 && !isSearchActive;
+        const showSearchEmptyState =
+          setCardsOverlayState.status === 'success' && setCardsOverlayState.totalCount === 0 && isSearchActive;
+
+        return (
+          <div
+            id="sets-page-set-overlay"
+            className="sets-page-set-overlay"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="sets-page-set-overlay-title"
+          >
+            <header className="sets-page-set-overlay-header">
+              <button
+                ref={overlayCloseButtonRef}
+                type="button"
+                className="sets-page-set-overlay-back"
+                aria-label="Terug naar sets"
+                onClick={closeSetOverlay}
+              >
+                ←
+              </button>
+              <div>
+                <p className="sets-page-set-overlay-kicker">Set</p>
+                <h3 id="sets-page-set-overlay-title">{openSet.name}</h3>
+              </div>
+            </header>
+
+            <div ref={overlayScrollRef} className="sets-page-set-overlay-scroll">
+              <section className="sets-page-set-overlay-summary" aria-label="Setinformatie">
+                <div>
+                  <span>Setnaam</span>
+                  <strong>{openSet.name}</strong>
+                </div>
+                {openSet.series ? (
+                  <div>
+                    <span>Series</span>
+                    <strong>{openSet.series}</strong>
+                  </div>
+                ) : null}
+                <div>
+                  <span>Releasedatum</span>
+                  <strong>{openSet.release_date ?? 'Onbekend'}</strong>
+                </div>
+                <div>
+                  <span>Verzameld</span>
+                  <strong>{formatSetProgressText(ownedCount, openSet.total)}</strong>
+                </div>
+                {hasKnownSetTotal(openSet.total) ? (
+                  <div>
+                    <span>Settotaal</span>
+                    <strong>{openSet.total}</strong>
+                  </div>
+                ) : null}
+                {progressPercent !== null ? (
+                  <div className="sets-page-set-overlay-progress">
+                    <span>Voortgang</span>
+                    <strong>{progressPercent}%</strong>
+                    <span
+                      className="sets-page-set-progress-bar"
+                      role="progressbar"
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-valuenow={progressPercent}
+                      aria-label={`${progressPercent}% compleet`}
+                    >
+                      <span style={{ width: `${progressPercent}%` }} />
+                    </span>
+                  </div>
+                ) : null}
+              </section>
+
+              <section className="sets-page-set-overlay-controls" aria-label="Kaarten zoeken en sorteren">
+                <label htmlFor="sets-page-set-card-search">Zoek kaarten</label>
+                <div className="sets-page-set-card-search-control">
+                  <input
+                    id="sets-page-set-card-search"
+                    type="search"
+                    placeholder="Zoek naam of nummer..."
+                    value={setCardSearchTerm}
+                    onChange={(event) => setSetCardSearchTerm(event.target.value)}
+                  />
+                  {setCardSearchTerm ? (
+                    <button type="button" aria-label="Kaartzoekterm wissen" onClick={() => setSetCardSearchTerm('')}>
+                      ×
+                    </button>
+                  ) : null}
+                </div>
+
+                <label htmlFor="sets-page-set-card-sort">Sorteren</label>
+                <select
+                  id="sets-page-set-card-sort"
+                  value={setCardsSortOption}
+                  onChange={(event) => setSetCardsSortOption(event.target.value as SetCardsSortOption)}
+                >
+                  {Object.entries(SET_CARDS_SORT_LABELS).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </section>
+
+              {isInitialLoading ? (
+                <div className="sets-page-set-card-skeleton-grid" role="status" aria-live="polite" aria-label="Kaarten laden">
+                  {Array.from({ length: 6 }).map((_, index) => (
+                    <span key={index} className="sets-page-set-card-skeleton" />
+                  ))}
+                </div>
+              ) : null}
+
+              {showInitialError ? (
+                <div className="sets-page-set-overlay-message" role="alert">
+                  <p>{setCardsOverlayState.errorMessage}</p>
+                  <button type="button" onClick={() => setSetCardsRetryNonce((retryNonce) => retryNonce + 1)}>
+                    Opnieuw proberen
+                  </button>
+                </div>
+              ) : null}
+
+              {showEmptyState ? (
+                <p className="sets-page-set-overlay-empty">Voor deze set zijn nog geen cataloguskaarten beschikbaar.</p>
+              ) : null}
+
+              {showSearchEmptyState ? (
+                <p className="sets-page-set-overlay-empty">Geen kaarten gevonden voor deze zoekopdracht.</p>
+              ) : null}
+
+              {hasCards ? (
+                <>
+                  <p className="sets-page-set-overlay-count">
+                    {setCardsOverlayState.cards.length} van {setCardsOverlayState.totalCount} cataloguskaarten getoond
+                  </p>
+                  <ul className="sets-page-set-overlay-grid" aria-label={`Cataloguskaarten voor ${openSet.name}`}>
+                    {setCardsOverlayState.cards.map((card) => (
+                      <li key={card.id} className="sets-page-set-overlay-card">
+                        {card.image_small ? (
+                          <img
+                            src={card.image_small}
+                            alt={`${card.pokemon} kaart ${card.number ?? ''}`.trim()}
+                            width="120"
+                            height="168"
+                            loading="lazy"
+                            decoding="async"
+                          />
+                        ) : (
+                          <span className="sets-page-set-overlay-card-placeholder" aria-hidden="true">
+                            Geen afbeelding
+                          </span>
+                        )}
+                        <span className="sets-page-set-overlay-card-body">
+                          <strong>{card.pokemon}</strong>
+                          <span>Nr. {card.number ?? 'onbekend'}</span>
+                          {card.rarity ? <span>{card.rarity}</span> : null}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              ) : null}
+
+              {showLoadMoreError ? (
+                <div className="sets-page-set-overlay-message" role="alert">
+                  <p>{setCardsOverlayState.errorMessage}</p>
+                </div>
+              ) : null}
+
+              {setCardsOverlayState.hasMore && hasCards ? (
+                <div className="sets-page-set-overlay-load-more">
+                  <button type="button" disabled={isLoadingMore} onClick={() => void loadMoreSetCards()}>
+                    {isLoadingMore ? 'Meer kaarten laden…' : 'Meer kaarten laden'}
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        );
+      })() : null}
     </section>
   );
 }
