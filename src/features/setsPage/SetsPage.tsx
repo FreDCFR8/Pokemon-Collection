@@ -9,6 +9,7 @@ import {
   type SetCardsSortOption,
 } from './services/setCardsService';
 import { getSetProgressForCollection, type SetProgress } from './services/setsProgressService';
+import { calculateSetProgressPercent, getEffectiveSetTotal, hasKnownSetTotal } from './services/setTotals';
 
 type SetsPageState =
   | { status: 'loading'; sets: SetsCatalogRow[]; errorMessage?: undefined }
@@ -47,16 +48,9 @@ const INITIAL_SET_CARDS_OVERLAY_STATE: SetCardsOverlayState = {
 };
 
 const SET_CARDS_SORT_LABELS: Record<SetCardsSortOption, string> = {
-  'number-asc': 'Kaartnummer oplopend',
-  'number-desc': 'Kaartnummer aflopend',
   'name-asc': 'Naam A–Z',
   'name-desc': 'Naam Z–A',
-  'rarity-asc': 'Rarity A–Z',
 };
-
-function hasKnownSetTotal(total: number | null): total is number {
-  return total !== null && total > 0;
-}
 
 function formatSetProgressText(ownedCount: number, total: number | null) {
   if (hasKnownSetTotal(total)) {
@@ -70,10 +64,6 @@ function formatSetProgressText(ownedCount: number, total: number | null) {
   return 'Nog geen totaal bekend';
 }
 
-function calculateProgressPercent(ownedCount: number, total: number) {
-  return Math.min(100, Math.round((ownedCount / total) * 100));
-}
-
 export function SetsPage() {
   const [setsPageState, setSetsPageState] = useState<SetsPageState>({ status: 'loading', sets: [] });
   const [setsProgressState, setSetsProgressState] = useState<SetsProgressState>({
@@ -84,7 +74,7 @@ export function SetsPage() {
   const [openSetId, setOpenSetId] = useState<string | null>(null);
   const [setCardSearchTerm, setSetCardSearchTerm] = useState('');
   const [debouncedSetCardSearchTerm, setDebouncedSetCardSearchTerm] = useState('');
-  const [setCardsSortOption, setSetCardsSortOption] = useState<SetCardsSortOption>('number-asc');
+  const [setCardsSortOption, setSetCardsSortOption] = useState<SetCardsSortOption>('name-asc');
   const [setCardsRetryNonce, setSetCardsRetryNonce] = useState(0);
   const [setCardsOverlayState, setSetCardsOverlayState] =
     useState<SetCardsOverlayState>(INITIAL_SET_CARDS_OVERLAY_STATE);
@@ -282,7 +272,7 @@ export function SetsPage() {
   function openSetOverlay(setId: string) {
     setSetCardSearchTerm('');
     setDebouncedSetCardSearchTerm('');
-    setSetCardsSortOption('number-asc');
+    setSetCardsSortOption('name-asc');
     setSetCardsRetryNonce(0);
     setOpenSetId(setId);
   }
@@ -292,7 +282,7 @@ export function SetsPage() {
     setOpenSetId(null);
     setSetCardSearchTerm('');
     setDebouncedSetCardSearchTerm('');
-    setSetCardsSortOption('number-asc');
+    setSetCardsSortOption('name-asc');
     setSetCardsRetryNonce(0);
     setCardsRequestIdRef.current += 1;
     setSetCardsOverlayState(INITIAL_SET_CARDS_OVERLAY_STATE);
@@ -344,7 +334,7 @@ export function SetsPage() {
   const catalogSummary = useMemo(
     () => ({
       loadedSetsCount: setsPageState.sets.length,
-      setsWithMetadataCount: setsPageState.sets.filter((set) => set.release_date || set.total !== null).length,
+      setsWithMetadataCount: setsPageState.sets.filter((set) => set.release_date || hasKnownSetTotal(getEffectiveSetTotal(set))).length,
     }),
     [setsPageState.sets],
   );
@@ -454,9 +444,8 @@ export function SetsPage() {
                     {group.sets.map((set) => {
                       const setProgress = setsProgressState.progressBySetCode.get(set.set_code);
                       const ownedCount = setProgress?.ownedCount ?? 0;
-                      const progressPercent = hasKnownSetTotal(set.total)
-                        ? calculateProgressPercent(ownedCount, set.total)
-                        : null;
+                      const effectiveSetTotal = getEffectiveSetTotal(set);
+                      const progressPercent = calculateSetProgressPercent(ownedCount, effectiveSetTotal);
                       const setImageUrl = set.logo_url ?? set.symbol_url;
                       const setImageAlt = set.logo_url ? `${set.name} logo` : `${set.name} symbool`;
                       const isOpen = openSetId === set.id;
@@ -489,7 +478,7 @@ export function SetsPage() {
                               </span>
 
                               <span className="sets-page-set-progress" aria-label={`Collectievoortgang voor ${set.name}`}>
-                                <span>{formatSetProgressText(ownedCount, set.total)}</span>
+                                <span>{formatSetProgressText(ownedCount, effectiveSetTotal)}</span>
                                 {progressPercent !== null ? (
                                   <span
                                     className="sets-page-set-progress-bar"
@@ -519,9 +508,8 @@ export function SetsPage() {
       {openSet ? (() => {
         const setProgress = setsProgressState.progressBySetCode.get(openSet.set_code);
         const ownedCount = setProgress?.ownedCount ?? 0;
-        const progressPercent = hasKnownSetTotal(openSet.total)
-          ? calculateProgressPercent(ownedCount, openSet.total)
-          : null;
+        const effectiveSetTotal = getEffectiveSetTotal(openSet);
+        const progressPercent = calculateSetProgressPercent(ownedCount, effectiveSetTotal);
         const isInitialLoading = setCardsOverlayState.status === 'loading';
         const isLoadingMore = setCardsOverlayState.status === 'loadingMore';
         const hasCards = setCardsOverlayState.cards.length > 0;
@@ -575,14 +563,16 @@ export function SetsPage() {
                 </div>
                 <div>
                   <span>Verzameld</span>
-                  <strong>{formatSetProgressText(ownedCount, openSet.total)}</strong>
+                  <strong>{formatSetProgressText(ownedCount, effectiveSetTotal)}</strong>
                 </div>
-                {hasKnownSetTotal(openSet.total) ? (
-                  <div>
-                    <span>Settotaal</span>
-                    <strong>{openSet.total}</strong>
-                  </div>
-                ) : null}
+                <div>
+                  <span>Officieel settotaal</span>
+                  <strong>{hasKnownSetTotal(effectiveSetTotal) ? effectiveSetTotal : 'Niet bekend'}</strong>
+                </div>
+                <div>
+                  <span>Cataloguskaarten beschikbaar</span>
+                  <strong>{setCardsOverlayState.totalCount}</strong>
+                </div>
                 {progressPercent !== null ? (
                   <div className="sets-page-set-overlay-progress">
                     <span>Voortgang</span>

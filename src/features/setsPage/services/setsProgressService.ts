@@ -1,5 +1,7 @@
 import { createBrowserSupabaseClient } from '../../../lib/supabase';
 
+import { calculateSetProgressPercent, getEffectiveSetTotal } from './setTotals';
+
 export type SetProgress = {
   setCode: string;
   ownedCount: number;
@@ -8,10 +10,12 @@ export type SetProgress = {
   progressPercent: number | null;
 };
 
+type CollectionCardSetCodeRelation = {
+  set_code: string | null;
+};
+
 type CollectionCardSetCodeRow = {
-  cards_catalog: {
-    set_code: string | null;
-  } | null;
+  cards_catalog: CollectionCardSetCodeRelation | CollectionCardSetCodeRelation[] | null;
 };
 
 type SetsCatalogTotalsRow = {
@@ -28,12 +32,10 @@ const COLLECTION_CARD_SET_CODE_SELECT = `
 
 const SETS_CATALOG_TOTALS_SELECT = 'set_code, total, printed_total';
 
-function calculateProgressPercent(ownedCount: number, total: number | null): number | null {
-  if (!total) {
-    return null;
-  }
+function getSetCodeFromCollectionCardRow(row: CollectionCardSetCodeRow): string | null {
+  const relation = Array.isArray(row.cards_catalog) ? row.cards_catalog[0] : row.cards_catalog;
 
-  return Math.round((ownedCount / total) * 100);
+  return relation?.set_code ?? null;
 }
 
 export async function getSetProgressForCollection(collectionId: string): Promise<SetProgress[]> {
@@ -60,7 +62,7 @@ export async function getSetProgressForCollection(collectionId: string): Promise
   const ownedCountsBySetCode = new Map<string, number>();
 
   for (const row of ownershipRows ?? []) {
-    const setCode = row.cards_catalog?.set_code;
+    const setCode = getSetCodeFromCollectionCardRow(row);
 
     if (!setCode) {
       continue;
@@ -91,13 +93,15 @@ export async function getSetProgressForCollection(collectionId: string): Promise
     const ownedCount = ownedCountsBySetCode.get(setCode) ?? 0;
     const totals = totalsBySetCode.get(setCode);
     const total = totals?.total ?? null;
+    const printedTotal = totals?.printed_total ?? null;
+    const effectiveTotal = getEffectiveSetTotal({ total, printed_total: printedTotal });
 
     return {
       setCode,
       ownedCount,
       total,
-      printedTotal: totals?.printed_total ?? null,
-      progressPercent: calculateProgressPercent(ownedCount, total),
+      printedTotal,
+      progressPercent: calculateSetProgressPercent(ownedCount, effectiveTotal),
     };
   });
 }
