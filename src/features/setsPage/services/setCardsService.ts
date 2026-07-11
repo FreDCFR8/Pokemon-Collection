@@ -2,7 +2,7 @@ import { createBrowserSupabaseClient } from '../../../lib/supabase';
 
 export const SET_CARDS_BATCH_SIZE = 30;
 
-export type SetCardsSortOption = 'number-asc' | 'number-desc' | 'name-asc' | 'name-desc' | 'rarity-asc';
+export type SetCardsSortOption = 'name-asc' | 'name-desc' | 'rarity-asc';
 
 export type SetCatalogCard = {
   id: string;
@@ -55,7 +55,7 @@ export async function getSetCards({
   offset,
   limit,
   searchTerm,
-  sortOption = 'number-asc',
+  sortOption = 'name-asc',
 }: GetSetCardsParams): Promise<SetCardsResult> {
   const normalizedOffset = normalizeOffset(offset);
   const normalizedLimit = normalizeLimit(limit);
@@ -80,21 +80,15 @@ export async function getSetCards({
   }
 
   switch (sortOption) {
-    case 'number-desc':
-      query = query.order('number', { ascending: false, nullsFirst: false });
-      break;
-    case 'name-asc':
-      query = query.order('pokemon', { ascending: true, nullsFirst: false });
-      break;
     case 'name-desc':
       query = query.order('pokemon', { ascending: false, nullsFirst: false });
       break;
     case 'rarity-asc':
       query = query.order('rarity', { ascending: true, nullsFirst: false });
       break;
-    case 'number-asc':
+    case 'name-asc':
     default:
-      query = query.order('number', { ascending: true, nullsFirst: false });
+      query = query.order('pokemon', { ascending: true, nullsFirst: false });
       break;
   }
 

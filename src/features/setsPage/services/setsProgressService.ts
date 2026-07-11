@@ -1,5 +1,7 @@
 import { createBrowserSupabaseClient } from '../../../lib/supabase';
 
+import { calculateSetProgressPercent, getEffectiveSetTotal } from './setTotals';
+
 export type SetProgress = {
   setCode: string;
   ownedCount: number;
@@ -27,14 +29,6 @@ const COLLECTION_CARD_SET_CODE_SELECT = `
 `;
 
 const SETS_CATALOG_TOTALS_SELECT = 'set_code, total, printed_total';
-
-function calculateProgressPercent(ownedCount: number, total: number | null): number | null {
-  if (!total) {
-    return null;
-  }
-
-  return Math.round((ownedCount / total) * 100);
-}
 
 export async function getSetProgressForCollection(collectionId: string): Promise<SetProgress[]> {
   if (!collectionId) {
@@ -91,13 +85,15 @@ export async function getSetProgressForCollection(collectionId: string): Promise
     const ownedCount = ownedCountsBySetCode.get(setCode) ?? 0;
     const totals = totalsBySetCode.get(setCode);
     const total = totals?.total ?? null;
+    const printedTotal = totals?.printed_total ?? null;
+    const effectiveTotal = getEffectiveSetTotal({ total, printed_total: printedTotal });
 
     return {
       setCode,
       ownedCount,
       total,
-      printedTotal: totals?.printed_total ?? null,
-      progressPercent: calculateProgressPercent(ownedCount, total),
+      printedTotal,
+      progressPercent: calculateSetProgressPercent(ownedCount, effectiveTotal),
     };
   });
 }
