@@ -22,6 +22,7 @@ export type CollectionPageCard = {
 
 export type CollectionPageFilters = {
   rarity?: string;
+  setCode?: string;
 };
 
 export type CollectionPageLoadOptions = {

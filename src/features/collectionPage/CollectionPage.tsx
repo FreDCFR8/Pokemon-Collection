@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
+import { getSetsCatalog, type SetsCatalogRow } from '../../services/setsCatalogService';
 import { loadCollectionPage } from './collectionPageService';
 import { COLLECTION_PAGE_SIZE, type CollectionPageFilters, type CollectionPageState } from './collectionPageTypes';
 
 const emptyCollectionPageFilters: CollectionPageFilters = {
   rarity: '',
+  setCode: '',
 };
 
 const rarityFilterOptions = [
@@ -36,6 +38,7 @@ const rarityFilterOptions = [
 
 const filterLabels: Record<keyof CollectionPageFilters, string> = {
   rarity: 'rarity',
+  setCode: 'set',
 };
 
 const initialCollectionPageState: CollectionPageState = {
@@ -92,10 +95,20 @@ export function CollectionPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeSearchTerm, setActiveSearchTerm] = useState('');
   const [filters, setFilters] = useState<CollectionPageFilters>(emptyCollectionPageFilters);
+  const [setsCatalog, setSetsCatalog] = useState<SetsCatalogRow[]>([]);
+  const [setsCatalogError, setSetsCatalogError] = useState<string | null>(null);
   const [collectionPageState, setCollectionPageState] = useState<CollectionPageState>(initialCollectionPageState);
   const totalPages = useMemo(
     () => Math.max(1, Math.ceil(collectionPageState.totalCount / collectionPageState.pageSize)),
     [collectionPageState.pageSize, collectionPageState.totalCount],
+  );
+  const setFilterOptions = useMemo(
+    () => [...setsCatalog].sort((firstSet, secondSet) => firstSet.name.localeCompare(secondSet.name, 'nl', { sensitivity: 'base' })),
+    [setsCatalog],
+  );
+  const setNameByCode = useMemo(
+    () => new Map(setFilterOptions.map((set) => [set.set_code, set.name])),
+    [setFilterOptions],
   );
   const isLoading = collectionPageState.status === 'loading';
   const trimmedSearchTerm = searchTerm.trim();
@@ -105,6 +118,28 @@ export function CollectionPage() {
   const hasActiveCriteria = hasActiveSearch || hasActiveFilters;
   const firstVisibleCard = collectionPageState.totalCount === 0 ? 0 : (collectionPageState.page - 1) * collectionPageState.pageSize + 1;
   const lastVisibleCard = Math.min(collectionPageState.page * collectionPageState.pageSize, collectionPageState.totalCount);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    getSetsCatalog()
+      .then((sets) => {
+        if (isMounted) {
+          setSetsCatalog(sets);
+          setSetsCatalogError(null);
+        }
+      })
+      .catch((error: unknown) => {
+        if (isMounted) {
+          setSetsCatalog([]);
+          setSetsCatalogError(error instanceof Error ? error.message : 'Sets catalog ophalen is mislukt.');
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -232,7 +267,17 @@ export function CollectionPage() {
               ))}
             </select>
           </label>
+          <label>
+            Set
+            <select value={filters.setCode ?? ''} onChange={(event) => updateFilter('setCode', event.target.value)}>
+              <option value="">Alle sets</option>
+              {setFilterOptions.map((set) => (
+                <option key={set.set_code} value={set.set_code}>{set.name}</option>
+              ))}
+            </select>
+          </label>
         </div>
+        {setsCatalogError ? <p className="status-note">Setfilter laden is mislukt: {setsCatalogError}</p> : null}
         <div className="collection-page-filter-actions">
           <button type="button" onClick={clearFilters} disabled={!hasActiveFilters}>Reset filters</button>
           {hasActiveCriteria ? <button type="button" onClick={clearAllCriteria}>Alles wissen</button> : null}
@@ -240,7 +285,7 @@ export function CollectionPage() {
         {hasActiveCriteria ? (
           <p className="collection-page-search-summary">
             Resultaten gefilterd op:{' '}
-            {[hasActiveSearch ? `search = ${activeSearchTerm}` : null, ...activeFilterEntries.map(([name, value]) => `${filterLabels[name]} = ${value}`)]
+            {[hasActiveSearch ? `search = ${activeSearchTerm}` : null, ...activeFilterEntries.map(([name, value]) => `${filterLabels[name]} = ${name === 'setCode' ? setNameByCode.get(value) ?? 'Onbekende set' : value}`)]
               .filter(Boolean)
               .join(', ')}
           </p>
