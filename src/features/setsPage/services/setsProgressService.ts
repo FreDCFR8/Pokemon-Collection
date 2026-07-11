@@ -31,11 +31,45 @@ const COLLECTION_CARD_SET_CODE_SELECT = `
 `;
 
 const SETS_CATALOG_TOTALS_SELECT = 'set_code, total, printed_total';
+const COLLECTION_CARD_SET_CODE_BATCH_SIZE = 500;
 
 function getSetCodeFromCollectionCardRow(row: CollectionCardSetCodeRow): string | null {
   const relation = Array.isArray(row.cards_catalog) ? row.cards_catalog[0] : row.cards_catalog;
 
   return relation?.set_code ?? null;
+}
+
+async function fetchAllCollectionCardSetCodeRows(
+  supabase: NonNullable<ReturnType<typeof createBrowserSupabaseClient>>,
+  collectionId: string,
+): Promise<CollectionCardSetCodeRow[]> {
+  const allRows: CollectionCardSetCodeRow[] = [];
+  let from = 0;
+
+  while (true) {
+    const to = from + COLLECTION_CARD_SET_CODE_BATCH_SIZE - 1;
+    const { data, error } = await supabase
+      .from('collection_cards')
+      .select(COLLECTION_CARD_SET_CODE_SELECT)
+      .eq('collection_id', collectionId)
+      .range(from, to)
+      .returns<CollectionCardSetCodeRow[]>();
+
+    if (error) {
+      throw new Error(`Setvoortgang ophalen uit public.collection_cards is mislukt: ${error.message}`);
+    }
+
+    const batchRows = data ?? [];
+    allRows.push(...batchRows);
+
+    if (batchRows.length < COLLECTION_CARD_SET_CODE_BATCH_SIZE) {
+      break;
+    }
+
+    from += COLLECTION_CARD_SET_CODE_BATCH_SIZE;
+  }
+
+  return allRows;
 }
 
 export async function getSetProgressForCollection(collectionId: string): Promise<SetProgress[]> {
@@ -49,19 +83,11 @@ export async function getSetProgressForCollection(collectionId: string): Promise
     throw new Error('Setvoortgang kan niet worden opgehaald omdat de publieke Supabase configuratie ontbreekt.');
   }
 
-  const { data: ownershipRows, error: ownershipError } = await supabase
-    .from('collection_cards')
-    .select(COLLECTION_CARD_SET_CODE_SELECT)
-    .eq('collection_id', collectionId)
-    .returns<CollectionCardSetCodeRow[]>();
-
-  if (ownershipError) {
-    throw new Error(`Setvoortgang ophalen uit public.collection_cards is mislukt: ${ownershipError.message}`);
-  }
+  const ownershipRows = await fetchAllCollectionCardSetCodeRows(supabase, collectionId);
 
   const ownedCountsBySetCode = new Map<string, number>();
 
-  for (const row of ownershipRows ?? []) {
+  for (const row of ownershipRows) {
     const setCode = getSetCodeFromCollectionCardRow(row);
 
     if (!setCode) {

@@ -6,9 +6,9 @@ This is a living document. Update it after meaningful merges, database phases or
 
 ## Current phase
 
-**Phase 7B-2B — controlled test-set import design**
+**Phase 7C-1B — paginate collection progress reads**
 
-The current immediate objective is to design and validate a robust local import method for one complete test set before writing external catalog data to Supabase.
+The current immediate objective is to make the existing read-only Sets progress flow reliable for collections above one Supabase/PostgREST response page, without changing database schema, writes or the Sets UI.
 
 ## Repository state
 
@@ -17,6 +17,7 @@ The current immediate objective is to design and validate a robust local import 
 - PR 91 — read-only Pokémon TCG API set inspection — was closed without merge
 - PR 91 proved that the Vercel integration works
 - PR 91 also showed that live API calls from a Vercel Function are not the preferred architecture for reliable bulk import because of timeout and recoverability limits
+- PR 95–98 are merged
 - No import implementation is currently approved for merge
 
 ## Current architecture baseline
@@ -91,7 +92,12 @@ Available:
 - set and rarity filters
 - intelligent filter-option RPC
 - Sets page with grouped progress
-- inline set-card viewing
+- Sets page with a fullscreen read-only set overlay
+- server-side set filtering, catalog cards loaded in batches of 30, search and name sorting
+
+Being fixed in Phase 7C-1B:
+
+- collection progress reads above 1,000 `collection_cards` rows must be explicitly paginated so set counts are not truncated by Supabase/PostgREST response limits
 
 Not yet available:
 
@@ -132,15 +138,16 @@ Mandatory design rules:
 - synchronization produces a clear report or log;
 - no automatic deletes are allowed.
 
+Catalog writes remain blocked until the local live dry-run of the catalog import is green and reviewed.
+
 ## Next steps
 
-1. Define the exact command-line interface and dry-run report for the local import script.
-2. Validate one complete read-only source response for `sv3pt5` through that script.
-3. Define deterministic matching outcomes for existing, new, changed, ambiguous and conflicting cards.
-4. Review the dry-run result before any use of `--write`.
-5. Import one complete test set with transaction safeguards.
-6. Verify duplicates, counts, stable internal IDs, collection stability and query performance.
-7. Only then prepare full catalog synchronization.
+1. Complete Phase 7C-1B by paginating collection progress reads and verifying the Sets page still behaves normally.
+2. Keep the local live dry-run of the catalog import open until it has a green reviewed result.
+3. Keep catalog writes blocked until that dry-run is approved.
+4. Then import one complete test set with transaction safeguards.
+5. Verify duplicates, counts, stable internal IDs, collection stability and query performance.
+6. Only then prepare full catalog synchronization.
 
 ## Roadmap
 
