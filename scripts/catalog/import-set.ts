@@ -58,12 +58,14 @@ type MatchingReport = {
   newCards: number;
   ambiguous: number;
   conflicts: number;
+  unresolvedWithoutSetMapping: number;
   metadataUnchanged: number;
   metadataChanged: number;
   candidateExamples: MatchExample[];
   newExamples: MatchExample[];
   ambiguousExamples: MatchExample[];
   conflictExamples: MatchExample[];
+  unresolvedWithoutSetMappingExamples: MatchExample[];
   metadataChangedExamples: MatchExample[];
   fallbackAvailable: boolean;
   setCode?: string;
@@ -491,7 +493,9 @@ async function matchCards(supabase: SupabaseClient, setId: string, externalCards
   const externalIds = uniqueSorted(externalCards.map((card) => card.id).filter(Boolean));
   const setMappings = await fetchSetCatalogMapping(supabase, setId);
   const setCode = setMappings.length === 1 ? setMappings[0].set_code : undefined;
-  if (setMappings.length > 1) errors.push('Meerdere sets_catalog-koppelingen gevonden voor deze externe set; fallbackmatching is uitgeschakeld.');
+  const unresolvedReason = setMappings.length === 0 ? 'missing_set_mapping' : setMappings.length > 1 ? 'multiple_set_mappings' : undefined;
+  if (setMappings.length === 0) errors.push('Fallbackmatching kon niet worden uitgevoerd omdat geen betrouwbare sets_catalog-koppeling voor deze externe set bestaat.');
+  if (setMappings.length > 1) errors.push('Fallbackmatching kon niet worden uitgevoerd omdat meerdere sets_catalog-koppelingen voor deze externe set bestaan.');
 
   const references = await fetchExternalReferences(supabase, externalIds);
   const referencesByExternalId = new Map<string, ExternalReferenceRow[]>();
@@ -526,12 +530,14 @@ async function matchCards(supabase: SupabaseClient, setId: string, externalCards
     newCards: 0,
     ambiguous: 0,
     conflicts: 0,
+    unresolvedWithoutSetMapping: 0,
     metadataUnchanged: 0,
     metadataChanged: 0,
     candidateExamples: [],
     newExamples: [],
     ambiguousExamples: [],
     conflictExamples: [],
+    unresolvedWithoutSetMappingExamples: [],
     metadataChangedExamples: [],
     fallbackAvailable: Boolean(setCode),
     setCode,
@@ -573,7 +579,13 @@ async function matchCards(supabase: SupabaseClient, setId: string, externalCards
       continue;
     }
 
-    const candidates = setCode ? fallbackByNumber.get(normalizeRequired(externalCard.number)) ?? [] : [];
+    if (!setCode) {
+      report.unresolvedWithoutSetMapping += 1;
+      addExample(report.unresolvedWithoutSetMappingExamples, { ...baseExample, reason: unresolvedReason });
+      continue;
+    }
+
+    const candidates = fallbackByNumber.get(normalizeRequired(externalCard.number)) ?? [];
     if (candidates.length === 1) {
       report.candidateBySetAndNumber += 1;
       addExample(report.candidateExamples, { ...baseExample, card_id: candidates[0].id });
@@ -586,15 +598,23 @@ async function matchCards(supabase: SupabaseClient, setId: string, externalCards
     }
   }
 
-  const classified = report.matchedByExternalReference + report.candidateBySetAndNumber + report.newCards + report.ambiguous + report.conflicts;
+  const classified =
+    report.matchedByExternalReference +
+    report.candidateBySetAndNumber +
+    report.newCards +
+    report.ambiguous +
+    report.conflicts +
+    report.unresolvedWithoutSetMapping;
   if (classified !== externalCards.length) errors.push('Niet iedere externe kaart kreeg exact één primaire matchingstatus.');
   if (report.conflicts > 0) errors.push('Conflicten gevonden in externe referenties.');
   if (report.ambiguous > 0) errors.push('Ambigue fallbackmatches gevonden.');
+  if (report.unresolvedWithoutSetMapping > 0) errors.push('Niet-gematchte kaarten zonder betrouwbare setmapping gevonden.');
 
   report.candidateExamples = sortExamples(report.candidateExamples);
   report.newExamples = sortExamples(report.newExamples);
   report.ambiguousExamples = sortExamples(report.ambiguousExamples);
   report.conflictExamples = sortExamples(report.conflictExamples);
+  report.unresolvedWithoutSetMappingExamples = sortExamples(report.unresolvedWithoutSetMappingExamples);
   report.metadataChangedExamples = sortExamples(report.metadataChangedExamples);
   return report;
 }
@@ -664,6 +684,7 @@ function printReport(params: {
     console.log(`New: ${params.matching.newCards}`);
     console.log(`Ambiguous: ${params.matching.ambiguous}`);
     console.log(`Conflicts: ${params.matching.conflicts}`);
+    console.log(`Unresolved without set mapping: ${params.matching.unresolvedWithoutSetMapping}`);
     console.log(`Metadata unchanged: ${params.matching.metadataUnchanged}`);
     console.log(`Metadata changed: ${params.matching.metadataChanged}`);
     if (!params.matching.fallbackAvailable) console.log('Fallback matching: unavailable (geen betrouwbare sets_catalog mapping gevonden).');
@@ -671,6 +692,7 @@ function printReport(params: {
     printExamples('New samples', params.matching.newExamples);
     printExamples('Ambiguous samples', params.matching.ambiguousExamples);
     printExamples('Conflict samples', params.matching.conflictExamples);
+    printExamples('Unresolved without set mapping samples', params.matching.unresolvedWithoutSetMappingExamples);
     printExamples('Metadata changed samples', params.matching.metadataChangedExamples);
     console.log('');
   }
