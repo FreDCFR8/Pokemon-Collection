@@ -61,7 +61,7 @@ Findings:
   - `901` overlapping card keys
   - `15` extra placeholder duplicates
 - Lore had no collection.
-- All records were linked to Lars.
+- All 2,190 collection_cards rows were linked to Lars' collection.
 
 Result: the project had enough evidence to plan a targeted cleanup.
 
