@@ -9,6 +9,20 @@ export type CollectionPageStatus =
   | 'ready'
   | 'error';
 
+export type CardsCatalogSearchResult = {
+  id: string;
+  pokemon: string | null;
+  setName: string | null;
+  setCode: string | null;
+  number: string | null;
+  rarity: string | null;
+  imageSmall: string | null;
+};
+
+export type AddCardToCollectionResult =
+  | { status: 'added'; message: string }
+  | { status: 'duplicate'; message: string };
+
 export type CollectionPageCard = {
   pokemon: string | null;
   setName: string | null;

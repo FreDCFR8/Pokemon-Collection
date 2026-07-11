@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { checkCollectionReadiness } from '../collections';
-import { getCollectionFilterOptions, loadCollectionPage } from './collectionPageService';
+import { addCardToCollection, getCollectionFilterOptions, loadCollectionPage, searchCardsCatalog } from './collectionPageService';
 import {
   COLLECTION_PAGE_SIZE,
+  type CardsCatalogSearchResult,
   type CollectionFilterOptions,
   type CollectionPageFilters,
   type CollectionPageState,
@@ -81,6 +82,13 @@ export function CollectionPage() {
   const [filterOptionsError, setFilterOptionsError] = useState<string | null>(null);
   const [areFilterOptionsLoading, setAreFilterOptionsLoading] = useState(true);
   const [collectionPageState, setCollectionPageState] = useState<CollectionPageState>(initialCollectionPageState);
+  const [catalogSearchTerm, setCatalogSearchTerm] = useState('');
+  const [catalogResults, setCatalogResults] = useState<CardsCatalogSearchResult[]>([]);
+  const [catalogSearchMessage, setCatalogSearchMessage] = useState('Voer minimaal 2 tekens in om kaarten te zoeken.');
+  const [isCatalogSearching, setIsCatalogSearching] = useState(false);
+  const [addCardMessage, setAddCardMessage] = useState<string | null>(null);
+  const [addingCardId, setAddingCardId] = useState<string | null>(null);
+  const [collectionRefreshKey, setCollectionRefreshKey] = useState(0);
   const totalPages = useMemo(
     () => Math.max(1, Math.ceil(collectionPageState.totalCount / collectionPageState.pageSize)),
     [collectionPageState.pageSize, collectionPageState.totalCount],
@@ -158,7 +166,7 @@ export function CollectionPage() {
     return () => {
       isMounted = false;
     };
-  }, [filters]);
+  }, [filters, collectionRefreshKey]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -183,7 +191,7 @@ export function CollectionPage() {
     return () => {
       isMounted = false;
     };
-  }, [activeSearchTerm, filters, page]);
+  }, [activeSearchTerm, filters, page, collectionRefreshKey]);
 
   const applySearchImmediately = () => {
     setPage(1);
@@ -214,6 +222,57 @@ export function CollectionPage() {
     setActiveSearchTerm('');
     setFilters(emptyCollectionPageFilters);
     setPage(1);
+  };
+
+  const runCatalogSearch = () => {
+    const sanitizedSearchTerm = catalogSearchTerm.trim();
+
+    if (sanitizedSearchTerm.length < 2) {
+      setCatalogResults([]);
+      setCatalogSearchMessage('Voer minimaal 2 tekens in om kaarten te zoeken.');
+      return;
+    }
+
+    setIsCatalogSearching(true);
+    setCatalogSearchMessage('Kaarten zoeken...');
+    searchCardsCatalog(sanitizedSearchTerm)
+      .then((results) => {
+        setCatalogResults(results);
+        setCatalogSearchMessage(results.length > 0 ? `${results.length} resultaten gevonden.` : 'Geen kaarten gevonden.');
+      })
+      .catch((error: unknown) => {
+        setCatalogResults([]);
+        setCatalogSearchMessage(error instanceof Error ? error.message : 'Kaarten zoeken is mislukt.');
+      })
+      .finally(() => {
+        setIsCatalogSearching(false);
+      });
+  };
+
+  const clearCatalogSearch = () => {
+    setCatalogSearchTerm('');
+    setCatalogResults([]);
+    setCatalogSearchMessage('Voer minimaal 2 tekens in om kaarten te zoeken.');
+    setAddCardMessage(null);
+  };
+
+  const addCatalogCard = (cardCatalogId: string) => {
+    setAddingCardId(cardCatalogId);
+    setAddCardMessage(null);
+    addCardToCollection(cardCatalogId)
+      .then((result) => {
+        setAddCardMessage(result.message);
+
+        if (result.status === 'added') {
+          setCollectionRefreshKey((currentKey) => currentKey + 1);
+        }
+      })
+      .catch((error: unknown) => {
+        setAddCardMessage(error instanceof Error ? error.message : 'Kaart toevoegen is mislukt.');
+      })
+      .finally(() => {
+        setAddingCardId(null);
+      });
   };
 
   const goToPreviousPage = () => setPage((currentPage) => Math.max(1, currentPage - 1));
@@ -254,6 +313,56 @@ export function CollectionPage() {
       </dl>
 
       <p className="collection-page-legacy-note">Legacy collectiegegevens worden hier rustig read-only getoond; bewerken en importeren blijven buiten deze fase.</p>
+
+      <section className="collection-page-add-card" aria-labelledby="collection-page-add-card-title">
+        <h3 id="collection-page-add-card-title">Kaart toevoegen</h3>
+        <p>Zoek in de kaartcatalogus en voeg één kaart toe aan je actieve hoofdcollectie.</p>
+        <div className="collection-page-search-control collection-page-add-card-search">
+          <label className="sr-only" htmlFor="collection-page-add-card-input">Kaart zoeken in catalogus</label>
+          <input
+            id="collection-page-add-card-input"
+            type="search"
+            value={catalogSearchTerm}
+            placeholder="Zoek op Pokémon, set of nummer"
+            onChange={(event) => setCatalogSearchTerm(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault();
+                runCatalogSearch();
+              }
+            }}
+          />
+          <button type="button" onClick={runCatalogSearch} disabled={isCatalogSearching}>
+            Zoek
+          </button>
+          <button type="button" onClick={clearCatalogSearch} disabled={catalogSearchTerm.length === 0 && catalogResults.length === 0}>
+            Clear
+          </button>
+        </div>
+        <p className="status-note" role="status">{catalogSearchMessage}</p>
+        {addCardMessage ? <p className="status-note" role="status">{addCardMessage}</p> : null}
+        {catalogResults.length > 0 ? (
+          <ul className="collection-page-add-card-results" aria-label="Catalogus zoekresultaten">
+            {catalogResults.map((card) => (
+              <li key={card.id}>
+                {card.imageSmall ? (
+                  <img src={card.imageSmall} alt={card.pokemon ? `${card.pokemon} kaart` : 'Cataloguskaart'} loading="lazy" />
+                ) : (
+                  <div className="card-image-placeholder" aria-label="Geen afbeelding beschikbaar">Geen afbeelding</div>
+                )}
+                <div>
+                  <h4>{formatValue(card.pokemon)}</h4>
+                  <p>{formatValue(card.setName)} · #{formatValue(card.number)}</p>
+                  {card.rarity ? <p>{card.rarity}</p> : null}
+                </div>
+                <button type="button" onClick={() => addCatalogCard(card.id)} disabled={addingCardId === card.id}>
+                  {addingCardId === card.id ? 'Toevoegen...' : 'Toevoegen'}
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </section>
 
       <div className="collection-page-search">
         <label htmlFor="collection-page-search-input">Collectie zoeken</label>

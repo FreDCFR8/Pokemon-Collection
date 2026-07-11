@@ -2,6 +2,8 @@ import { createBrowserSupabaseClient } from '../../lib/supabase';
 import { checkCollectionReadiness } from '../collections';
 import {
   COLLECTION_PAGE_SIZE,
+  type AddCardToCollectionResult,
+  type CardsCatalogSearchResult,
   type CollectionPageCard,
   type CollectionFilterOptions,
   type CollectionPageFilters,
@@ -13,6 +15,16 @@ import {
 type SanitizedCollectionPageFilters = {
   rarity: string | null;
   setCode: string | null;
+};
+
+type CardsCatalogSearchRow = {
+  id: string;
+  pokemon: string | null;
+  set_name: string | null;
+  set_code: string | null;
+  number: string | null;
+  rarity: string | null;
+  image_small: string | null;
 };
 
 type CardsCatalogPageRow = {
@@ -76,6 +88,38 @@ function normalizePage(page: number): number {
   }
 
   return Math.floor(page);
+}
+
+
+function sanitizeCatalogSearchQuery(searchQuery: string): string | null {
+  const sanitized = searchQuery
+    .trim()
+    .slice(0, 80)
+    .replace(/[,%*_()]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  return sanitized.length >= 2 ? sanitized : null;
+}
+
+function toCardsCatalogSearchResult(row: CardsCatalogSearchRow): CardsCatalogSearchResult {
+  return {
+    id: row.id,
+    pokemon: row.pokemon ?? null,
+    setName: row.set_name ?? null,
+    setCode: row.set_code ?? null,
+    number: row.number ?? null,
+    rarity: row.rarity ?? null,
+    imageSmall: row.image_small ?? null,
+  };
+}
+
+function isDuplicateCollectionCardError(error: { code?: string; message?: string } | null): boolean {
+  if (!error) {
+    return false;
+  }
+
+  return error.code === '23505' || /duplicate key|unique constraint/i.test(error.message ?? '');
 }
 
 function sanitizeSearchQuery(searchQuery: string | undefined): string | null {
@@ -342,4 +386,86 @@ export async function loadCollectionPage(
     pageSize: COLLECTION_PAGE_SIZE,
     cards: ((data ?? []) as CardsCatalogPageRow[]).map(toCollectionPageCard),
   };
+}
+
+
+export async function searchCardsCatalog(searchQuery: string): Promise<CardsCatalogSearchResult[]> {
+  const sanitizedSearchQuery = sanitizeCatalogSearchQuery(searchQuery);
+
+  if (!sanitizedSearchQuery) {
+    return [];
+  }
+
+  const supabase = createBrowserSupabaseClient();
+
+  if (!supabase) {
+    throw new Error('Kaarten zoeken kan niet starten omdat de publieke Supabase configuratie ontbreekt.');
+  }
+
+  const pattern = `%${sanitizedSearchQuery}%`;
+  const { data, error } = await supabase
+    .from('cards_catalog')
+    .select('id, pokemon, set_name, set_code, number, rarity, image_small')
+    .or(`pokemon.ilike.${pattern},set_name.ilike.${pattern},number.ilike.${pattern}`)
+    .order('pokemon', { ascending: true })
+    .order('set_name', { ascending: true })
+    .order('number', { ascending: true })
+    .limit(20);
+
+  if (error) {
+    throw new Error(`Kaarten zoeken is mislukt: ${toSafeErrorMessage(error.message)}`);
+  }
+
+  return ((data ?? []) as CardsCatalogSearchRow[]).map(toCardsCatalogSearchResult);
+}
+
+export async function addCardToCollection(cardCatalogId: string): Promise<AddCardToCollectionResult> {
+  const collectionReadiness = await checkCollectionReadiness();
+
+  if (collectionReadiness.status !== 'collection-ready' || !collectionReadiness.mainCollection?.id) {
+    throw new Error('Kaart toevoegen kan niet starten omdat er geen actieve hoofdcollectie beschikbaar is.');
+  }
+
+  const supabase = createBrowserSupabaseClient();
+
+  if (!supabase) {
+    throw new Error('Kaart toevoegen kan niet starten omdat de publieke Supabase configuratie ontbreekt.');
+  }
+
+  const collectionId = collectionReadiness.mainCollection.id;
+
+  const { data: existingCard, error: existingCardError } = await supabase
+    .from('collection_cards')
+    .select('id')
+    .eq('collection_id', collectionId)
+    .eq('card_catalog_id', cardCatalogId)
+    .eq('condition', 'Near Mint')
+    .eq('status', 'owned')
+    .maybeSingle();
+
+  if (existingCardError) {
+    throw new Error(`Controleren of de kaart al in je collectie zit is mislukt: ${toSafeErrorMessage(existingCardError.message)}`);
+  }
+
+  if (existingCard) {
+    return { status: 'duplicate', message: 'Deze kaart zit al in je collectie.' };
+  }
+
+  const { error } = await supabase.from('collection_cards').insert({
+    collection_id: collectionId,
+    card_catalog_id: cardCatalogId,
+    quantity: 1,
+    condition: 'Near Mint',
+    status: 'owned',
+  });
+
+  if (isDuplicateCollectionCardError(error)) {
+    return { status: 'duplicate', message: 'Deze kaart zit al in je collectie.' };
+  }
+
+  if (error) {
+    throw new Error(`Kaart toevoegen is mislukt: ${toSafeErrorMessage(error.message)}`);
+  }
+
+  return { status: 'added', message: 'Kaart toegevoegd aan je collectie.' };
 }
