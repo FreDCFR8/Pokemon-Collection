@@ -1129,9 +1129,142 @@ button {
   overflow-wrap: anywhere;
 }
 
+.sets-page-set-cards {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  margin-top: 14px;
+}
+
+.sets-page-set-cards-status,
+.sets-page-set-cards-empty,
+.sets-page-set-cards-count,
+.sets-page-set-cards-message p {
+  margin: 0;
+  font-size: 0.86rem;
+}
+
+.sets-page-set-cards-message {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  border: 1px solid #fecaca;
+  border-radius: 16px;
+  background: #fff7f7;
+  padding: 12px;
+}
+
+.sets-page-set-cards-message button,
+.sets-page-set-cards-pagination button {
+  min-height: 44px;
+  border: 0;
+  border-radius: 999px;
+  background: #2563eb;
+  color: #ffffff;
+  cursor: pointer;
+  padding: 0 14px;
+  font-weight: 900;
+}
+
+.sets-page-set-cards-pagination button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.sets-page-set-cards-grid {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sets-page-set-catalog-card {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 10px;
+  min-width: 0;
+  border: 1px solid #dbe3ef;
+  border-radius: 16px;
+  background: rgb(255 255 255 / 0.82);
+  padding: 10px;
+}
+
+.sets-page-set-catalog-card img,
+.sets-page-set-card-image-placeholder {
+  width: 72px;
+  aspect-ratio: 72 / 100;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #eef2ff 0%, #e2e8f0 100%);
+  object-fit: cover;
+}
+
+.sets-page-set-card-image-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  padding: 6px;
+  font-size: 0.68rem;
+  font-weight: 900;
+  line-height: 1.15;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.sets-page-set-card-body {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  min-width: 0;
+}
+
+.sets-page-set-card-body strong,
+.sets-page-set-card-body span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.sets-page-set-card-body strong {
+  color: #172033;
+  font-size: 0.9rem;
+  line-height: 1.2;
+}
+
+.sets-page-set-card-body span {
+  color: #475569;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.sets-page-set-cards-pagination {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.sets-page-set-cards-pagination span {
+  color: #475569;
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-align: center;
+  white-space: nowrap;
+}
+
 
 @media (min-width: 520px) {
   .sets-page-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sets-page-set-cards-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
