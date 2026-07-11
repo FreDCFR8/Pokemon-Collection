@@ -48,6 +48,7 @@ export function SetsPage() {
     progressBySetCode: new Map(),
   });
   const [searchTerm, setSearchTerm] = useState('');
+  const [openSetId, setOpenSetId] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -235,38 +236,79 @@ export function SetsPage() {
                         : null;
                       const setImageUrl = set.logo_url ?? set.symbol_url;
                       const setImageAlt = set.logo_url ? `${set.name} logo` : `${set.name} symbool`;
+                      const isOpen = openSetId === set.id;
+                      const detailPanelId = `sets-page-set-details-${set.id}`;
 
                       return (
-                        <li key={set.id} className="sets-page-set-card">
-                          <div className="sets-page-set-media" aria-hidden={setImageUrl ? undefined : true}>
-                            {setImageUrl ? (
-                              <img src={setImageUrl} alt={setImageAlt} width="96" height="40" loading="lazy" />
-                            ) : (
-                              <span className="sets-page-set-media-placeholder">Geen logo</span>
-                            )}
-                          </div>
+                        <li key={set.id} className={`sets-page-set-card${isOpen ? ' is-open' : ''}`}>
+                          <button
+                            type="button"
+                            className="sets-page-set-summary-button"
+                            aria-expanded={isOpen}
+                            aria-controls={detailPanelId}
+                            onClick={() => setOpenSetId(isOpen ? null : set.id)}
+                          >
+                            <span className="sets-page-set-media" aria-hidden={setImageUrl ? undefined : true}>
+                              {setImageUrl ? (
+                                <img src={setImageUrl} alt={setImageAlt} width="96" height="40" loading="lazy" />
+                              ) : (
+                                <span className="sets-page-set-media-placeholder">Geen logo</span>
+                              )}
+                            </span>
 
-                          <div className="sets-page-set-content">
-                            <div className="sets-page-set-heading">
-                              <strong className="sets-page-set-name">{set.name}</strong>
-                            </div>
+                            <span className="sets-page-set-content">
+                              <span className="sets-page-set-heading">
+                                <strong className="sets-page-set-name">{set.name}</strong>
+                              </span>
 
-                            <div className="sets-page-set-progress" aria-label={`Collectievoortgang voor ${set.name}`}>
-                              <span>{formatSetProgressText(ownedCount, set.total)}</span>
-                              {progressPercent !== null ? (
-                                <div
-                                  className="sets-page-set-progress-bar"
-                                  role="progressbar"
-                                  aria-valuemin={0}
-                                  aria-valuemax={100}
-                                  aria-valuenow={progressPercent}
-                                  aria-label={`${progressPercent}% compleet`}
-                                >
-                                  <span style={{ width: `${progressPercent}%` }} />
+                              <span className="sets-page-set-progress" aria-label={`Collectievoortgang voor ${set.name}`}>
+                                <span>{formatSetProgressText(ownedCount, set.total)}</span>
+                                {progressPercent !== null ? (
+                                  <span
+                                    className="sets-page-set-progress-bar"
+                                    role="progressbar"
+                                    aria-valuemin={0}
+                                    aria-valuemax={100}
+                                    aria-valuenow={progressPercent}
+                                    aria-label={`${progressPercent}% compleet`}
+                                  >
+                                    <span style={{ width: `${progressPercent}%` }} />
+                                  </span>
+                                ) : null}
+                              </span>
+                            </span>
+                          </button>
+
+                          {isOpen ? (
+                            <div id={detailPanelId} className="sets-page-set-details">
+                              <dl>
+                                <div>
+                                  <dt>Setnaam</dt>
+                                  <dd>{set.name}</dd>
                                 </div>
-                              ) : null}
+                                {set.series ? (
+                                  <div>
+                                    <dt>Series</dt>
+                                    <dd>{set.series}</dd>
+                                  </div>
+                                ) : null}
+                                <div>
+                                  <dt>Releasedatum</dt>
+                                  <dd>{set.release_date ?? 'Onbekend'}</dd>
+                                </div>
+                                <div>
+                                  <dt>Verzamelde kaarten</dt>
+                                  <dd>{ownedCount}</dd>
+                                </div>
+                                {hasKnownSetTotal(set.total) ? (
+                                  <div>
+                                    <dt>Totaal aantal kaarten</dt>
+                                    <dd>{set.total}</dd>
+                                  </div>
+                                ) : null}
+                              </dl>
                             </div>
-                          </div>
+                          ) : null}
                         </li>
                       );
                     })}
