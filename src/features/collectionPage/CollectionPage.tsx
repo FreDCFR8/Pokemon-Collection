@@ -1,40 +1,22 @@
 import { useEffect, useMemo, useState } from 'react';
-import { getSetsCatalog, type SetsCatalogRow } from '../../services/setsCatalogService';
-import { loadCollectionPage } from './collectionPageService';
-import { COLLECTION_PAGE_SIZE, type CollectionPageFilters, type CollectionPageState } from './collectionPageTypes';
+import { checkCollectionReadiness } from '../collections';
+import { getCollectionFilterOptions, loadCollectionPage } from './collectionPageService';
+import {
+  COLLECTION_PAGE_SIZE,
+  type CollectionFilterOptions,
+  type CollectionPageFilters,
+  type CollectionPageState,
+} from './collectionPageTypes';
 
 const emptyCollectionPageFilters: CollectionPageFilters = {
   rarity: '',
   setCode: '',
 };
 
-const rarityFilterOptions = [
-  '',
-  'ACE SPEC Rare',
-  'Black White Rare',
-  'Common',
-  'Double Rare',
-  'Holo Rare',
-  'Hyper Rare',
-  'Illustration Rare',
-  'MEGA_ATTACK_RARE',
-  'Onbekend',
-  'Promo',
-  'Radiant Rare',
-  'Rare',
-  'Rare Holo',
-  'Rare Holo V',
-  'Rare Holo VMAX',
-  'Rare Holo VSTAR',
-  'Rare Rainbow',
-  'Rare Ultra',
-  'Shiny Rare',
-  'Shiny Ultra Rare',
-  'Special Illustration Rare',
-  'Trainer Gallery Rare Holo',
-  'Ultra Rare',
-  'Uncommon',
-];
+const emptyCollectionFilterOptions: CollectionFilterOptions = {
+  sets: [],
+  rarities: [],
+};
 
 const filterLabels: Record<keyof CollectionPageFilters, string> = {
   rarity: 'rarity',
@@ -95,20 +77,17 @@ export function CollectionPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeSearchTerm, setActiveSearchTerm] = useState('');
   const [filters, setFilters] = useState<CollectionPageFilters>(emptyCollectionPageFilters);
-  const [setsCatalog, setSetsCatalog] = useState<SetsCatalogRow[]>([]);
-  const [setsCatalogError, setSetsCatalogError] = useState<string | null>(null);
+  const [filterOptions, setFilterOptions] = useState<CollectionFilterOptions>(emptyCollectionFilterOptions);
+  const [filterOptionsError, setFilterOptionsError] = useState<string | null>(null);
+  const [areFilterOptionsLoading, setAreFilterOptionsLoading] = useState(true);
   const [collectionPageState, setCollectionPageState] = useState<CollectionPageState>(initialCollectionPageState);
   const totalPages = useMemo(
     () => Math.max(1, Math.ceil(collectionPageState.totalCount / collectionPageState.pageSize)),
     [collectionPageState.pageSize, collectionPageState.totalCount],
   );
-  const setFilterOptions = useMemo(
-    () => [...setsCatalog].sort((firstSet, secondSet) => firstSet.name.localeCompare(secondSet.name, 'nl', { sensitivity: 'base' })),
-    [setsCatalog],
-  );
   const setNameByCode = useMemo(
-    () => new Map(setFilterOptions.map((set) => [set.set_code, set.name])),
-    [setFilterOptions],
+    () => new Map(filterOptions.sets.map((set) => [set.setCode, set.name])),
+    [filterOptions.sets],
   );
   const isLoading = collectionPageState.status === 'loading';
   const trimmedSearchTerm = searchTerm.trim();
@@ -122,24 +101,64 @@ export function CollectionPage() {
   useEffect(() => {
     let isMounted = true;
 
-    getSetsCatalog()
-      .then((sets) => {
-        if (isMounted) {
-          setSetsCatalog(sets);
-          setSetsCatalogError(null);
+    setAreFilterOptionsLoading(true);
+    checkCollectionReadiness()
+      .then((collectionReadiness) => {
+        const collectionId = collectionReadiness.mainCollection?.id;
+
+        if (collectionReadiness.status !== 'collection-ready' || !collectionId) {
+          return emptyCollectionFilterOptions;
+        }
+
+        return getCollectionFilterOptions(collectionId, filters);
+      })
+      .then((nextFilterOptions) => {
+        if (!isMounted) {
+          return;
+        }
+
+        setFilterOptions(nextFilterOptions);
+        setFilterOptionsError(null);
+        setAreFilterOptionsLoading(false);
+
+        const selectedSetCode = filters.setCode?.trim() ?? '';
+        const selectedRarity = filters.rarity?.trim() ?? '';
+        const hasInvalidSelectedSet = selectedSetCode.length > 0 && !nextFilterOptions.sets.some((set) => set.setCode === selectedSetCode);
+        const hasInvalidSelectedRarity = selectedRarity.length > 0 && !nextFilterOptions.rarities.includes(selectedRarity);
+
+        if (hasInvalidSelectedSet || hasInvalidSelectedRarity) {
+          setFilters((currentFilters) => {
+            const currentSetCode = currentFilters.setCode?.trim() ?? '';
+            const currentRarity = currentFilters.rarity?.trim() ?? '';
+            const shouldClearSetCode = currentSetCode.length > 0 && !nextFilterOptions.sets.some((set) => set.setCode === currentSetCode);
+            const shouldClearRarity = currentRarity.length > 0 && !nextFilterOptions.rarities.includes(currentRarity);
+
+            if (!shouldClearSetCode && !shouldClearRarity) {
+              return currentFilters;
+            }
+
+            setPage(1);
+
+            return {
+              ...currentFilters,
+              setCode: shouldClearSetCode ? '' : currentFilters.setCode,
+              rarity: shouldClearRarity ? '' : currentFilters.rarity,
+            };
+          });
         }
       })
       .catch((error: unknown) => {
         if (isMounted) {
-          setSetsCatalog([]);
-          setSetsCatalogError(error instanceof Error ? error.message : 'Sets catalog ophalen is mislukt.');
+          setFilterOptions(emptyCollectionFilterOptions);
+          setFilterOptionsError(error instanceof Error ? error.message : 'Slimme collectiefilters laden is mislukt.');
+          setAreFilterOptionsLoading(false);
         }
       });
 
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [filters]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -261,23 +280,24 @@ export function CollectionPage() {
         <div className="collection-page-filters" aria-label="Collectiefilters">
           <label>
             Rarity
-            <select value={filters.rarity ?? ''} onChange={(event) => updateFilter('rarity', event.target.value)}>
-              {rarityFilterOptions.map((option) => (
-                <option key={option || 'all-rarity'} value={option}>{option || 'Alle'}</option>
+            <select value={filters.rarity ?? ''} onChange={(event) => updateFilter('rarity', event.target.value)} disabled={areFilterOptionsLoading && filterOptions.rarities.length === 0}>
+              <option value="">Alle rarities</option>
+              {filterOptions.rarities.map((option) => (
+                <option key={option} value={option}>{option}</option>
               ))}
             </select>
           </label>
           <label>
             Set
-            <select value={filters.setCode ?? ''} onChange={(event) => updateFilter('setCode', event.target.value)}>
+            <select value={filters.setCode ?? ''} onChange={(event) => updateFilter('setCode', event.target.value)} disabled={areFilterOptionsLoading && filterOptions.sets.length === 0}>
               <option value="">Alle sets</option>
-              {setFilterOptions.map((set) => (
-                <option key={set.set_code} value={set.set_code}>{set.name}</option>
+              {filterOptions.sets.map((set) => (
+                <option key={set.setCode} value={set.setCode}>{set.name}</option>
               ))}
             </select>
           </label>
         </div>
-        {setsCatalogError ? <p className="status-note">Setfilter laden is mislukt: {setsCatalogError}</p> : null}
+        {filterOptionsError ? <p className="status-note">Slimme filters laden is mislukt: {filterOptionsError}</p> : null}
         <div className="collection-page-filter-actions">
           <button type="button" onClick={clearFilters} disabled={!hasActiveFilters}>Reset filters</button>
           {hasActiveCriteria ? <button type="button" onClick={clearAllCriteria}>Alles wissen</button> : null}
