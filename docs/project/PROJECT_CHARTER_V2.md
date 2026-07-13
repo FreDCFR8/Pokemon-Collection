@@ -6,63 +6,57 @@
 
 **Stack:** Vite, React, TypeScript, Supabase and Vercel.
 
-Pokémon Collection V3 is a professional, mobile-first collection manager designed to grow over multiple years without breaking existing functionality. Stability, data integrity, performance, security, maintainability and clear product architecture are first-class requirements.
+Pokémon Collection V3 is a professional, mobile-first collection manager designed to grow over multiple years without breaking existing functionality. Stability, data integrity, performance, security, maintainability and product quality take priority over delivery speed.
 
-The project is not a quick prototype. Decisions must remain understandable and support future capabilities such as multiple profiles, multiple collections, wishlist, trade, analytics and scanning.
+The project is not a quick prototype. Decisions must remain understandable and support multiple profiles, multiple collections, wishlist, trade, analytics, scanning and future catalog enrichment.
 
 ## 2. Roles and responsibilities
 
-During development, ChatGPT acts as:
+During development, ChatGPT acts as Technical Lead, Lead Software Architect, Senior Software Engineer, Database Architect, Performance Engineer, Security Architect, Mobile UX Architect, QA Architect, Code Reviewer and Product Architect.
 
-- Lead Software Architect
-- Senior Software Engineer
-- Technical Lead
-- Database Architect
-- Performance Engineer
-- Security Architect
-- Mobile UX Architect
-- QA Architect
-- Code Reviewer
-- Product Architect
-
-The role is not limited to producing code. It includes questioning assumptions, comparing alternatives, identifying technical debt, guarding architectural consistency and preventing regressions.
+The role includes questioning assumptions, comparing alternatives, guarding architecture and UX consistency, identifying technical debt and preventing regressions. The user remains product owner and final decision-maker.
 
 ## 3. Permanent development principles
 
 1. Quality takes priority over speed.
-2. `main` must remain stable.
+2. `main` remains stable.
 3. One branch has one clear purpose.
 4. One pull request represents one controlled phase or goal.
-5. Analysis precedes implementation.
-6. Read-only verification precedes database writes.
-7. Database writes use explicit safeguards, post-checks and a recoverable approach.
-8. New functionality must not silently weaken security, performance or data integrity.
-9. Important architecture, schema, RLS, integration and product decisions are documented.
-10. Small CSS, copy or isolated UI changes do not require separate architecture documents when the PR description is sufficient.
+5. Architecture analysis precedes implementation.
+6. UX analysis precedes implementation for user-facing work.
+7. Reuse takes priority over duplication.
+8. Data is the source of truth; the UI follows confirmed data.
+9. Read-only verification precedes database writes.
+10. Database writes use explicit safeguards, post-checks and recoverable behavior.
+11. New functionality must not silently weaken security, performance or data integrity.
+12. Important architecture, schema, RLS, integration and foundational product decisions are documented.
+13. Functional correctness does not by itself mean a feature is product-ready.
 
 ## 4. Standard workflow
 
 Every meaningful phase follows this sequence:
 
-1. Analyse the current state.
-2. Identify constraints and risks.
-3. Compare viable alternatives.
-4. Make and record the architectural decision.
-5. Define a small implementation scope.
-6. Prepare a complete Codex assignment when Codex is used.
-7. Open a focused pull request.
-8. Review architecture, database impact, security, performance, UX and regressions.
-9. Test and verify the result.
-10. Merge only when the phase is complete.
-11. Update living documentation when required.
+1. inspect and analyse the current state;
+2. identify architecture, data, security, performance and regression constraints;
+3. analyse the intended UX;
+4. compare viable alternatives;
+5. define a small phase with scope, non-goals and verification;
+6. implement through Codex, controlled SQL or direct repository work;
+7. open a focused pull request;
+8. review architecture, code, data, security and performance;
+9. review UX, mobile behavior, desktop behavior and accessibility;
+10. apply correction rounds inside the same PR while its purpose remains unchanged;
+11. test the Vercel Preview and relevant devices;
+12. merge only after technical and UX approval;
+13. update durable documentation when required.
 
-Large, multi-purpose or speculative changes are split into smaller phases.
+Large, multi-purpose or speculative changes are split into smaller phases. Larger product areas are designed and phased before implementation begins.
 
 ## 5. Core architecture
 
 ### Frontend
 
-The frontend uses Vite, React and TypeScript. It is mobile-first and must remain efficient on iPhone and iPad. The browser renders controlled result sets; it must not load or process the entire card catalog at once.
+The frontend uses Vite, React and TypeScript. It is mobile-first and must remain efficient on iPhone and iPad. The browser renders controlled result sets and must not load or process the complete catalog at once.
 
 ### Backend and database
 
@@ -70,7 +64,7 @@ Supabase provides authentication, PostgreSQL, row-level security and application
 
 ### Hosting and server-side integration
 
-Vercel hosts the application and may run narrowly scoped server-side functions. Secrets and external API keys remain server-side and are never exposed to browser bundles.
+Vercel hosts the application and may run narrowly scoped server-side functions. Secrets and external API keys remain server-side and never enter browser bundles.
 
 ## 6. Data ownership and sources of truth
 
@@ -80,27 +74,27 @@ Represents application profiles and links them to authenticated users.
 
 ### `collections`
 
-Represents collection containers owned by profiles. The model must support more than one profile and, later, more than one collection per profile.
+Represents collection containers owned by profiles. The model supports future multiple collections per profile.
 
 ### `cards_catalog`
 
-The central internal catalog describing what a card is. It exists independently from ownership. Stable internal IDs are important because collection links must survive metadata updates and external-source changes.
+The central internal catalog describing what a card is. It exists independently from ownership. Stable internal IDs are required so collection links survive metadata updates and source changes.
 
 ### `collection_cards`
 
-Represents collection-specific state for a catalog card, including ownership, quantity, condition and status. It is the source of truth for owned, wishlist, trade or missing state.
+Represents collection-specific state for a catalog card, including ownership, quantity, condition and status. It is the source of truth for `owned`, `wishlist`, `trade` and `missing` state.
 
 ### `sets_catalog`
 
-Represents canonical set metadata. Project `set_code` values are internal identifiers and are not exposed to users as product-facing labels.
+Represents canonical set metadata. Internal `set_code` values are not product-facing labels.
 
 ### `card_external_references`
 
-Links stable internal cards to source-specific identities. One internal card may have references to multiple external sources without replacing its internal ID.
+Links stable internal cards to source-specific identities. One internal card may have multiple external references without replacing its internal ID.
 
 ### Legacy
 
-`public.cards` is legacy and must not be used for new runtime functionality. New functionality uses `profiles`, `collections`, `cards_catalog`, `collection_cards`, `sets_catalog` and `card_external_references`.
+`public.cards` is legacy and is not used for new runtime functionality.
 
 ## 7. Collection charter
 
@@ -108,18 +102,16 @@ Links stable internal cards to source-specific identities. One internal card may
 
 `collection_cards` answers: **what is this card's state in this collection?**
 
-The same catalog card can be referenced by multiple collections. Card metadata must not be duplicated per user, and ownership must not be stored in the catalog.
+Metadata is not duplicated per user. Catalog synchronization never changes collection quantity, condition or status and never breaks active collection links.
 
-Supported status values are:
+Supported collection statuses are:
 
 - `owned`
 - `wishlist`
 - `trade`
 - `missing`
 
-Wishlist is therefore part of the same collection relationship model, not a second card catalog.
-
-Catalog synchronization must never change collection quantity, condition or status and must never break active collection links.
+Quantity represents physical copies. Set completion counts unique collected cards according to the approved physical-possession statuses and never increases because quantity is greater than one.
 
 ## 8. Catalog and API charter
 
@@ -127,163 +119,179 @@ Normal runtime flow:
 
 ```text
 external source
-→ controlled server-side import or synchronization
+→ controlled server-side or local import/synchronization
 → Supabase cards_catalog
 → Sets and global search
 → collection_cards state
 ```
 
-The browser never uses an external card API as its normal search engine. External sources are used only for controlled import, synchronization, validation and enrichment.
+The browser does not use an external card API as its normal search engine.
 
-Permanent rules:
+Permanent import rules:
 
-- one primary source owns core metadata for a given import path;
+- one primary source owns core metadata for an import path;
 - secondary sources are validation, fallback or enrichment sources;
 - imports are idempotent;
-- repeated imports must not create duplicates;
-- no automatic deletes;
+- repeated imports do not create duplicates;
+- no automatic catalog deletes;
 - internal IDs remain stable;
 - existing collection links remain stable;
-- imports run in small, resumable batches, preferably per set;
-- every import validates expected and received counts;
+- imports run in small resumable batches, preferably per set;
+- expected and received counts are validated;
 - failed sets can be retried independently;
-- price data is managed separately from stable catalog metadata.
+- price data remains separate from stable catalog metadata.
 
-## 9. Performance charter
+## 9. Architecture and component philosophy
 
-Performance is a core feature, not a later optimization.
+New functionality is designed around clear responsibilities and future reuse.
+
+Before adding UI or services, determine whether:
+
+- an existing component can be extended safely;
+- a new component should be shared across Sets, Collection, Wishlist, Trade or Search;
+- business rules belong in a service rather than page rendering;
+- duplicate state or duplicate mutation logic can be avoided;
+- the component has one clear responsibility;
+- the design remains understandable when the catalog and feature set grow.
+
+Shared components are introduced deliberately, not speculatively. A component should be extracted when its behavior and reuse boundary are sufficiently understood.
+
+Detailed technical principles live in `ARCHITECTURE_PRINCIPLES.md`.
+
+## 10. UX principles
+
+Pokémon Collection V3 is mobile-first and touch-first.
+
+Permanent UX principles:
+
+- cards are visually more important than metadata;
+- use progressive disclosure;
+- keep overview screens calm and focused;
+- show detail and management controls only when needed;
+- maintain consistent actions and status language;
+- loading, empty, error, pending and retry states are part of completeness;
+- primary actions must be practical with one hand;
+- touch targets and focus states must remain accessible;
+- desktop behavior is reviewed when relevant, without weakening the mobile experience.
+
+### Navigation philosophy
+
+The standard card flow is:
+
+```text
+Sets
+→ Binder
+→ Card Detail
+```
+
+The binder prioritizes card imagery and a subtle presence indicator. Names, numbers, rarity, quantity controls and other metadata belong in card detail unless a later documented product decision changes this.
+
+Card detail is intended to become a shared experience for Sets and Collection and later for Wishlist, Trade and Search. The shared component must be designed in its own controlled phase rather than grown indefinitely inside an unrelated PR.
+
+Detailed UX rules live in `UX_GUIDELINES.md`.
+
+## 11. Performance charter
+
+Performance is a core feature.
 
 Required principles:
 
 - server-side filtering and pagination;
 - limited fields per query;
-- small thumbnails in result lists;
+- thumbnails in lists and binders;
 - large images only in detail views;
-- lazy loading for images;
+- lazy loading for list images;
 - no full-catalog browser downloads;
 - no rendering of hundreds or thousands of cards at once;
 - indexed search fields;
-- no N+1 query pattern for ownership or wishlist state;
-- owned and wishlist information should be returned through efficient joins, views or RPCs;
-- measure before and after significant data or rendering changes.
+- no N+1 ownership queries;
+- explicit pagination or aggregation for reads that may exceed response limits;
+- measurement on real devices for significant screens.
 
-## 10. Database charter
+## 12. Database charter
 
-- Schema and RLS changes are treated as architecture changes.
+- Schema and RLS changes are architecture changes.
 - Risky changes start with read-only diagnostics.
 - Data migrations use explicit target counts and stop conditions.
 - Writes are transaction-safe where practical.
 - Deletes require proof that records are unused and disposable.
-- Catalog sync never deletes active collection data.
+- Catalog sync never deletes or mutates active collection data.
 - RLS applies least privilege.
 - Browser writes are limited to explicit user actions.
 - Service-role credentials never appear in frontend code.
-- Manual live-database changes must be reflected in durable repository documentation or migrations when reproducibility requires it.
+- Manual live-database changes are captured in migrations or durable documentation when reproducibility requires it.
 
-## 11. Security charter
+## 13. Security charter
 
 - No secret is committed to GitHub.
-- External API keys are server-side only.
-- Supabase service-role keys are never exposed to the client.
+- External API keys and service-role keys are never exposed to the client.
 - RLS is mandatory for user-owned data.
-- Ownership checks follow authenticated user → profile → collection.
-- New write paths require separate review of policy, allowed fields and abuse cases.
-- Temporary diagnostics are disabled in production unless explicitly designed as permanent secured endpoints.
+- Ownership follows authenticated user → profile → collection.
+- SELECT, INSERT, UPDATE and DELETE permissions are reviewed separately.
+- New write paths require review of allowed fields, race behavior and abuse cases.
+- Error states do not expose secrets or internal implementation details.
 
-## 12. Mobile UX charter
+## 14. Codex charter
 
-- Mobile-first decisions take priority.
-- Primary actions must be reachable and understandable on a phone.
-- Long lists require pagination or incremental loading.
-- Filters must not create clutter or unnecessary network requests.
-- Internal IDs and implementation terminology remain hidden from end users.
-- Loading, empty, error and retry states are part of feature completeness.
+A Codex assignment is fully copyable and includes project context, phase, objective, exact scope, prohibited changes, acceptance criteria, verification and PR requirements.
 
-## 13. Codex charter
+Existing PR corrections update the existing branch and PR. Multiple correction rounds are allowed while the original purpose remains intact. Codex output is always reviewed; a passing build alone does not prove runtime, database or UX correctness.
 
-A Codex assignment must be fully copyable and include:
-
-- repository and stack;
-- current phase and objective;
-- relevant architecture and data context;
-- exact allowed scope;
-- explicit prohibited changes;
-- acceptance criteria;
-- build and type checks;
-- diff and changed-file checks;
-- PR title and PR-body requirements;
-- instruction to update the current branch rather than create a new PR when revising an existing PR.
-
-Codex output is always reviewed. A passing local build does not prove Vercel Functions, database behavior or runtime integration are correct.
-
-## 14. Pull-request review charter
+## 15. Pull-request review charter
 
 Every meaningful PR is reviewed for:
 
 - scope discipline;
 - architectural consistency;
-- database integrity;
-- RLS and security;
+- database integrity and RLS;
+- security;
 - performance and scalability;
-- mobile UX;
+- mobile UX and desktop UX;
+- accessibility;
+- race conditions and stale responses;
 - regression risk;
-- test coverage or verification evidence;
+- verification evidence;
 - documentation impact;
 - changed-file accuracy;
 - deployment status where applicable.
 
-A green Vercel deployment is required for changes affecting deployment or server-side functions.
+Technical approval and UX approval are both required for user-facing work.
 
-## 15. Documentation charter
-
-Document changes when they alter:
-
-- architecture;
-- schema or constraints;
-- RLS or security boundaries;
-- data invariants;
-- external integrations;
-- import and synchronization behavior;
-- irreversible or foundational product decisions.
+## 16. Documentation charter
 
 Use:
 
-- this charter for stable principles;
+- this charter for project identity and stable product principles;
+- `ARCHITECTURE_PRINCIPLES.md` for timeless technical rules;
+- `UX_GUIDELINES.md` for lasting UX rules;
 - `PROJECT_STATUS.md` for current operational state;
-- `DECISION_LOG.md` for the reasons behind important choices;
-- detailed architecture and Supabase documents for specialized subjects.
+- `ROADMAP.md` for planned direction;
+- `DECISION_LOG.md` for important decisions and their reasons;
+- specialist documents for detailed architecture, database and integration subjects.
 
-Avoid duplicate documents that repeat the same decision without adding value.
+Avoid duplicated documents and repeated decisions.
 
-## 16. Definition of Done
+## 17. Definition of Done
 
-A phase is complete only when all applicable conditions are met:
+A phase is complete only when all applicable conditions in `AI_WORKING_AGREEMENT.md` are met, including technical review, UX review, build and diff verification, preview testing, relevant device testing, documentation updates and merge.
 
-- scope is implemented and no unrelated files changed;
-- required build, type and deployment checks pass;
-- database post-checks match expected counts;
-- security and RLS were reviewed;
-- mobile and primary user flow were checked;
-- no known regression remains;
-- important decisions are documented;
-- the PR is reviewable and mergeable;
-- the next phase is clearly defined.
+## 18. Long-term direction
 
-## 17. Long-term roadmap principles
-
-The broad direction is:
+The broad direction remains:
 
 1. reliable full card catalog;
-2. set-based browsing and adding cards;
-3. global catalog search and adding cards;
-4. wishlist;
-5. trade and missing workflows;
-6. richer analytics and value data;
-7. stronger multi-profile and multi-collection support;
-8. scanning and assisted identification.
+2. set-based browsing and card management;
+3. shared card-detail experience;
+4. global catalog search and add flow;
+5. collection experience improvements;
+6. wishlist;
+7. trade and missing workflows;
+8. analytics, value data and price history;
+9. stronger multi-profile and multi-collection support;
+10. scanning and assisted identification.
 
-Roadmap order may change after analysis, but foundational data integrity and performance requirements do not.
+Roadmap order may change after analysis, but data integrity, security, performance and maintainability requirements do not.
 
-## 18. Project memory principle
+## 19. Project memory principle
 
-The repository must preserve not only what was changed, but why. Future contributors and AI sessions must be able to distinguish intentional architecture from accidental historical state. Decisions are not reopened without new evidence, changed requirements or a clearly better design.
+The repository preserves not only what changed, but why. Future contributors and AI sessions must distinguish intentional architecture from accidental historical state. Decisions are reopened only with new evidence, changed requirements or a clearly better design.

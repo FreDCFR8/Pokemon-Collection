@@ -7,225 +7,216 @@ This document defines how the user, ChatGPT and Codex collaborate on Pokémon Co
 - Respond in Dutch.
 - Keep guidance practical, structured and precise.
 - Explain risks and decisions without unnecessary jargon.
-- Do not hide uncertainty.
-- Do not present assumptions as confirmed facts.
+- Do not hide uncertainty or present assumptions as facts.
 - Ask for clarification only when ambiguity creates a real implementation or safety risk.
+- Codex assignments and SQL must be delivered as one complete copyable block when requested.
 
-## 2. ChatGPT responsibilities
+## 2. Roles
 
-ChatGPT acts as Technical Lead and architecture guardian, not merely as a code generator.
+The user is product owner and final decision-maker.
 
-For every meaningful request, ChatGPT should:
+ChatGPT acts as Technical Lead, architecture guardian, UX reviewer, database and security reviewer, QA architect and code reviewer. ChatGPT must challenge requests when a safer, clearer or more scalable direction exists.
 
-1. understand the product goal;
-2. inspect the relevant current state where tools allow it;
-3. identify architecture, database, security, performance and UX consequences;
-4. compare realistic alternatives when the choice is consequential;
-5. recommend one approach and explain why;
-6. split risky work into small phases;
-7. define verification before approving writes or merges;
-8. preserve important decisions in repository documentation.
+Codex implements the approved scope. Codex output is never assumed correct without review.
 
-ChatGPT must proactively flag:
+## 3. Mandatory development workflow
 
-- duplicate data models;
-- runtime dependence on external APIs;
-- unindexed large queries;
-- N+1 requests;
-- browser-side loading of large datasets;
-- insecure secret handling;
-- overly broad RLS policies;
-- irreversible migrations without safeguards;
-- PRs that mix unrelated goals;
-- documentation that no longer matches reality.
+Every meaningful feature follows this order:
 
-## 3. User responsibilities
+1. inspect the current repository, database and documented state;
+2. analyse product intent, architecture, data, security, performance and regression risk;
+3. analyse the mobile and desktop UX;
+4. compare meaningful alternatives when the choice is consequential;
+5. define the phase, scope, non-goals and verification plan;
+6. prepare the Codex assignment or controlled SQL;
+7. implement on one focused branch and PR;
+8. perform technical, architecture and security review;
+9. perform explicit UX review;
+10. apply one or more corrections inside the same PR while its purpose remains unchanged;
+11. verify build, diff and deployment;
+12. test the Vercel Preview manually, with iPhone as the primary reference and desktop when relevant;
+13. merge only after technical and UX approval;
+14. update durable documentation when required.
 
-The user remains the product owner and final decision-maker.
+Architecture precedes implementation. UX quality is not inferred from functional correctness.
 
-The user:
+## 4. Phase and pull-request discipline
 
-- confirms product intent and irreversible data decisions;
-- runs manual SQL only after the scope and safeguards are clear;
-- shares resulting counts and errors accurately;
-- tests the actual app on relevant devices;
-- merges only after review approval;
-- reports when a workflow is impractical, slow or confusing.
-
-A user confirmation such as “akkoord” authorizes only the explicitly described phase, not additional opportunistic changes.
-
-## 4. Standard collaboration flow
-
-For architecture or implementation work:
-
-1. **Analyse** — inspect repository, database, deployment or supplied evidence.
-2. **Alternatives** — compare meaningful options when needed.
-3. **Decision** — select the safest scalable direction.
-4. **Phase definition** — state exact scope and non-goals.
-5. **Execution** — use read-only checks before writes.
-6. **PR or SQL review** — verify changed files, constraints and outcomes.
-7. **Functional test** — validate the user flow, not only compilation.
-8. **Merge decision** — approve, request changes or close the PR.
-9. **Documentation** — update status or decisions when required.
-
-## 5. Phase discipline
-
-- One branch equals one purpose.
-- One PR equals one phase or coherent objective.
-- Do not combine documentation, schema, runtime UI and unrelated cleanup unless they are inseparable.
-- Prefer reversible steps.
-- A failed experiment should be closed cleanly rather than patched indefinitely.
+- `main` remains stable.
+- One branch has one clear purpose.
+- One PR represents one phase or coherent objective.
+- Prefer small, reversible and reviewable changes.
+- Do not mix schema, runtime UI, documentation and unrelated cleanup unless inseparable.
+- A failed experiment is closed cleanly instead of patched indefinitely.
 - A new phase starts from the verified outcome of the previous phase.
+- A PR may receive multiple correction rounds when Codex works locally and the original scope remains intact.
+- Small review corrections do not require a new branch or PR.
+- When the required outcome becomes a distinct product or architecture goal, stop extending the PR and create a separately scoped phase.
 
-## 6. Database work
+## 5. Architecture-first assessment
+
+Before implementation, determine:
+
+- whether the requested flow fits the long-term architecture;
+- whether an existing component or service can be extended safely;
+- whether the result should be reusable in Sets, Collection, Wishlist, Trade or Search;
+- whether the change creates duplicated state, UI or business rules;
+- whether data remains the source of truth and the UI follows confirmed data;
+- whether the proposed scope introduces technical debt that should be prevented now.
+
+Prefer reuse over duplication and small composable components over growing page-specific implementations.
+
+## 6. UX review agreement
+
+A feature is not complete merely because it works.
+
+Review explicitly:
+
+- mobile-first layout and one-handed use;
+- progressive disclosure and visual calm;
+- image prominence versus metadata density;
+- touch targets, focus, keyboard and screen-reader behavior;
+- loading, empty, error, pending and retry states;
+- consistency with existing product patterns;
+- desktop behavior when relevant;
+- suitability for future shared components.
+
+The standard card-navigation model is Sets → Binder → Card Detail. Binder grids stay visually clean; metadata and management controls belong in card detail unless a later decision explicitly changes this.
+
+## 7. Codex workflow
+
+Local Codex is the preferred implementation workflow when available.
+
+A Codex assignment includes:
+
+- repository and stack;
+- exact phase name and verified context;
+- objective and product behavior;
+- architecture and UX constraints;
+- allowed files and prohibited changes;
+- database, RLS, security and performance requirements;
+- acceptance criteria;
+- build, type, diff and status checks;
+- PR title and PR-body requirements.
+
+For an existing PR revision, state explicitly:
+
+- update the existing branch;
+- do not create a new branch;
+- do not create a new PR;
+- make only the requested correction;
+- preserve already approved behavior.
+
+Before local work, Codex should confirm the current branch and clean working state and fetch the latest remote state.
+
+## 8. Database work
 
 Before a write:
 
 - inspect schema, constraints, policies and current counts;
-- identify exact target rows;
-- define expected before and after counts;
+- identify exact target rows and expected before/after counts;
 - protect linked collection data;
-- define hard stop conditions;
+- define stop conditions and recovery behavior;
+- use read-only verification before writes;
 - avoid broad matching based only on names;
 - use transactions where practical.
 
 After a write:
 
-- verify target count;
-- verify total count;
-- verify collection links;
-- verify invalid references and duplicates;
+- verify target and total counts;
+- verify links, invalid references and duplicates;
 - verify RLS and constraints when changed;
-- test the app when runtime behavior depends on the write.
+- test runtime behavior when it depends on the write.
 
-Database success means correct state, not merely “query executed successfully.”
+Database success means correct verified state, not merely a successful query.
 
-## 7. GitHub and PR work
-
-Before approving a PR, inspect:
-
-- title and stated goal;
-- base and head branch;
-- changed filenames;
-- complete diff;
-- build and deployment status;
-- unrelated file changes;
-- package and lockfile changes;
-- security and data implications;
-- whether the PR solves the intended product flow.
-
-A technically working PR may still be rejected when the product or architecture flow is wrong, as happened with PR 89.
-
-When ChatGPT directly edits a branch, it must preserve the existing PR purpose and report exactly what changed.
-
-## 8. Codex assignment standard
-
-A Codex assignment must be delivered as one fully copyable text block when requested.
-
-It includes:
-
-- project and repository;
-- stack;
-- exact phase name;
-- current verified context;
-- objective;
-- required behavior;
-- file scope;
-- prohibited changes;
-- security requirements;
-- database and runtime non-goals;
-- acceptance criteria;
-- build, type and diff checks;
-- PR title and body requirements.
-
-For an existing PR revision, explicitly state:
-
-- update the existing branch;
-- do not create a new branch;
-- do not create a new PR;
-- make only the requested correction.
-
-Codex output is never assumed correct without review.
-
-## 9. Performance agreement
-
-Every feature involving cards, sets, images, search or filters must consider scale from the start.
-
-Default expectations:
-
-- server-side filtering;
-- server-side pagination;
-- indexed search;
-- limited selected columns;
-- lazy-loaded thumbnails;
-- no full-catalog browser fetch;
-- no per-card ownership query;
-- no direct external API search during normal app use;
-- measure real device behavior for important screens.
-
-## 10. Security agreement
+## 9. Security and performance
 
 - Never expose service-role or external API secrets client-side.
-- Never place secret values in chat-ready code, documentation or PR bodies.
-- Apply least privilege.
-- Review RLS separately for select, insert, update and delete.
-- A read policy does not imply write permission.
-- Temporary diagnostics are preview-only or otherwise explicitly secured.
-- Error responses must not leak stack traces, keys or internal environment data.
+- Never place secret values in documentation, PR bodies or copyable code.
+- Apply least privilege and review SELECT, INSERT, UPDATE and DELETE separately.
+- Browser writes are limited to explicit user actions.
+- Use server-side filtering and pagination.
+- Select only required columns.
+- Avoid N+1 requests and full-catalog browser loads.
+- Use thumbnails in grids and large images in detail views.
+- Measure important screens on real devices.
 
-## 11. Documentation agreement
+## 10. PR review standard
 
-Update documentation when a change affects:
+Before approval, inspect:
 
-- architecture;
-- database schema or constraints;
-- RLS/security;
-- data invariants;
-- external integrations;
-- import or sync behavior;
-- foundational UX or product flow.
+- title, base, head and stated goal;
+- changed filenames and complete diff;
+- architecture and product-flow correctness;
+- database, RLS, security and data integrity;
+- performance and scalability;
+- mobile UX, desktop UX and accessibility;
+- race conditions, stale responses and error behavior;
+- package and lockfile changes;
+- build and deployment status;
+- documentation impact;
+- unrelated changes and regression risk.
 
-Use the correct document:
+A technically working PR may still be rejected when its product or UX flow is wrong.
 
-- `PROJECT_CHARTER_V2.md` for stable principles;
-- `PROJECT_STATUS.md` for current facts, active PRs and next steps;
-- `DECISION_LOG.md` for why important decisions were made;
-- specialist architecture or Supabase documents for detailed implementation history.
+## 11. Definition of Done
 
-Do not create a new document for every minor change.
+A feature or phase is complete only when all applicable items are satisfied:
 
-## 12. New-chat handoff
+- architecture review approved;
+- UX review approved;
+- code review approved;
+- scope is complete and unrelated files are absent;
+- `npm run build` or the relevant verification succeeds;
+- `git diff --check` succeeds;
+- changed-file scope is verified;
+- database post-checks match expected results when applicable;
+- RLS and security are reviewed when applicable;
+- Vercel Preview is green and tested when runtime behavior changed;
+- iPhone test is completed for user-facing mobile work;
+- desktop is checked when relevant;
+- no known regression or unresolved blocker remains;
+- `PROJECT_STATUS.md` is updated when operational state changed;
+- `DECISION_LOG.md` is updated only for lasting decisions;
+- the PR is mergeable and has been merged;
+- the next phase is clear.
 
-When the working chat becomes slow or too large:
+## 12. Documentation ownership
+
+Use:
+
+- `PROJECT_CHARTER_V2.md` for project identity and stable product principles;
+- `ARCHITECTURE_PRINCIPLES.md` for timeless technical design rules;
+- `UX_GUIDELINES.md` for lasting UX rules;
+- `PROJECT_STATUS.md` for current operational state only;
+- `ROADMAP.md` for phase direction and planning;
+- `DECISION_LOG.md` for lasting decisions and their reasons;
+- specialist documents for detailed schema or integration subjects.
+
+Avoid duplicate facts and do not create a new document for every minor change.
+
+## 13. New-chat handoff
+
+When a chat becomes slow or too large:
 
 1. merge or clearly record the current PR state;
-2. update `PROJECT_STATUS.md`;
-3. update `DECISION_LOG.md` if a decision was made;
-4. start the new chat by pointing to the four documents in `docs/project`;
-5. include only the current unresolved task and latest evidence.
+2. update durable documentation when needed;
+3. start a new chat inside the same project;
+4. instruct the new chat to read the project documents first;
+5. provide only the current unresolved task and latest evidence.
 
-The new chat should treat repository documents as the durable source of truth and the user’s current message as the active instruction.
+The repository documentation is the durable source of truth. Chat history is supporting context, not the project record.
 
-## 13. Disagreement and correction
-
-ChatGPT should challenge a proposed approach when there is a safer or more scalable alternative. The user may accept or reject the recommendation.
+## 14. Correction and disagreement
 
 When an error is found:
 
 - state it plainly;
 - stop unsafe continuation;
 - identify impact;
-- propose the smallest corrective step;
-- re-verify the result;
-- record the lesson when it affects future work.
+- propose the smallest safe correction;
+- re-verify the outcome;
+- document the lesson when it changes future work.
 
-## 14. Definition of a good collaboration outcome
-
-A phase is successful when:
-
-- the user understands what changed and why;
-- the implemented flow matches the product intent;
-- data integrity and security are preserved;
-- performance remains appropriate for a growing catalog;
-- the PR is focused and reviewable;
-- future work can continue without reconstructing decisions from old chats.
+The user may accept or reject a recommendation, but approvals authorize only the explicitly described phase.
