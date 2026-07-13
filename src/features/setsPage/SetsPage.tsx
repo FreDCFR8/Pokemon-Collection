@@ -419,7 +419,6 @@ export function SetsPage() {
       }
 
       markCardAsInCollection(card.id);
-      pendingSetCardAddIdsRef.current.delete(card.id);
       setSetCardAddStates((currentStates) => ({
         ...currentStates,
         [card.id]: { status: 'success', message: 'Toegevoegd', requestId },
@@ -437,7 +436,6 @@ export function SetsPage() {
 
       if (isDuplicateCollectionCardError(error)) {
         markCardAsInCollection(card.id);
-        pendingSetCardAddIdsRef.current.delete(card.id);
         setSetCardAddStates((currentStates) => ({
           ...currentStates,
           [card.id]: { status: 'success', message: 'Stond al in collectie', requestId },
@@ -450,7 +448,11 @@ export function SetsPage() {
         ...currentStates,
         [card.id]: { status: 'error', message: 'Kaart toevoegen is mislukt. Probeer opnieuw.', requestId },
       }));
-      pendingSetCardAddIdsRef.current.delete(card.id);
+    } finally {
+      if (setCardAddRequestIdsByCardRef.current.get(card.id) === requestId) {
+        pendingSetCardAddIdsRef.current.delete(card.id);
+        setCardAddRequestIdsByCardRef.current.delete(card.id);
+      }
     }
   }
 
