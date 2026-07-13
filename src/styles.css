@@ -1375,6 +1375,41 @@ button {
   color: #334155;
 }
 
+.sets-page-set-card-add-button {
+  width: fit-content;
+  max-width: 100%;
+  border: 0;
+  border-radius: 999px;
+  margin-top: 4px;
+  background: #2563eb;
+  color: #ffffff;
+  padding: 5px 8px;
+  font-size: 0.62rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.sets-page-set-card-add-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.sets-page-set-card-add-message {
+  margin-top: 2px;
+  font-size: 0.62rem;
+  font-weight: 900;
+  line-height: 1.2;
+  white-space: normal;
+}
+
+.sets-page-set-card-add-message.is-success {
+  color: #166534;
+}
+
+.sets-page-set-card-add-message.is-error {
+  color: #991b1b;
+}
+
 .sets-page-set-card-collection-status-message {
   border: 1px solid #fecaca;
   border-radius: 12px;

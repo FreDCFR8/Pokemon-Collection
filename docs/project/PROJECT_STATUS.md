@@ -6,11 +6,11 @@ This is a living document. Update it after meaningful merges, database phases or
 
 ## Current phase
 
-**Active phase: Phase 7C-2A — show collection state in opened set**
+**Active phase: Phase 7C-2B — add one card from an opened set**
 
-Opened set cards now show read-only whether a `collection_cards` record exists for that catalog card in the active collection. This state is profile- and collection-bound and does not change the existing set-progress semantics.
+Opened set cards can now add exactly one catalog card to the active collection after the read-only collection-state check has proven that no `collection_cards` row exists for that card in the active collection. The first add flow uses fixed safe values: `quantity` 1, `condition` Near Mint and `status` owned. The browser insert is profile-bound through the existing `collection_cards_insert_own_collection` RLS policy.
 
-Phase 7C-2A adds no database writes. Adding cards remains deferred to Phase 7C-2B after review and preview testing.
+This phase does not modify catalog records: `cards_catalog` and `card_external_references` remain read-only from this flow. Quantity, condition and status choices are not available yet and remain deferred to a later UX and policy phase.
 
 ## Repository state
 
@@ -109,10 +109,10 @@ Available:
 - server-side set filtering, catalog cards loaded in batches of 30, search and name sorting
 - explicitly paginated Sets progress reads across more than 1,000 `collection_cards` rows
 - read-only per-card collection state in an opened set, limited to the active collection and currently loaded cards
+- adding one owned Near Mint copy from an opened set to the active collection when the card is proven absent
 
 Not yet available:
 
-- adding cards from a set
 - global full-catalog search
 - adding cards from global search
 - wishlist UI
@@ -155,9 +155,9 @@ The controlled `sv3pt5` write was approved, executed and verified. This is not g
 
 1. Treat `sv3pt5` as the verified reference implementation for controlled catalog imports.
 2. Review and preview-test Phase 7C-2A for Lars and Lore on iPhone and desktop.
-3. Start card adding only in Phase 7C-2B after Phase 7C-2A is approved.
-4. Do not expand write support to other sets until that expansion is separately reviewed and validated.
-5. Preserve dry-run-first behavior, stable IDs, idempotency and collection isolation.
+3. Preview-test Phase 7C-2B for Lars and Lore, including duplicate-click protection and profile isolation.
+4. Do not expand write support to other set or global-search flows until separately reviewed and validated.
+5. Preserve dry-run-first import behavior, stable IDs, idempotency and collection isolation.
 
 ## Roadmap
 
