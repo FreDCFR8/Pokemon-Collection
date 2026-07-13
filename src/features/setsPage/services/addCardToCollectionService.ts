@@ -65,5 +65,15 @@ export async function addCardToCollection({
     throw new Error('Kaart toevoegen is mislukt. Probeer opnieuw.');
   }
 
+  if (
+    data.collection_id !== normalizedCollectionId ||
+    data.card_catalog_id !== normalizedCardCatalogId ||
+    data.quantity !== 1 ||
+    data.condition !== 'Near Mint' ||
+    data.status !== 'owned'
+  ) {
+    throw new Error('De toegevoegde kaart kon niet veilig worden bevestigd.');
+  }
+
   return data;
 }

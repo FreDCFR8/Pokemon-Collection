@@ -1378,6 +1378,7 @@ button {
 .sets-page-set-card-add-button {
   width: fit-content;
   max-width: 100%;
+  min-height: 34px;
   border: 0;
   border-radius: 999px;
   margin-top: 4px;
@@ -1392,6 +1393,68 @@ button {
 .sets-page-set-card-add-button:disabled {
   cursor: not-allowed;
   opacity: 0.65;
+}
+
+.sets-page-set-overlay-card-body .sets-page-set-card-quantity-control {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) 32px;
+  align-items: stretch;
+  gap: 2px;
+  width: 100%;
+  max-width: 100%;
+  margin-top: 4px;
+  overflow: visible;
+  white-space: normal;
+}
+
+.sets-page-set-card-quantity-control button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  min-height: 38px;
+  border: 1px solid #bfdbfe;
+  border-radius: 9px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  padding: 0;
+  font-size: 1rem;
+  font-weight: 900;
+  line-height: 1;
+  touch-action: manipulation;
+}
+
+.sets-page-set-card-quantity-control button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.sets-page-set-overlay-card-body .sets-page-set-card-quantity-control > span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  color: #172033;
+  font-size: 0.56rem;
+  font-weight: 900;
+  line-height: 1.1;
+  text-align: center;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.sets-page-set-overlay-card-body .sets-page-set-card-manage-elsewhere {
+  margin-top: 4px;
+  color: #475569;
+  font-size: 0.6rem;
+  font-weight: 900;
+  line-height: 1.2;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.sets-page-set-overlay-card-body .sets-page-set-card-manage-elsewhere.is-error {
+  color: #991b1b;
 }
 
 .sets-page-set-card-add-message {
