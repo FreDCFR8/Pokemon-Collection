@@ -1,9 +1,6 @@
 import { createBrowserSupabaseClient } from '../../lib/supabase';
 import { projectCollectionOwnershipBatch } from './collectionCardOwnershipProjector';
-import {
-  COLLECTION_CARD_READ_BATCH_SIZE,
-  createCollectionCardReadBatches,
-} from './collectionCardReadBatching';
+import { createCollectionCardReadBatches } from './collectionCardReadBatching';
 import type { ConfirmedOwnership, OwnershipRecordInput } from './collectionCardOwnershipTypes';
 
 type CollectionCardStateDatabaseRow = {
@@ -19,8 +16,6 @@ export type GetCollectionCardOwnershipParams = {
   collectionId: string;
   cardCatalogIds: string[];
 };
-
-export const MAX_COLLECTION_CARD_READ_CARD_IDS = COLLECTION_CARD_READ_BATCH_SIZE;
 
 const COLLECTION_CARD_STATE_SELECT = 'id, collection_id, card_catalog_id, quantity, condition, status';
 

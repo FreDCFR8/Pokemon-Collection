@@ -18,7 +18,4 @@ export {
   COLLECTION_CARD_READ_BATCH_SIZE,
   createCollectionCardReadBatches,
 } from './collectionCardReadBatching';
-export {
-  getCollectionCardOwnershipForCatalogCards,
-  MAX_COLLECTION_CARD_READ_CARD_IDS,
-} from './collectionCardReadService';
+export { getCollectionCardOwnershipForCatalogCards } from './collectionCardReadService';
