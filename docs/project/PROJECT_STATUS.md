@@ -6,9 +6,9 @@ This document contains current operational state only. Historical direction belo
 
 ## Current phase
 
-**Phase 0D — documentation refresh and governance**
+**Phase 7C-2D — shared Card Detail analysis and design**
 
-PR 106 is merged. Phase 7C-2C2 delivered secure quantity management from an opened set together with the clean three-column binder grid and a functional card-detail flow.
+PR 107 is merged. Phase 0D completed the documentation refresh and established documentation governance. The next phase analyses the proven Sets and Collection detail flows and defines the shared Card Detail product, UX and architecture before implementation.
 
 ## Latest merged product milestone
 
@@ -27,15 +27,15 @@ Available behavior:
 
 ## Active work
 
-Documentation is being aligned with the proven workflow and product principles:
+The next phase is analysis and design only:
 
-- architecture before implementation;
-- explicit technical and UX review;
-- multiple correction rounds inside the same PR when scope remains stable;
-- repository documentation as durable project memory;
-- new roadmap, UX and architecture-principles documents.
+- define shared product and UX requirements;
+- inspect the current Sets and Collection detail flows;
+- identify reusable component, state and service boundaries;
+- define mobile, desktop, accessibility and error-state behavior;
+- split implementation into small reviewable phases.
 
-No runtime code, database object or application data is changed by Phase 0D.
+No shared Card Detail implementation starts before this analysis and design are approved.
 
 ## Current architecture baseline
 
@@ -73,9 +73,9 @@ Pokémon TCG API set `sv3pt5` (`151`) remains the verified controlled-import ref
 
 Expansion to other catalog sets requires separately scoped validation and approval.
 
-## Next product phase
+## Next phase scope
 
-**Phase 7C-2D — shared card detail experience**
+**Phase 7C-2D — shared Card Detail analysis and design**
 
 Before implementation:
 
