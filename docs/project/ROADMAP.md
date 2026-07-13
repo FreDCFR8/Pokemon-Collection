@@ -16,7 +16,7 @@ This document shows product direction and phase status. It intentionally avoids 
 - ✅ normalized catalog and collection model
 - ✅ RLS foundation
 - ✅ stable project charter, decision log and working agreement
-- 🚧 documentation governance refresh
+- ✅ documentation governance refresh
 
 ## Collection data and repair
 
@@ -51,7 +51,8 @@ This document shows product direction and phase status. It intentionally avoids 
 ## Card detail
 
 - ✅ functional set-card detail flow
-- 🚧 Phase 7C-2D — shared Card Detail experience design and implementation
+- 🚧 Phase 7C-2D — shared Card Detail analysis and design
+- ⏳ shared Card Detail implementation
 - ⏳ reuse in Collection
 - ⏳ reuse in Wishlist, Trade and Search
 - ⏳ extended characteristics and metadata
