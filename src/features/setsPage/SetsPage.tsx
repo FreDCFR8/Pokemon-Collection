@@ -1232,34 +1232,29 @@ export function SetsPage() {
               const hasConflictingRows = collectionInfo?.hasConflictingManageableRows ?? false;
               const manageableRow = collectionInfo?.manageableOwnedNearMintRow;
               const hasAnyRecord = collectionInfo?.hasAnyRecord ?? false;
-              const collectionStateLabel = isCollectionStateLoaded && collectionInfo
-                ? hasConflictingRows
-                  ? 'Status onbekend'
-                  : hasAnyRecord
-                    ? 'In collectie'
-                    : 'Niet in collectie'
-                : setCardCollectionState.status === 'loading'
-                  ? 'Status laden…'
-                  : 'Status onbekend';
-              const collectionStateClassName = isCollectionStateLoaded && collectionInfo && !hasConflictingRows
-                ? hasAnyRecord
-                  ? ' is-present'
-                  : ' is-absent'
-                : ' is-unknown';
               const mutationState = setCardMutationStates[selectedSetCard.id];
               const isMutating =
                 mutationState?.status === 'adding' ||
                 mutationState?.status === 'increasing' ||
                 mutationState?.status === 'decreasing' ||
                 mutationState?.status === 'deleting';
-              const isAdding = mutationState?.status === 'adding';
-              const showAddButton =
+              const isAbsent =
                 isCollectionStateLoaded && Boolean(collectionInfo) && !hasAnyRecord && !hasConflictingRows;
-              const canAddCard = showAddButton && !isMutating;
-              const showQuantityControls =
+              const isManageable =
                 isCollectionStateLoaded && Boolean(manageableRow) && !hasConflictingRows;
               const showManageElsewhere =
                 isCollectionStateLoaded && hasAnyRecord && !manageableRow && !hasConflictingRows;
+              const ownershipLabel = isMutating
+                ? 'Bijwerken…'
+                : setCardCollectionState.status === 'loading'
+                  ? 'Status laden…'
+                  : !isCollectionStateLoaded || !collectionInfo || hasConflictingRows
+                    ? 'Status onbekend'
+                    : manageableRow
+                      ? `${manageableRow.quantity} in bezit`
+                      : hasAnyRecord
+                        ? 'In collectie'
+                        : 'Niet in bezit';
               const feedbackMessage =
                 mutationState?.status === 'success' || mutationState?.status === 'error'
                   ? mutationState.message
@@ -1281,10 +1276,6 @@ export function SetsPage() {
                     aria-labelledby="sets-page-set-card-detail-title"
                   >
                     <header className="sets-page-set-card-detail-header">
-                      <div>
-                        <p>Kaartdetails</p>
-                        <h4 id="sets-page-set-card-detail-title">{selectedSetCard.pokemon}</h4>
-                      </div>
                       <button
                         ref={cardDetailCloseButtonRef}
                         type="button"
@@ -1311,63 +1302,41 @@ export function SetsPage() {
                       </div>
 
                       <div className="sets-page-set-card-detail-body">
-                        <dl>
-                          <div>
-                            <dt>Kaart</dt>
-                            <dd>{selectedSetCard.pokemon}</dd>
-                          </div>
-                          <div>
-                            <dt>Nummer</dt>
-                            <dd>{selectedSetCard.number ?? 'Onbekend'}</dd>
-                          </div>
-                          {selectedSetCard.rarity ? (
-                            <div>
-                              <dt>Rarity</dt>
-                              <dd>{selectedSetCard.rarity}</dd>
-                            </div>
-                          ) : null}
-                        </dl>
+                        <h4 id="sets-page-set-card-detail-title">{selectedSetCard.pokemon}</h4>
+                        <p className="sets-page-set-card-detail-subtitle">
+                          {openSet.name}
+                          {selectedSetCard.number ? ` · #${selectedSetCard.number}` : ''}
+                        </p>
 
-                        <span className={`sets-page-set-card-collection-badge${collectionStateClassName}`}>
-                          {collectionStateLabel}
-                        </span>
-
-                        {showAddButton ? (
+                        <span
+                          className="sets-page-set-card-quantity-control"
+                          role="group"
+                          aria-label="Aantal in collectie"
+                        >
                           <button
                             type="button"
-                            className="sets-page-set-card-add-button"
-                            disabled={!canAddCard}
-                            onClick={() => void handleAddCardToCollection(selectedSetCard)}
+                            aria-label="Eén exemplaar verwijderen"
+                            disabled={!isManageable || isMutating}
+                            onClick={() => void handleCollectionCardQuantityChange(selectedSetCard, 'decrease')}
                           >
-                            {isAdding ? 'Toevoegen…' : 'Toevoegen'}
+                            −
                           </button>
-                        ) : null}
-
-                        {showQuantityControls && manageableRow ? (
-                          <span
-                            className="sets-page-set-card-quantity-control"
-                            role="group"
-                            aria-label="Aantal in collectie"
+                          <span aria-live="polite">{ownershipLabel}</span>
+                          <button
+                            type="button"
+                            aria-label={isAbsent ? 'Kaart aan collectie toevoegen' : 'Eén exemplaar toevoegen'}
+                            disabled={(!isAbsent && !isManageable) || isMutating}
+                            onClick={() => {
+                              if (isAbsent) {
+                                void handleAddCardToCollection(selectedSetCard);
+                              } else if (isManageable) {
+                                void handleCollectionCardQuantityChange(selectedSetCard, 'increase');
+                              }
+                            }}
                           >
-                            <button
-                              type="button"
-                              aria-label="Eén exemplaar verwijderen"
-                              disabled={isMutating}
-                              onClick={() => void handleCollectionCardQuantityChange(selectedSetCard, 'decrease')}
-                            >
-                              −
-                            </button>
-                            <span>{isMutating ? 'Bijwerken…' : `${manageableRow.quantity} in bezit`}</span>
-                            <button
-                              type="button"
-                              aria-label="Eén exemplaar toevoegen"
-                              disabled={isMutating}
-                              onClick={() => void handleCollectionCardQuantityChange(selectedSetCard, 'increase')}
-                            >
-                              +
-                            </button>
-                          </span>
-                        ) : null}
+                            +
+                          </button>
+                        </span>
 
                         {showManageElsewhere ? (
                           <span className="sets-page-set-card-manage-elsewhere">Beheer via collectie</span>
