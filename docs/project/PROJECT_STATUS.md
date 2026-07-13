@@ -1,14 +1,14 @@
 # Pokémon Collection V3 — Project Status
 
-_Last updated: 2026-07-13_
+_Last updated: 2026-07-14_
 
 This document contains current operational state only. Historical direction belongs in `ROADMAP.md`; lasting reasons belong in `DECISION_LOG.md`.
 
 ## Current phase
 
-**Phase 7C-2D — shared Card Detail analysis and design**
+**Phase 7C-2D2A — shared ownership contracts and read service**
 
-PR 107 is merged. Phase 0D completed the documentation refresh and established documentation governance. The next phase analyses the proven Sets and Collection detail flows and defines the shared Card Detail product, UX and architecture before implementation.
+PR 109 merged Phase 7C-2D1 and approved the shared Card Detail architecture and UX design. Phase 7C-2D2A now introduces the reusable ownership foundation without changing the visible Sets experience.
 
 ## Latest merged product milestone
 
@@ -27,15 +27,12 @@ Available behavior:
 
 ## Active work
 
-The next phase is analysis and design only:
+Phase 7C-2D2A is limited to the shared ownership read boundary:
 
-- define shared product and UX requirements;
-- inspect the current Sets and Collection detail flows;
-- identify reusable component, state and service boundaries;
-- define mobile, desktop, accessibility and error-state behavior;
-- split implementation into small reviewable phases.
-
-No shared Card Detail implementation starts before this analysis and design are approved.
+- stable camelCase ownership contracts keep `owned`, `wishlist`, `trade` and `missing` separate;
+- a pure projector determines confirmed absence, physical presence, manageable owned Near Mint state and safe conflicts;
+- one bounded batch read loads collection state for one collection and requested catalog-card IDs without N+1 queries;
+- the existing Sets service remains a thin compatibility adapter, with no JSX, CSS or mutation changes.
 
 ## Current architecture baseline
 
@@ -75,16 +72,7 @@ Expansion to other catalog sets requires separately scoped validation and approv
 
 ## Next phase scope
 
-**Phase 7C-2D — shared Card Detail analysis and design**
-
-Before implementation:
-
-1. define the shared product and UX requirements;
-2. inspect current Sets and Collection detail flows;
-3. design reusable component boundaries;
-4. phase the work before writing code.
-
-The goal is a reusable card-detail experience for Sets and Collection, with future compatibility for Wishlist, Trade and Search.
+After Phase 7C-2D2A is reviewed and merged, continue with the next approved small implementation phase from the shared Card Detail design. Shared presentation and page adapters remain outside the current ownership-foundation phase.
 
 ## Known attention points
 

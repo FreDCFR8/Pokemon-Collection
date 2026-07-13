@@ -51,8 +51,9 @@ This document shows product direction and phase status. It intentionally avoids 
 ## Card detail
 
 - ✅ functional set-card detail flow
-- 🚧 Phase 7C-2D — shared Card Detail analysis and design
-- ⏳ shared Card Detail implementation
+- ✅ Phase 7C-2D1 — shared Card Detail analysis and design
+- 🚧 Phase 7C-2D2A — shared ownership contracts, projector and read service
+- ⏳ shared presentational Card Detail and page adapters
 - ⏳ reuse in Collection
 - ⏳ reuse in Wishlist, Trade and Search
 - ⏳ extended characteristics and metadata
