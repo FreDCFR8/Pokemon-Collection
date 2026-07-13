@@ -19,8 +19,8 @@ type SupabaseConfig = { url: string; serviceRoleKey: string };
 type ExternalReferenceRow = {
   id: string;
   source: string;
-  external_card_id: string;
-  card_id: string | null;
+  external_id: string;
+  card_catalog_id: string | null;
 };
 
 type CatalogCardRow = {
@@ -40,11 +40,11 @@ type SetCatalogRow = {
 };
 
 type MatchExample = {
-  external_card_id: string;
+  external_id: string;
   name: string;
   number: string;
   set_code?: string;
-  card_id?: string;
+  card_catalog_id?: string;
   changed_fields?: string[];
   reason?: string;
 };
@@ -412,7 +412,7 @@ function chunks<T>(items: T[], size: number): T[][] {
 }
 
 function sortExamples(examples: MatchExample[]): MatchExample[] {
-  return [...examples].sort((a, b) => a.external_card_id.localeCompare(b.external_card_id)).slice(0, EXAMPLE_LIMIT);
+  return [...examples].sort((a, b) => a.external_id.localeCompare(b.external_id)).slice(0, EXAMPLE_LIMIT);
 }
 
 function addExample(list: MatchExample[], example: MatchExample): void {
@@ -437,7 +437,7 @@ async function fetchExternalReferences(supabase: SupabaseClient, externalIds: st
   for (const batch of chunks(externalIds, SUPABASE_BATCH_SIZE)) {
     rows.push(
       ...(await readRows<ExternalReferenceRow>(
-        supabase.from('card_external_references').select('id,source,external_card_id,card_id').eq('source', SOURCE).in('external_card_id', batch),
+        supabase.from('card_external_references').select('id,source,external_id,card_catalog_id').eq('source', SOURCE).in('external_id', batch),
         'card_external_references',
       )),
     );
@@ -500,12 +500,12 @@ async function matchCards(supabase: SupabaseClient, setId: string, externalCards
   const references = await fetchExternalReferences(supabase, externalIds);
   const referencesByExternalId = new Map<string, ExternalReferenceRow[]>();
   for (const reference of references) {
-    const list = referencesByExternalId.get(reference.external_card_id) ?? [];
+    const list = referencesByExternalId.get(reference.external_id) ?? [];
     list.push(reference);
-    referencesByExternalId.set(reference.external_card_id, list);
+    referencesByExternalId.set(reference.external_id, list);
   }
 
-  const linkedCardIds = uniqueSorted(references.map((reference) => reference.card_id).filter((cardId): cardId is string => Boolean(cardId)));
+  const linkedCardIds = uniqueSorted(references.map((reference) => reference.card_catalog_id).filter((cardId): cardId is string => Boolean(cardId)));
   const linkedCatalogCards = await fetchCatalogCardsByIds(supabase, linkedCardIds);
   const catalogById = new Map(linkedCatalogCards.map((card) => [card.id, card]));
 
@@ -545,7 +545,7 @@ async function matchCards(supabase: SupabaseClient, setId: string, externalCards
   };
 
   for (const externalCard of [...externalCards].sort((a, b) => a.id.localeCompare(b.id))) {
-    const baseExample = { external_card_id: externalCard.id, name: externalCard.name, number: externalCard.number, ...(setCode ? { set_code: setCode } : {}) };
+    const baseExample = { external_id: externalCard.id, name: externalCard.name, number: externalCard.number, ...(setCode ? { set_code: setCode } : {}) };
     const matchingReferences = referencesByExternalId.get(externalCard.id) ?? [];
 
     if (matchingReferences.length > 1) {
@@ -556,15 +556,15 @@ async function matchCards(supabase: SupabaseClient, setId: string, externalCards
 
     if (matchingReferences.length === 1) {
       const reference = matchingReferences[0];
-      if (!reference.card_id) {
+      if (!reference.card_catalog_id) {
         report.conflicts += 1;
-        addExample(report.conflictExamples, { ...baseExample, reason: 'missing_card_id' });
+        addExample(report.conflictExamples, { ...baseExample, reason: 'missing_card_catalog_id' });
         continue;
       }
-      const catalogCard = catalogById.get(reference.card_id);
+      const catalogCard = catalogById.get(reference.card_catalog_id);
       if (!catalogCard) {
         report.conflicts += 1;
-        addExample(report.conflictExamples, { ...baseExample, card_id: reference.card_id, reason: 'dangling_card_id' });
+        addExample(report.conflictExamples, { ...baseExample, card_catalog_id: reference.card_catalog_id, reason: 'dangling_card_catalog_id' });
         continue;
       }
 
@@ -572,7 +572,7 @@ async function matchCards(supabase: SupabaseClient, setId: string, externalCards
       const changedFields = compareMetadata(externalCard, catalogCard, setCode);
       if (changedFields.length > 0) {
         report.metadataChanged += 1;
-        addExample(report.metadataChangedExamples, { ...baseExample, card_id: catalogCard.id, changed_fields: changedFields });
+        addExample(report.metadataChangedExamples, { ...baseExample, card_catalog_id: catalogCard.id, changed_fields: changedFields });
       } else {
         report.metadataUnchanged += 1;
       }
@@ -588,7 +588,7 @@ async function matchCards(supabase: SupabaseClient, setId: string, externalCards
     const candidates = fallbackByNumber.get(normalizeRequired(externalCard.number)) ?? [];
     if (candidates.length === 1) {
       report.candidateBySetAndNumber += 1;
-      addExample(report.candidateExamples, { ...baseExample, card_id: candidates[0].id });
+      addExample(report.candidateExamples, { ...baseExample, card_catalog_id: candidates[0].id });
     } else if (candidates.length > 1) {
       report.ambiguous += 1;
       addExample(report.ambiguousExamples, { ...baseExample, reason: `${candidates.length}_fallback_candidates` });
@@ -624,11 +624,11 @@ function printExamples(title: string, examples: MatchExample[]): void {
   console.log(`${title}:`);
   for (const example of examples) {
     const parts = [
-      `external_card_id=${example.external_card_id}`,
+      `external_id=${example.external_id}`,
       `name=${example.name}`,
       `number=${example.number}`,
       example.set_code ? `set_code=${example.set_code}` : undefined,
-      example.card_id ? `cards_catalog.id=${example.card_id}` : undefined,
+      example.card_catalog_id ? `cards_catalog.id=${example.card_catalog_id}` : undefined,
       example.changed_fields ? `changed_fields=${example.changed_fields.join('|')}` : undefined,
       example.reason ? `reason=${example.reason}` : undefined,
     ].filter(Boolean);
