@@ -6,11 +6,11 @@ This is a living document. Update it after meaningful merges, database phases or
 
 ## Current phase
 
-**Phase 7B-2E completed — controlled sv3pt5 catalog write**
+**Active phase: Phase 7C-2A — show collection state in opened set**
 
-`sv3pt5` was imported completely through the controlled write path. The write and post-write verification passed, idempotency was proven, and `collection_cards` remained unchanged at 1,095 rows. This verified result does not automatically approve catalog writes for any other set.
+Opened set cards now show read-only whether a `collection_cards` record exists for that catalog card in the active collection. This state is profile- and collection-bound and does not change the existing set-progress semantics.
 
-**Next active product direction: continue Phase 7C from the verified catalog baseline.**
+Phase 7C-2A adds no database writes. Adding cards remains deferred to Phase 7C-2B after review and preview testing.
 
 ## Repository state
 
@@ -108,6 +108,7 @@ Available:
 - Sets page with a fullscreen read-only set overlay
 - server-side set filtering, catalog cards loaded in batches of 30, search and name sorting
 - explicitly paginated Sets progress reads across more than 1,000 `collection_cards` rows
+- read-only per-card collection state in an opened set, limited to the active collection and currently loaded cards
 
 Not yet available:
 
@@ -153,8 +154,8 @@ The controlled `sv3pt5` write was approved, executed and verified. This is not g
 ## Next steps
 
 1. Treat `sv3pt5` as the verified reference implementation for controlled catalog imports.
-2. Continue Phase 7C from the verified catalog baseline.
-3. Define the next small product increment for adding cards from an opened set.
+2. Review and preview-test Phase 7C-2A for Lars and Lore on iPhone and desktop.
+3. Start card adding only in Phase 7C-2B after Phase 7C-2A is approved.
 4. Do not expand write support to other sets until that expansion is separately reviewed and validated.
 5. Preserve dry-run-first behavior, stable IDs, idempotency and collection isolation.
 

@@ -1348,6 +1348,45 @@ button {
   font-weight: 800;
 }
 
+.sets-page-set-overlay-card-body .sets-page-set-card-collection-badge {
+  width: fit-content;
+  max-width: 100%;
+  min-height: 20px;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  margin-top: 4px;
+  background: #f8fafc;
+  color: #475569;
+  padding: 3px 6px;
+  font-size: 0.58rem;
+  line-height: 1.15;
+  text-overflow: clip;
+}
+
+.sets-page-set-overlay-card-body .sets-page-set-card-collection-badge.is-present {
+  border-color: #86efac;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.sets-page-set-overlay-card-body .sets-page-set-card-collection-badge.is-absent {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+  color: #334155;
+}
+
+.sets-page-set-card-collection-status-message {
+  border: 1px solid #fecaca;
+  border-radius: 12px;
+  margin: 12px 0 0;
+  background: #fff7f7;
+  color: #991b1b;
+  padding: 8px 10px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
 .sets-page-set-overlay-count,
 .sets-page-set-overlay-empty,
 .sets-page-set-overlay-message p {
@@ -1434,6 +1473,7 @@ button {
   .sets-page-set-overlay-grid,
   .sets-page-set-overlay-count,
   .sets-page-set-overlay-empty,
+  .sets-page-set-card-collection-status-message,
   .sets-page-set-overlay-message,
   .sets-page-set-overlay-load-more {
     max-width: 760px;

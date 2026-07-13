@@ -8,6 +8,7 @@ import {
   type SetCatalogCard,
   type SetCardsSortOption,
 } from './services/setCardsService';
+import { getCollectionCardIdsForCatalogCards } from './services/setCardCollectionStateService';
 import { getSetProgressForCollection, type SetProgress } from './services/setsProgressService';
 import { calculateSetProgressPercent, getEffectiveSetTotal, hasKnownSetTotal } from './services/setTotals';
 
@@ -37,6 +38,11 @@ type SetCardsOverlayState = {
   errorMessage?: string;
 };
 
+type SetCardCollectionState = {
+  status: 'idle' | 'loading' | 'success' | 'error';
+  collectionCardCatalogIds: Set<string>;
+};
+
 const FALLBACK_SERIES_LABEL = 'Overige sets';
 
 const INITIAL_SET_CARDS_OVERLAY_STATE: SetCardsOverlayState = {
@@ -45,6 +51,11 @@ const INITIAL_SET_CARDS_OVERLAY_STATE: SetCardsOverlayState = {
   totalCount: 0,
   offset: 0,
   hasMore: false,
+};
+
+const INITIAL_SET_CARD_COLLECTION_STATE: SetCardCollectionState = {
+  status: 'idle',
+  collectionCardCatalogIds: new Set(),
 };
 
 const SET_CARDS_SORT_LABELS: Record<SetCardsSortOption, string> = {
@@ -78,7 +89,12 @@ export function SetsPage() {
   const [setCardsRetryNonce, setSetCardsRetryNonce] = useState(0);
   const [setCardsOverlayState, setSetCardsOverlayState] =
     useState<SetCardsOverlayState>(INITIAL_SET_CARDS_OVERLAY_STATE);
+  const [activeCollectionId, setActiveCollectionId] = useState<string | null>(null);
+  const [setCardCollectionState, setSetCardCollectionState] = useState<SetCardCollectionState>(
+    INITIAL_SET_CARD_COLLECTION_STATE,
+  );
   const setCardsRequestIdRef = useRef(0);
+  const setCardCollectionRequestIdRef = useRef(0);
   const setButtonRefs = useRef(new Map<string, HTMLButtonElement>());
   const overlayCloseButtonRef = useRef<HTMLButtonElement | null>(null);
   const overlayScrollRef = useRef<HTMLDivElement | null>(null);
@@ -219,6 +235,48 @@ export function SetsPage() {
     };
   }, [debouncedSetCardSearchTerm, openSet, setCardsRetryNonce, setCardsSortOption]);
 
+  const loadedSetCardIds = useMemo(() => setCardsOverlayState.cards.map((card) => card.id), [setCardsOverlayState.cards]);
+  const loadedSetCardIdsKey = loadedSetCardIds.join(',');
+
+  useEffect(() => {
+    const requestId = setCardCollectionRequestIdRef.current + 1;
+    setCardCollectionRequestIdRef.current = requestId;
+
+    if (!openSet || !activeCollectionId || loadedSetCardIds.length === 0) {
+      setSetCardCollectionState(INITIAL_SET_CARD_COLLECTION_STATE);
+      return;
+    }
+
+    let isCancelled = false;
+    const collectionIdForRequest = activeCollectionId;
+    const cardCatalogIdsForRequest = loadedSetCardIds;
+
+    async function loadSetCardCollectionState() {
+      setSetCardCollectionState({ status: 'loading', collectionCardCatalogIds: new Set() });
+
+      try {
+        const collectionCardCatalogIds = await getCollectionCardIdsForCatalogCards({
+          collectionId: collectionIdForRequest,
+          cardCatalogIds: cardCatalogIdsForRequest,
+        });
+
+        if (!isCancelled && setCardCollectionRequestIdRef.current === requestId) {
+          setSetCardCollectionState({ status: 'success', collectionCardCatalogIds });
+        }
+      } catch {
+        if (!isCancelled && setCardCollectionRequestIdRef.current === requestId) {
+          setSetCardCollectionState({ status: 'error', collectionCardCatalogIds: new Set() });
+        }
+      }
+    }
+
+    void loadSetCardCollectionState();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [activeCollectionId, loadedSetCardIdsKey, openSet]);
+
   async function loadMoreSetCards() {
     if (!openSet || setCardsOverlayState.status === 'loading' || setCardsOverlayState.status === 'loadingMore') {
       return;
@@ -274,6 +332,10 @@ export function SetsPage() {
     setDebouncedSetCardSearchTerm('');
     setSetCardsSortOption('name-asc');
     setSetCardsRetryNonce(0);
+    setCardsRequestIdRef.current += 1;
+    setCardCollectionRequestIdRef.current += 1;
+    setSetCardsOverlayState(INITIAL_SET_CARDS_OVERLAY_STATE);
+    setSetCardCollectionState(INITIAL_SET_CARD_COLLECTION_STATE);
     setOpenSetId(setId);
   }
 
@@ -285,7 +347,9 @@ export function SetsPage() {
     setSetCardsSortOption('name-asc');
     setSetCardsRetryNonce(0);
     setCardsRequestIdRef.current += 1;
+    setCardCollectionRequestIdRef.current += 1;
     setSetCardsOverlayState(INITIAL_SET_CARDS_OVERLAY_STATE);
+    setSetCardCollectionState(INITIAL_SET_CARD_COLLECTION_STATE);
     window.setTimeout(() => {
       if (closingSetId) {
         setButtonRefs.current.get(closingSetId)?.focus();
@@ -298,6 +362,7 @@ export function SetsPage() {
 
     async function loadSetsProgress() {
       setSetsProgressState({ status: 'loading', progressBySetCode: new Map() });
+      setActiveCollectionId(null);
 
       try {
         const collectionReadiness = await checkCollectionReadiness();
@@ -309,6 +374,10 @@ export function SetsPage() {
           }
 
           return;
+        }
+
+        if (isMounted) {
+          setActiveCollectionId(collectionId);
         }
 
         const setProgress = await getSetProgressForCollection(collectionId);
@@ -520,6 +589,7 @@ export function SetsPage() {
           setCardsOverlayState.status === 'success' && setCardsOverlayState.totalCount === 0 && !isSearchActive;
         const showSearchEmptyState =
           setCardsOverlayState.status === 'success' && setCardsOverlayState.totalCount === 0 && isSearchActive;
+        const showCollectionStateError = setCardCollectionState.status === 'error';
 
         return (
           <div
@@ -647,35 +717,61 @@ export function SetsPage() {
                 <p className="sets-page-set-overlay-empty">Geen kaarten gevonden voor deze zoekopdracht.</p>
               ) : null}
 
+              {showCollectionStateError ? (
+                <p className="sets-page-set-card-collection-status-message" role="alert">
+                  Collectiestatus kon niet worden geladen.
+                </p>
+              ) : null}
+
               {hasCards ? (
                 <>
                   <p className="sets-page-set-overlay-count">
                     {setCardsOverlayState.cards.length} van {setCardsOverlayState.totalCount} cataloguskaarten getoond
                   </p>
                   <ul className="sets-page-set-overlay-grid" aria-label={`Cataloguskaarten voor ${openSet.name}`}>
-                    {setCardsOverlayState.cards.map((card) => (
-                      <li key={card.id} className="sets-page-set-overlay-card">
-                        {card.image_small ? (
-                          <img
-                            src={card.image_small}
-                            alt={`${card.pokemon} kaart ${card.number ?? ''}`.trim()}
-                            width="120"
-                            height="168"
-                            loading="lazy"
-                            decoding="async"
-                          />
-                        ) : (
-                          <span className="sets-page-set-overlay-card-placeholder" aria-hidden="true">
-                            Geen afbeelding
+                    {setCardsOverlayState.cards.map((card) => {
+                      const isCollectionStateLoaded = setCardCollectionState.status === 'success';
+                      const isInCollection = setCardCollectionState.collectionCardCatalogIds.has(card.id);
+                      const collectionStateLabel = isCollectionStateLoaded
+                        ? isInCollection
+                          ? 'In collectie'
+                          : 'Niet in collectie'
+                        : setCardCollectionState.status === 'loading'
+                          ? 'Status laden…'
+                          : 'Status onbekend';
+                      const collectionStateClassName = isCollectionStateLoaded
+                        ? isInCollection
+                          ? ' is-present'
+                          : ' is-absent'
+                        : ' is-unknown';
+
+                      return (
+                        <li key={card.id} className="sets-page-set-overlay-card">
+                          {card.image_small ? (
+                            <img
+                              src={card.image_small}
+                              alt={`${card.pokemon} kaart ${card.number ?? ''}`.trim()}
+                              width="120"
+                              height="168"
+                              loading="lazy"
+                              decoding="async"
+                            />
+                          ) : (
+                            <span className="sets-page-set-overlay-card-placeholder" aria-hidden="true">
+                              Geen afbeelding
+                            </span>
+                          )}
+                          <span className="sets-page-set-overlay-card-body">
+                            <strong>{card.pokemon}</strong>
+                            <span>Nr. {card.number ?? 'onbekend'}</span>
+                            {card.rarity ? <span>{card.rarity}</span> : null}
+                            <span className={`sets-page-set-card-collection-badge${collectionStateClassName}`}>
+                              {collectionStateLabel}
+                            </span>
                           </span>
-                        )}
-                        <span className="sets-page-set-overlay-card-body">
-                          <strong>{card.pokemon}</strong>
-                          <span>Nr. {card.number ?? 'onbekend'}</span>
-                          {card.rarity ? <span>{card.rarity}</span> : null}
-                        </span>
-                      </li>
-                    ))}
+                        </li>
+                      );
+                    })}
                   </ul>
                 </>
               ) : null}
