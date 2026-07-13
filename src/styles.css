@@ -1390,6 +1390,7 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 4px;
   box-sizing: border-box;
   overflow: visible;
   min-height: 52px;
@@ -1406,27 +1407,33 @@ button {
 }
 
 .sets-page-set-card-quantity-status.is-present {
-  border-color: #bbdfc5;
-  background: #f0f8f2;
-  color: #166534;
+  border-color: #82c995;
+  background: #e5f5e9;
+  color: #14532d;
 }
 
 .sets-page-set-card-quantity-status.is-absent {
-  border-color: #d7dee7;
-  background: #f6f8fa;
-  color: #475569;
+  border-color: #ddb9b9;
+  background: #f8eeee;
+  color: #7f1d1d;
 }
 
 .sets-page-set-card-quantity-status.is-pending {
-  border-color: #c8d9ed;
-  background: #f2f7fc;
-  color: #315b85;
+  border-color: #9fc3e6;
+  background: #eaf3fc;
+  color: #1e4f7a;
 }
 
 .sets-page-set-card-quantity-status.is-unknown {
-  border-color: #ead8b3;
-  background: #fdf9f0;
-  color: #8a5a14;
+  border-color: #dfbd7b;
+  background: #fff4dd;
+  color: #7c4a03;
+}
+
+.sets-page-set-card-quantity-status-mark {
+  flex: 0 0 auto;
+  font-size: 0.9em;
+  line-height: 1;
 }
 
 .sets-page-set-card-manage-elsewhere {
@@ -1475,6 +1482,7 @@ button {
 }
 
 .sets-page-set-card-detail {
+  position: relative;
   width: 100%;
   height: calc(100dvh - max(4px, env(safe-area-inset-top)));
   max-height: calc(100dvh - max(4px, env(safe-area-inset-top)));
@@ -1486,25 +1494,25 @@ button {
 }
 
 .sets-page-set-card-detail-header {
-  position: sticky;
-  z-index: 1;
-  top: 0;
+  position: absolute;
+  z-index: 2;
+  top: 6px;
+  right: 6px;
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  min-height: 52px;
-  background: linear-gradient(#ffffff 70%, rgb(255 255 255 / 0));
-  padding: 4px 8px 0;
-  backdrop-filter: blur(12px);
+  min-height: 0;
+  padding: 0;
 }
 
 .sets-page-set-card-detail-header button {
   flex: 0 0 auto;
   width: 44px;
   min-height: 44px;
-  border: 0;
+  border: 1px solid rgb(148 163 184 / 0.65);
   border-radius: 999px;
-  background: #e2e8f0;
+  background: rgb(255 255 255 / 0.94);
+  box-shadow: 0 2px 10px rgb(15 23 42 / 0.24);
   color: #172033;
   cursor: pointer;
   padding: 0;
@@ -1517,7 +1525,7 @@ button {
   display: grid;
   gap: 12px;
   min-width: 0;
-  padding: 0 8px calc(20px + env(safe-area-inset-bottom));
+  padding: 4px 4px calc(20px + env(safe-area-inset-bottom));
 }
 
 .sets-page-set-card-detail-image {
@@ -1529,7 +1537,7 @@ button {
 .sets-page-set-card-detail-image img,
 .sets-page-set-card-detail-image > span {
   display: block;
-  width: min(calc(100vw - 28px), 440px);
+  width: min(calc(100vw - 8px), 480px);
   max-width: 100%;
   aspect-ratio: 120 / 168;
   border-radius: 14px;

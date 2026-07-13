@@ -1334,6 +1334,11 @@ export function SetsPage() {
                             className={`sets-page-set-card-quantity-status ${ownershipStatusClassName}`}
                             aria-live="polite"
                           >
+                            {ownershipStatusClassName === 'is-present' ? (
+                              <span className="sets-page-set-card-quantity-status-mark" aria-hidden="true">
+                                ✓
+                              </span>
+                            ) : null}
                             {ownershipLabel}
                           </span>
                           <button
