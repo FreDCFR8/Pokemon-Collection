@@ -1390,7 +1390,11 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
+  box-sizing: border-box;
   overflow: visible;
+  min-height: 52px;
+  border: 1px solid transparent;
+  border-radius: 14px;
   color: #172033;
   padding: 0 6px;
   font-size: 1rem;
@@ -1399,6 +1403,30 @@ button {
   text-align: center;
   text-overflow: clip;
   white-space: nowrap;
+}
+
+.sets-page-set-card-quantity-status.is-present {
+  border-color: #bbdfc5;
+  background: #f0f8f2;
+  color: #166534;
+}
+
+.sets-page-set-card-quantity-status.is-absent {
+  border-color: #d7dee7;
+  background: #f6f8fa;
+  color: #475569;
+}
+
+.sets-page-set-card-quantity-status.is-pending {
+  border-color: #c8d9ed;
+  background: #f2f7fc;
+  color: #315b85;
+}
+
+.sets-page-set-card-quantity-status.is-unknown {
+  border-color: #ead8b3;
+  background: #fdf9f0;
+  color: #8a5a14;
 }
 
 .sets-page-set-card-manage-elsewhere {
@@ -1443,12 +1471,13 @@ button {
   justify-items: center;
   min-width: 0;
   background: rgb(15 23 42 / 0.58);
-  padding: max(12px, env(safe-area-inset-top)) 10px 0;
+  padding: max(4px, env(safe-area-inset-top)) 0 0;
 }
 
 .sets-page-set-card-detail {
-  width: min(100%, 560px);
-  max-height: calc(100dvh - max(12px, env(safe-area-inset-top)));
+  width: 100%;
+  height: calc(100dvh - max(4px, env(safe-area-inset-top)));
+  max-height: calc(100dvh - max(4px, env(safe-area-inset-top)));
   border-radius: 22px 22px 0 0;
   background: #ffffff;
   box-shadow: 0 -12px 36px rgb(15 23 42 / 0.24);
@@ -1463,9 +1492,9 @@ button {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  min-height: 56px;
+  min-height: 52px;
   background: linear-gradient(#ffffff 70%, rgb(255 255 255 / 0));
-  padding: 8px 12px 4px;
+  padding: 4px 8px 0;
   backdrop-filter: blur(12px);
 }
 
@@ -1486,9 +1515,9 @@ button {
 
 .sets-page-set-card-detail-content {
   display: grid;
-  gap: 18px;
+  gap: 12px;
   min-width: 0;
-  padding: 0 14px calc(24px + env(safe-area-inset-bottom));
+  padding: 0 8px calc(20px + env(safe-area-inset-bottom));
 }
 
 .sets-page-set-card-detail-image {
@@ -1500,7 +1529,7 @@ button {
 .sets-page-set-card-detail-image img,
 .sets-page-set-card-detail-image > span {
   display: block;
-  width: min(90vw, 420px);
+  width: min(calc(100vw - 28px), 440px);
   max-width: 100%;
   aspect-ratio: 120 / 168;
   border-radius: 14px;
@@ -1639,6 +1668,8 @@ button {
   }
 
   .sets-page-set-card-detail {
+    width: min(100%, 560px);
+    height: auto;
     max-height: calc(100dvh - 32px);
     border-radius: 22px;
   }

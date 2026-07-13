@@ -1251,10 +1251,19 @@ export function SetsPage() {
                   : !isCollectionStateLoaded || !collectionInfo || hasConflictingRows
                     ? 'Status onbekend'
                     : manageableRow
-                      ? `${manageableRow.quantity} in bezit`
+                      ? manageableRow.quantity === 1
+                        ? 'In collectie'
+                        : `${manageableRow.quantity} in collectie`
                       : hasAnyRecord
                         ? 'In collectie'
-                        : 'Niet in bezit';
+                        : 'Niet in collectie';
+              const ownershipStatusClassName = isMutating || setCardCollectionState.status === 'loading'
+                ? 'is-pending'
+                : !isCollectionStateLoaded || !collectionInfo || hasConflictingRows
+                  ? 'is-unknown'
+                  : hasAnyRecord
+                    ? 'is-present'
+                    : 'is-absent';
               const feedbackMessage =
                 mutationState?.status === 'success' || mutationState?.status === 'error'
                   ? mutationState.message
@@ -1321,7 +1330,12 @@ export function SetsPage() {
                           >
                             −
                           </button>
-                          <span aria-live="polite">{ownershipLabel}</span>
+                          <span
+                            className={`sets-page-set-card-quantity-status ${ownershipStatusClassName}`}
+                            aria-live="polite"
+                          >
+                            {ownershipLabel}
+                          </span>
                           <button
                             type="button"
                             aria-label={isAbsent ? 'Kaart aan collectie toevoegen' : 'Eén exemplaar toevoegen'}
