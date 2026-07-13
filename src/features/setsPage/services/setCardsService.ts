@@ -10,6 +10,7 @@ export type SetCatalogCard = {
   number: string | null;
   rarity: string | null;
   image_small: string | null;
+  image_large: string | null;
 };
 
 export type SetCardsResult = {
@@ -28,7 +29,7 @@ export type GetSetCardsParams = {
   sortOption?: SetCardsSortOption;
 };
 
-const SET_CARDS_SELECT = 'id, pokemon, number, rarity, image_small';
+const SET_CARDS_SELECT = 'id, pokemon, number, rarity, image_small, image_large';
 
 function normalizeOffset(offset: number | undefined): number {
   if (!Number.isFinite(offset) || !offset || offset < 0) {

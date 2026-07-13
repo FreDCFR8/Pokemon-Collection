@@ -12,7 +12,16 @@ import {
   type SetCatalogCard,
   type SetCardsSortOption,
 } from './services/setCardsService';
-import { getCollectionCardIdsForCatalogCards } from './services/setCardCollectionStateService';
+import {
+  getSetCardCollectionInfoForCatalogCards,
+  type SetCardCollectionInfo,
+} from './services/setCardCollectionStateService';
+import {
+  CollectionCardQuantityStateError,
+  decreaseCollectionCardQuantity,
+  increaseCollectionCardQuantity,
+  type ManagedCollectionCard,
+} from './services/manageCollectionCardQuantityService';
 import { getSetProgressForCollection, type SetProgress } from './services/setsProgressService';
 import { calculateSetProgressPercent, getEffectiveSetTotal, hasKnownSetTotal } from './services/setTotals';
 
@@ -44,11 +53,11 @@ type SetCardsOverlayState = {
 
 type SetCardCollectionState = {
   status: 'idle' | 'loading' | 'success' | 'error';
-  collectionCardCatalogIds: Set<string>;
+  infoByCardCatalogId: Map<string, SetCardCollectionInfo>;
 };
 
-type SetCardAddState = {
-  status: 'idle' | 'adding' | 'success' | 'error';
+type SetCardMutationState = {
+  status: 'idle' | 'adding' | 'increasing' | 'decreasing' | 'deleting' | 'success' | 'error';
   message?: string;
   requestId?: number;
 };
@@ -65,7 +74,7 @@ const INITIAL_SET_CARDS_OVERLAY_STATE: SetCardsOverlayState = {
 
 const INITIAL_SET_CARD_COLLECTION_STATE: SetCardCollectionState = {
   status: 'idle',
-  collectionCardCatalogIds: new Set(),
+  infoByCardCatalogId: new Map(),
 };
 
 const SET_CARDS_SORT_LABELS: Record<SetCardsSortOption, string> = {
@@ -93,6 +102,7 @@ export function SetsPage() {
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [openSetId, setOpenSetId] = useState<string | null>(null);
+  const [selectedSetCardId, setSelectedSetCardId] = useState<string | null>(null);
   const [setCardSearchTerm, setSetCardSearchTerm] = useState('');
   const [debouncedSetCardSearchTerm, setDebouncedSetCardSearchTerm] = useState('');
   const [setCardsSortOption, setSetCardsSortOption] = useState<SetCardsSortOption>('name-asc');
@@ -103,18 +113,27 @@ export function SetsPage() {
   const [setCardCollectionState, setSetCardCollectionState] = useState<SetCardCollectionState>(
     INITIAL_SET_CARD_COLLECTION_STATE,
   );
-  const [setCardAddStates, setSetCardAddStates] = useState<Record<string, SetCardAddState>>({});
+  const [setCardMutationStates, setSetCardMutationStates] = useState<Record<string, SetCardMutationState>>({});
   const setCardsRequestIdRef = useRef(0);
   const setCardCollectionRequestIdRef = useRef(0);
-  const setCardAddRequestIdRef = useRef(0);
-  const setCardAddRequestIdsByCardRef = useRef(new Map<string, number>());
-  const pendingSetCardAddIdsRef = useRef(new Set<string>());
+  const setCardMutationRequestIdRef = useRef(0);
+  const setCardMutationRequestIdsByCardRef = useRef(new Map<string, number>());
+  const pendingSetCardMutationIdsRef = useRef(new Set<string>());
   const activeCollectionIdRef = useRef<string | null>(null);
   const openSetIdRef = useRef<string | null>(null);
   const loadedSetCardIdsRef = useRef(new Set<string>());
   const setButtonRefs = useRef(new Map<string, HTMLButtonElement>());
+  const setCardButtonRefs = useRef(new Map<string, HTMLButtonElement>());
   const overlayCloseButtonRef = useRef<HTMLButtonElement | null>(null);
+  const cardDetailCloseButtonRef = useRef<HTMLButtonElement | null>(null);
   const overlayScrollRef = useRef<HTMLDivElement | null>(null);
+
+  function invalidateSetCardMutations() {
+    setCardMutationRequestIdRef.current += 1;
+    setCardMutationRequestIdsByCardRef.current.clear();
+    pendingSetCardMutationIdsRef.current.clear();
+    setSetCardMutationStates({});
+  }
 
   useEffect(() => {
     let isMounted = true;
@@ -155,7 +174,10 @@ export function SetsPage() {
   }, [openSetId, setsPageState.sets]);
 
   useEffect(() => {
-    activeCollectionIdRef.current = activeCollectionId;
+    if (activeCollectionIdRef.current !== activeCollectionId) {
+      activeCollectionIdRef.current = activeCollectionId;
+      invalidateSetCardMutations();
+    }
   }, [activeCollectionId]);
 
   useEffect(() => {
@@ -188,7 +210,11 @@ export function SetsPage() {
   useEffect(() => {
     function handleEscape(event: KeyboardEvent) {
       if (event.key === 'Escape' && openSet) {
-        closeSetOverlay();
+        if (selectedSetCardId) {
+          closeSetCardDetail();
+        } else {
+          closeSetOverlay();
+        }
       }
     }
 
@@ -200,11 +226,8 @@ export function SetsPage() {
   useEffect(() => {
     if (!openSet) {
       setCardsRequestIdRef.current += 1;
-      setCardAddRequestIdRef.current += 1;
       setSetCardsOverlayState(INITIAL_SET_CARDS_OVERLAY_STATE);
-      setSetCardAddStates({});
-      setCardAddRequestIdsByCardRef.current.clear();
-      pendingSetCardAddIdsRef.current.clear();
+      invalidateSetCardMutations();
       return;
     }
 
@@ -266,10 +289,20 @@ export function SetsPage() {
 
   const loadedSetCardIds = useMemo(() => setCardsOverlayState.cards.map((card) => card.id), [setCardsOverlayState.cards]);
   const loadedSetCardIdsKey = loadedSetCardIds.join(',');
+  const selectedSetCard = useMemo(
+    () => setCardsOverlayState.cards.find((card) => card.id === selectedSetCardId) ?? null,
+    [selectedSetCardId, setCardsOverlayState.cards],
+  );
 
   useEffect(() => {
     loadedSetCardIdsRef.current = new Set(loadedSetCardIds);
   }, [loadedSetCardIdsKey]);
+
+  useEffect(() => {
+    if (selectedSetCardId && !loadedSetCardIdsRef.current.has(selectedSetCardId)) {
+      setSelectedSetCardId(null);
+    }
+  }, [loadedSetCardIdsKey, selectedSetCardId]);
 
   useEffect(() => {
     const requestId = setCardCollectionRequestIdRef.current + 1;
@@ -277,9 +310,7 @@ export function SetsPage() {
 
     if (!openSet || !activeCollectionId || loadedSetCardIds.length === 0) {
       setSetCardCollectionState(INITIAL_SET_CARD_COLLECTION_STATE);
-      setSetCardAddStates({});
-      setCardAddRequestIdsByCardRef.current.clear();
-      pendingSetCardAddIdsRef.current.clear();
+      setSetCardMutationStates({});
       return;
     }
 
@@ -288,20 +319,20 @@ export function SetsPage() {
     const cardCatalogIdsForRequest = loadedSetCardIds;
 
     async function loadSetCardCollectionState() {
-      setSetCardCollectionState({ status: 'loading', collectionCardCatalogIds: new Set() });
+      setSetCardCollectionState({ status: 'loading', infoByCardCatalogId: new Map() });
 
       try {
-        const collectionCardCatalogIds = await getCollectionCardIdsForCatalogCards({
+        const infoByCardCatalogId = await getSetCardCollectionInfoForCatalogCards({
           collectionId: collectionIdForRequest,
           cardCatalogIds: cardCatalogIdsForRequest,
         });
 
         if (!isCancelled && setCardCollectionRequestIdRef.current === requestId) {
-          setSetCardCollectionState({ status: 'success', collectionCardCatalogIds });
+          setSetCardCollectionState({ status: 'success', infoByCardCatalogId });
         }
       } catch {
         if (!isCancelled && setCardCollectionRequestIdRef.current === requestId) {
-          setSetCardCollectionState({ status: 'error', collectionCardCatalogIds: new Set() });
+          setSetCardCollectionState({ status: 'error', infoByCardCatalogId: new Map() });
         }
       }
     }
@@ -313,11 +344,25 @@ export function SetsPage() {
     };
   }, [activeCollectionId, loadedSetCardIdsKey, openSet]);
 
-  function markCardAsInCollection(cardCatalogId: string) {
-    setSetCardCollectionState((currentState) => ({
-      status: currentState.status === 'success' ? 'success' : currentState.status,
-      collectionCardCatalogIds: new Set(currentState.collectionCardCatalogIds).add(cardCatalogId),
-    }));
+  function setManagedCollectionCard(cardCatalogId: string, card: ManagedCollectionCard) {
+    setSetCardCollectionState((currentState) => {
+      if (currentState.status !== 'success') {
+        return currentState;
+      }
+
+      const infoByCardCatalogId = new Map(currentState.infoByCardCatalogId);
+      infoByCardCatalogId.set(cardCatalogId, {
+        hasAnyRecord: true,
+        manageableOwnedNearMintRow: {
+          id: card.id,
+          cardCatalogId,
+          quantity: card.quantity,
+        },
+        hasConflictingManageableRows: false,
+      });
+
+      return { status: 'success', infoByCardCatalogId };
+    });
   }
 
   function incrementSetProgress(setCode: string) {
@@ -368,90 +413,279 @@ export function SetsPage() {
     }
   }
 
+  async function refreshVisibleCardCollectionState(collectionId: string, setId: string): Promise<boolean> {
+    const cardCatalogIds = [...loadedSetCardIdsRef.current];
+    const requestId = setCardCollectionRequestIdRef.current + 1;
+    setCardCollectionRequestIdRef.current = requestId;
+
+    if (cardCatalogIds.length === 0) {
+      return false;
+    }
+
+    setSetCardCollectionState((currentState) => ({
+      status: 'loading',
+      infoByCardCatalogId: currentState.infoByCardCatalogId,
+    }));
+
+    try {
+      const infoByCardCatalogId = await getSetCardCollectionInfoForCatalogCards({
+        collectionId,
+        cardCatalogIds,
+      });
+
+      if (
+        setCardCollectionRequestIdRef.current !== requestId ||
+        activeCollectionIdRef.current !== collectionId ||
+        openSetIdRef.current !== setId
+      ) {
+        return false;
+      }
+
+      setSetCardCollectionState({ status: 'success', infoByCardCatalogId });
+      return true;
+    } catch {
+      if (
+        setCardCollectionRequestIdRef.current === requestId &&
+        activeCollectionIdRef.current === collectionId &&
+        openSetIdRef.current === setId
+      ) {
+        setSetCardCollectionState({ status: 'error', infoByCardCatalogId: new Map() });
+      }
+
+      return false;
+    }
+  }
+
+  function isCurrentCardMutation(
+    cardCatalogId: string,
+    requestId: number,
+    collectionId: string,
+    setId: string,
+  ): boolean {
+    return (
+      setCardMutationRequestIdsByCardRef.current.get(cardCatalogId) === requestId &&
+      activeCollectionIdRef.current === collectionId &&
+      openSetIdRef.current === setId &&
+      loadedSetCardIdsRef.current.has(cardCatalogId)
+    );
+  }
+
+  function beginCardMutation(
+    cardCatalogId: string,
+    status: SetCardMutationState['status'],
+  ): number | null {
+    if (pendingSetCardMutationIdsRef.current.has(cardCatalogId)) {
+      return null;
+    }
+
+    const requestId = setCardMutationRequestIdRef.current + 1;
+    setCardMutationRequestIdRef.current = requestId;
+    setCardMutationRequestIdsByCardRef.current.set(cardCatalogId, requestId);
+    pendingSetCardMutationIdsRef.current.add(cardCatalogId);
+    setSetCardMutationStates((currentStates) => ({
+      ...currentStates,
+      [cardCatalogId]: { status, requestId },
+    }));
+
+    return requestId;
+  }
+
+  function setCardMutationResult(
+    cardCatalogId: string,
+    requestId: number,
+    status: 'success' | 'error',
+    message?: string,
+  ) {
+    setSetCardMutationStates((currentStates) => ({
+      ...currentStates,
+      [cardCatalogId]: { status, message, requestId },
+    }));
+  }
+
   async function handleAddCardToCollection(card: SetCatalogCard) {
     if (!openSet || !activeCollectionId) {
-      setSetCardAddStates((currentStates) => ({
+      setSetCardMutationStates((currentStates) => ({
         ...currentStates,
         [card.id]: { status: 'error', message: 'Geen actieve collectie beschikbaar.' },
       }));
       return;
     }
 
+    const collectionInfo = setCardCollectionState.infoByCardCatalogId.get(card.id);
+
     if (
       setCardCollectionState.status !== 'success' ||
-      setCardCollectionState.collectionCardCatalogIds.has(card.id) ||
-      pendingSetCardAddIdsRef.current.has(card.id) ||
-      setCardAddStates[card.id]?.status === 'adding'
+      !collectionInfo ||
+      collectionInfo.hasAnyRecord ||
+      collectionInfo.hasConflictingManageableRows
     ) {
-      setSetCardAddStates((currentStates) => ({
+      setSetCardMutationStates((currentStates) => ({
         ...currentStates,
         [card.id]: { status: 'error', message: 'Collectiestatus is nog niet bevestigd.' },
       }));
       return;
     }
 
-    const requestId = setCardAddRequestIdRef.current + 1;
-    setCardAddRequestIdRef.current = requestId;
-    setCardAddRequestIdsByCardRef.current.set(card.id, requestId);
-    pendingSetCardAddIdsRef.current.add(card.id);
+    const requestId = beginCardMutation(card.id, 'adding');
+
+    if (requestId === null) {
+      return;
+    }
+
     const collectionIdForRequest = activeCollectionId;
     const setCodeForRequest = openSet.set_code;
     const openSetIdForRequest = openSet.id;
 
-    setSetCardAddStates((currentStates) => ({
-      ...currentStates,
-      [card.id]: { status: 'adding', requestId },
-    }));
-
     try {
-      await addCardToCollection({
+      const addedCard = await addCardToCollection({
         collectionId: collectionIdForRequest,
         cardCatalogId: card.id,
       });
 
-      if (
-        setCardAddRequestIdsByCardRef.current.get(card.id) !== requestId ||
-        activeCollectionIdRef.current !== collectionIdForRequest ||
-        openSetIdRef.current !== openSetIdForRequest ||
-        !loadedSetCardIdsRef.current.has(card.id)
-      ) {
+      if (!isCurrentCardMutation(card.id, requestId, collectionIdForRequest, openSetIdForRequest)) {
         return;
       }
 
-      markCardAsInCollection(card.id);
-      setSetCardAddStates((currentStates) => ({
-        ...currentStates,
-        [card.id]: { status: 'success', message: 'Toegevoegd', requestId },
-      }));
+      setManagedCollectionCard(card.id, addedCard);
+      setCardMutationResult(card.id, requestId, 'success', 'Toegevoegd');
       incrementSetProgress(setCodeForRequest);
     } catch (error) {
-      if (
-        setCardAddRequestIdsByCardRef.current.get(card.id) !== requestId ||
-        activeCollectionIdRef.current !== collectionIdForRequest ||
-        openSetIdRef.current !== openSetIdForRequest ||
-        !loadedSetCardIdsRef.current.has(card.id)
-      ) {
+      if (!isCurrentCardMutation(card.id, requestId, collectionIdForRequest, openSetIdForRequest)) {
         return;
       }
 
       if (isDuplicateCollectionCardError(error)) {
-        markCardAsInCollection(card.id);
-        setSetCardAddStates((currentStates) => ({
-          ...currentStates,
-          [card.id]: { status: 'success', message: 'Stond al in collectie', requestId },
-        }));
-        void refreshSetProgress(collectionIdForRequest);
+        await Promise.all([
+          refreshVisibleCardCollectionState(collectionIdForRequest, openSetIdForRequest),
+          refreshSetProgress(collectionIdForRequest),
+        ]);
+
+        if (isCurrentCardMutation(card.id, requestId, collectionIdForRequest, openSetIdForRequest)) {
+          setCardMutationResult(
+            card.id,
+            requestId,
+            'error',
+            'Aantal is intussen gewijzigd. Status is vernieuwd.',
+          );
+        }
         return;
       }
 
-      setSetCardAddStates((currentStates) => ({
-        ...currentStates,
-        [card.id]: { status: 'error', message: 'Kaart toevoegen is mislukt. Probeer opnieuw.', requestId },
-      }));
+      setCardMutationResult(card.id, requestId, 'error', 'Kaart toevoegen is mislukt. Probeer opnieuw.');
     } finally {
-      if (setCardAddRequestIdsByCardRef.current.get(card.id) === requestId) {
-        pendingSetCardAddIdsRef.current.delete(card.id);
-        setCardAddRequestIdsByCardRef.current.delete(card.id);
+      if (setCardMutationRequestIdsByCardRef.current.get(card.id) === requestId) {
+        pendingSetCardMutationIdsRef.current.delete(card.id);
+        setCardMutationRequestIdsByCardRef.current.delete(card.id);
+      }
+    }
+  }
+
+  async function handleCollectionCardQuantityChange(card: SetCatalogCard, direction: 'increase' | 'decrease') {
+    if (!openSet || !activeCollectionId || setCardCollectionState.status !== 'success') {
+      return;
+    }
+
+    const collectionInfo = setCardCollectionState.infoByCardCatalogId.get(card.id);
+    const manageableRow = collectionInfo?.manageableOwnedNearMintRow;
+
+    if (!manageableRow || collectionInfo.hasConflictingManageableRows) {
+      return;
+    }
+
+    const mutationStatus = direction === 'increase'
+      ? 'increasing'
+      : manageableRow.quantity === 1
+        ? 'deleting'
+        : 'decreasing';
+    const requestId = beginCardMutation(card.id, mutationStatus);
+
+    if (requestId === null) {
+      return;
+    }
+
+    const collectionIdForRequest = activeCollectionId;
+    const openSetIdForRequest = openSet.id;
+    const collectionCardIdForRequest = manageableRow.id;
+    const currentQuantityForRequest = manageableRow.quantity;
+
+    try {
+      if (direction === 'increase') {
+        const updatedCard = await increaseCollectionCardQuantity({
+          collectionId: collectionIdForRequest,
+          collectionCardId: collectionCardIdForRequest,
+          currentQuantity: currentQuantityForRequest,
+        });
+
+        if (!isCurrentCardMutation(card.id, requestId, collectionIdForRequest, openSetIdForRequest)) {
+          return;
+        }
+
+        if (updatedCard.card_catalog_id !== card.id) {
+          throw new CollectionCardQuantityStateError('De gewijzigde kaartidentiteit wijkt af.', 'invalid-result');
+        }
+
+        setManagedCollectionCard(card.id, updatedCard);
+        setCardMutationResult(card.id, requestId, 'success');
+        return;
+      }
+
+      const result = await decreaseCollectionCardQuantity({
+        collectionId: collectionIdForRequest,
+        collectionCardId: collectionCardIdForRequest,
+        currentQuantity: currentQuantityForRequest,
+      });
+
+      if (!isCurrentCardMutation(card.id, requestId, collectionIdForRequest, openSetIdForRequest)) {
+        return;
+      }
+
+      if (result.action === 'updated') {
+        if (result.card.card_catalog_id !== card.id) {
+          throw new CollectionCardQuantityStateError('De gewijzigde kaartidentiteit wijkt af.', 'invalid-result');
+        }
+
+        setManagedCollectionCard(card.id, result.card);
+        setCardMutationResult(card.id, requestId, 'success');
+        return;
+      }
+
+      await Promise.all([
+        refreshVisibleCardCollectionState(collectionIdForRequest, openSetIdForRequest),
+        refreshSetProgress(collectionIdForRequest),
+      ]);
+
+      if (isCurrentCardMutation(card.id, requestId, collectionIdForRequest, openSetIdForRequest)) {
+        setCardMutationResult(card.id, requestId, 'success');
+      }
+    } catch (error) {
+      if (!isCurrentCardMutation(card.id, requestId, collectionIdForRequest, openSetIdForRequest)) {
+        return;
+      }
+
+      if (error instanceof CollectionCardQuantityStateError) {
+        await Promise.all([
+          refreshVisibleCardCollectionState(collectionIdForRequest, openSetIdForRequest),
+          refreshSetProgress(collectionIdForRequest),
+        ]);
+
+        if (isCurrentCardMutation(card.id, requestId, collectionIdForRequest, openSetIdForRequest)) {
+          setCardMutationResult(
+            card.id,
+            requestId,
+            'error',
+            error.reason === 'stale'
+              ? 'Aantal is intussen gewijzigd. Status is vernieuwd.'
+              : 'Aantal kon niet veilig worden bevestigd. Status is vernieuwd.',
+          );
+        }
+        return;
+      }
+
+      setCardMutationResult(card.id, requestId, 'error', 'Aantal bijwerken is mislukt. Probeer opnieuw.');
+    } finally {
+      if (setCardMutationRequestIdsByCardRef.current.get(card.id) === requestId) {
+        pendingSetCardMutationIdsRef.current.delete(card.id);
+        setCardMutationRequestIdsByCardRef.current.delete(card.id);
       }
     }
   }
@@ -507,23 +741,25 @@ export function SetsPage() {
   }
 
   function openSetOverlay(setId: string) {
+    openSetIdRef.current = setId;
+    invalidateSetCardMutations();
+    setSelectedSetCardId(null);
     setSetCardSearchTerm('');
     setDebouncedSetCardSearchTerm('');
     setSetCardsSortOption('name-asc');
     setSetCardsRetryNonce(0);
     setCardsRequestIdRef.current += 1;
     setCardCollectionRequestIdRef.current += 1;
-    setCardAddRequestIdRef.current += 1;
-    setCardAddRequestIdsByCardRef.current.clear();
-    pendingSetCardAddIdsRef.current.clear();
     setSetCardsOverlayState(INITIAL_SET_CARDS_OVERLAY_STATE);
     setSetCardCollectionState(INITIAL_SET_CARD_COLLECTION_STATE);
-    setSetCardAddStates({});
     setOpenSetId(setId);
   }
 
   function closeSetOverlay() {
     const closingSetId = openSetId;
+    openSetIdRef.current = null;
+    invalidateSetCardMutations();
+    setSelectedSetCardId(null);
     setOpenSetId(null);
     setSetCardSearchTerm('');
     setDebouncedSetCardSearchTerm('');
@@ -531,15 +767,26 @@ export function SetsPage() {
     setSetCardsRetryNonce(0);
     setCardsRequestIdRef.current += 1;
     setCardCollectionRequestIdRef.current += 1;
-    setCardAddRequestIdRef.current += 1;
-    setCardAddRequestIdsByCardRef.current.clear();
-    pendingSetCardAddIdsRef.current.clear();
     setSetCardsOverlayState(INITIAL_SET_CARDS_OVERLAY_STATE);
     setSetCardCollectionState(INITIAL_SET_CARD_COLLECTION_STATE);
-    setSetCardAddStates({});
     window.setTimeout(() => {
       if (closingSetId) {
         setButtonRefs.current.get(closingSetId)?.focus();
+      }
+    }, 0);
+  }
+
+  function openSetCardDetail(cardCatalogId: string) {
+    setSelectedSetCardId(cardCatalogId);
+    window.setTimeout(() => cardDetailCloseButtonRef.current?.focus(), 0);
+  }
+
+  function closeSetCardDetail() {
+    const closingCardId = selectedSetCardId;
+    setSelectedSetCardId(null);
+    window.setTimeout(() => {
+      if (closingCardId) {
+        setCardButtonRefs.current.get(closingCardId)?.focus();
       }
     }, 0);
   }
@@ -549,6 +796,8 @@ export function SetsPage() {
 
     async function loadSetsProgress() {
       setSetsProgressState({ status: 'loading', progressBySetCode: new Map() });
+      activeCollectionIdRef.current = null;
+      invalidateSetCardMutations();
       setActiveCollectionId(null);
 
       try {
@@ -564,6 +813,8 @@ export function SetsPage() {
         }
 
         if (isMounted) {
+          activeCollectionIdRef.current = collectionId;
+          invalidateSetCardMutations();
           setActiveCollectionId(collectionId);
         }
 
@@ -776,7 +1027,6 @@ export function SetsPage() {
           setCardsOverlayState.status === 'success' && setCardsOverlayState.totalCount === 0 && !isSearchActive;
         const showSearchEmptyState =
           setCardsOverlayState.status === 'success' && setCardsOverlayState.totalCount === 0 && isSearchActive;
-        const showCollectionStateError = setCardCollectionState.status === 'error';
 
         return (
           <div
@@ -904,12 +1154,6 @@ export function SetsPage() {
                 <p className="sets-page-set-overlay-empty">Geen kaarten gevonden voor deze zoekopdracht.</p>
               ) : null}
 
-              {showCollectionStateError ? (
-                <p className="sets-page-set-card-collection-status-message" role="alert">
-                  Collectiestatus kon niet worden geladen.
-                </p>
-              ) : null}
-
               {hasCards ? (
                 <>
                   <p className="sets-page-set-overlay-count">
@@ -918,69 +1162,47 @@ export function SetsPage() {
                   <ul className="sets-page-set-overlay-grid" aria-label={`Cataloguskaarten voor ${openSet.name}`}>
                     {setCardsOverlayState.cards.map((card) => {
                       const isCollectionStateLoaded = setCardCollectionState.status === 'success';
-                      const isInCollection = setCardCollectionState.collectionCardCatalogIds.has(card.id);
-                      const collectionStateLabel = isCollectionStateLoaded
-                        ? isInCollection
-                          ? 'In collectie'
-                          : 'Niet in collectie'
-                        : setCardCollectionState.status === 'loading'
-                          ? 'Status laden…'
-                          : 'Status onbekend';
-                      const collectionStateClassName = isCollectionStateLoaded
-                        ? isInCollection
-                          ? ' is-present'
-                          : ' is-absent'
-                        : ' is-unknown';
-                      const addState = setCardAddStates[card.id];
-                      const isAdding = addState?.status === 'adding';
-                      const canAddCard = isCollectionStateLoaded && !isInCollection && !isAdding;
-                      const showAddButton = isCollectionStateLoaded && !isInCollection;
-                      const feedbackMessage = addState?.status === 'success' || addState?.status === 'error' ? addState.message : undefined;
+                      const collectionInfo = setCardCollectionState.infoByCardCatalogId.get(card.id);
+                      const hasConflictingRows = collectionInfo?.hasConflictingManageableRows ?? false;
+                      const isInCollection =
+                        isCollectionStateLoaded &&
+                        Boolean(collectionInfo?.hasAnyRecord) &&
+                        !hasConflictingRows;
+                      const cardButtonLabel = `Open ${card.pokemon}${
+                        card.number ? `, kaart ${card.number}` : ''
+                      }${isInCollection ? ', in collectie' : ''}`;
 
                       return (
                         <li key={card.id} className="sets-page-set-overlay-card">
-                          {card.image_small ? (
-                            <img
-                              src={card.image_small}
-                              alt={`${card.pokemon} kaart ${card.number ?? ''}`.trim()}
-                              width="120"
-                              height="168"
-                              loading="lazy"
-                              decoding="async"
-                            />
-                          ) : (
-                            <span className="sets-page-set-overlay-card-placeholder" aria-hidden="true">
-                              Geen afbeelding
-                            </span>
-                          )}
-                          <span className="sets-page-set-overlay-card-body">
-                            <strong>{card.pokemon}</strong>
-                            <span>Nr. {card.number ?? 'onbekend'}</span>
-                            {card.rarity ? <span>{card.rarity}</span> : null}
-                            <span className={`sets-page-set-card-collection-badge${collectionStateClassName}`}>
-                              {collectionStateLabel}
-                            </span>
-                            {showAddButton ? (
-                              <button
-                                type="button"
-                                className="sets-page-set-card-add-button"
-                                disabled={!canAddCard}
-                                onClick={() => void handleAddCardToCollection(card)}
-                              >
-                                {isAdding ? 'Toevoegen…' : 'Toevoegen'}
-                              </button>
-                            ) : null}
-                            {feedbackMessage ? (
-                              <span
-                                className={`sets-page-set-card-add-message${
-                                  addState?.status === 'error' ? ' is-error' : ' is-success'
-                                }`}
-                                role={addState?.status === 'error' ? 'alert' : 'status'}
-                              >
-                                {feedbackMessage}
+                          <button
+                            ref={(buttonElement) => {
+                              if (buttonElement) {
+                                setCardButtonRefs.current.set(card.id, buttonElement);
+                              }
+                            }}
+                            type="button"
+                            className="sets-page-set-overlay-card-button"
+                            aria-label={cardButtonLabel}
+                            onClick={() => openSetCardDetail(card.id)}
+                          >
+                            {card.image_small ? (
+                              <img
+                                src={card.image_small}
+                                alt=""
+                                width="120"
+                                height="168"
+                                loading="lazy"
+                                decoding="async"
+                              />
+                            ) : (
+                              <span className="sets-page-set-overlay-card-placeholder" aria-hidden="true" />
+                            )}
+                            {isInCollection ? (
+                              <span className="sets-page-set-overlay-card-present-marker" aria-hidden="true">
+                                ✓
                               </span>
                             ) : null}
-                          </span>
+                          </button>
                         </li>
                       );
                     })}
@@ -1002,6 +1224,161 @@ export function SetsPage() {
                 </div>
               ) : null}
             </div>
+
+            {selectedSetCard ? (() => {
+              const detailImageUrl = selectedSetCard.image_large ?? selectedSetCard.image_small;
+              const isCollectionStateLoaded = setCardCollectionState.status === 'success';
+              const collectionInfo = setCardCollectionState.infoByCardCatalogId.get(selectedSetCard.id);
+              const hasConflictingRows = collectionInfo?.hasConflictingManageableRows ?? false;
+              const manageableRow = collectionInfo?.manageableOwnedNearMintRow;
+              const hasAnyRecord = collectionInfo?.hasAnyRecord ?? false;
+              const mutationState = setCardMutationStates[selectedSetCard.id];
+              const isMutating =
+                mutationState?.status === 'adding' ||
+                mutationState?.status === 'increasing' ||
+                mutationState?.status === 'decreasing' ||
+                mutationState?.status === 'deleting';
+              const isAbsent =
+                isCollectionStateLoaded && Boolean(collectionInfo) && !hasAnyRecord && !hasConflictingRows;
+              const isManageable =
+                isCollectionStateLoaded && Boolean(manageableRow) && !hasConflictingRows;
+              const showManageElsewhere =
+                isCollectionStateLoaded && hasAnyRecord && !manageableRow && !hasConflictingRows;
+              const ownershipLabel = isMutating
+                ? 'Bijwerken…'
+                : setCardCollectionState.status === 'loading'
+                  ? 'Status laden…'
+                  : !isCollectionStateLoaded || !collectionInfo || hasConflictingRows
+                    ? 'Status onbekend'
+                    : manageableRow
+                      ? manageableRow.quantity === 1
+                        ? 'In collectie'
+                        : `${manageableRow.quantity} in collectie`
+                      : hasAnyRecord
+                        ? 'In collectie'
+                        : 'Niet in collectie';
+              const ownershipStatusClassName = isMutating || setCardCollectionState.status === 'loading'
+                ? 'is-pending'
+                : !isCollectionStateLoaded || !collectionInfo || hasConflictingRows
+                  ? 'is-unknown'
+                  : hasAnyRecord
+                    ? 'is-present'
+                    : 'is-absent';
+              const feedbackMessage =
+                mutationState?.status === 'success' || mutationState?.status === 'error'
+                  ? mutationState.message
+                  : undefined;
+
+              return (
+                <div
+                  className="sets-page-set-card-detail-backdrop"
+                  onMouseDown={(event) => {
+                    if (event.target === event.currentTarget) {
+                      closeSetCardDetail();
+                    }
+                  }}
+                >
+                  <section
+                    className="sets-page-set-card-detail"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="sets-page-set-card-detail-title"
+                  >
+                    <header className="sets-page-set-card-detail-header">
+                      <button
+                        ref={cardDetailCloseButtonRef}
+                        type="button"
+                        aria-label="Kaartdetails sluiten"
+                        onClick={closeSetCardDetail}
+                      >
+                        ×
+                      </button>
+                    </header>
+
+                    <div className="sets-page-set-card-detail-content">
+                      <div className="sets-page-set-card-detail-image">
+                        {detailImageUrl ? (
+                          <img
+                            src={detailImageUrl}
+                            alt={`${selectedSetCard.pokemon} kaart ${selectedSetCard.number ?? ''}`.trim()}
+                            width="240"
+                            height="336"
+                            decoding="async"
+                          />
+                        ) : (
+                          <span aria-hidden="true" />
+                        )}
+                      </div>
+
+                      <div className="sets-page-set-card-detail-body">
+                        <h4 id="sets-page-set-card-detail-title">{selectedSetCard.pokemon}</h4>
+                        <p className="sets-page-set-card-detail-subtitle">
+                          {openSet.name}
+                          {selectedSetCard.number ? ` · #${selectedSetCard.number}` : ''}
+                        </p>
+
+                        <span
+                          className="sets-page-set-card-quantity-control"
+                          role="group"
+                          aria-label="Aantal in collectie"
+                        >
+                          <button
+                            type="button"
+                            aria-label="Eén exemplaar verwijderen"
+                            disabled={!isManageable || isMutating}
+                            onClick={() => void handleCollectionCardQuantityChange(selectedSetCard, 'decrease')}
+                          >
+                            −
+                          </button>
+                          <span
+                            className={`sets-page-set-card-quantity-status ${ownershipStatusClassName}`}
+                            aria-live="polite"
+                          >
+                            {ownershipStatusClassName === 'is-present' ? (
+                              <span className="sets-page-set-card-quantity-status-mark" aria-hidden="true">
+                                ✓
+                              </span>
+                            ) : null}
+                            {ownershipLabel}
+                          </span>
+                          <button
+                            type="button"
+                            aria-label={isAbsent ? 'Kaart aan collectie toevoegen' : 'Eén exemplaar toevoegen'}
+                            disabled={(!isAbsent && !isManageable) || isMutating}
+                            onClick={() => {
+                              if (isAbsent) {
+                                void handleAddCardToCollection(selectedSetCard);
+                              } else if (isManageable) {
+                                void handleCollectionCardQuantityChange(selectedSetCard, 'increase');
+                              }
+                            }}
+                          >
+                            +
+                          </button>
+                        </span>
+
+                        {showManageElsewhere ? (
+                          <span className="sets-page-set-card-manage-elsewhere">Beheer via collectie</span>
+                        ) : null}
+                        {hasConflictingRows ? (
+                          <span className="sets-page-set-card-manage-elsewhere is-error">Gegevensconflict</span>
+                        ) : null}
+                        {feedbackMessage ? (
+                          <span
+                            className={`sets-page-set-card-add-message${
+                              mutationState?.status === 'error' ? ' is-error' : ' is-success'
+                            }`}
+                            role={mutationState?.status === 'error' ? 'alert' : 'status'}
+                          >
+                            {feedbackMessage}
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                  </section>
+                </div>
+              );
+            })() : null}
           </div>
         );
       })() : null}

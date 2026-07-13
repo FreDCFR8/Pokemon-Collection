@@ -6,11 +6,11 @@ This is a living document. Update it after meaningful merges, database phases or
 
 ## Current phase
 
-**Active phase: Phase 7C-2C1 — persist collection quantity security in repository**
+**Active phase: Phase 7C-2C2 — manage card quantity from an opened set**
 
-Phase 7C-2C1 database security is prepared as a reproducible Supabase migration after the same SQL was successfully applied and read-only verified in the live database. An authenticated user may manage the quantity of their own owned Near Mint cards. Each update must change quantity by exactly one, and deletion is allowed only when quantity is 1.
+Opened-set cards now support quantity management for an owned Near Mint row in the active collection. The `0 → 1` path keeps the proven safe INSERT with quantity 1, quantity changes above zero use the secured exact `+1` or `-1` UPDATE, and `1 → 0` uses the secured DELETE path.
 
-This phase adds no frontend controls and changes no existing `collection_cards` data. The separate min/plus UI follows in Phase 7C-2C2.
+Other statuses and conditions still count as present for the "In collectie" badge, but are shown as "Beheer via collectie" and are not changed by these controls. Set completion remains based on unique physical card presence (`owned` or `trade`), never on quantity.
 
 ## Repository state
 
@@ -110,6 +110,7 @@ Available:
 - explicitly paginated Sets progress reads across more than 1,000 `collection_cards` rows
 - read-only per-card collection state in an opened set, limited to the active collection and currently loaded cards
 - adding one owned Near Mint copy from an opened set to the active collection when the card is proven absent
+- managing an owned Near Mint quantity from an opened set through secured INSERT, exact-step UPDATE and last-copy DELETE paths
 
 Not yet available:
 
@@ -153,7 +154,7 @@ The controlled `sv3pt5` write was approved, executed and verified. This is not g
 
 ## Next steps
 
-1. Implement the separate Phase 7C-2C2 frontend controls for quantity changes.
+1. Preview-test the Phase 7C-2C2 quantity controls for Lars and Lore on iPhone and desktop.
 2. Treat `sv3pt5` as the verified reference implementation for controlled catalog imports.
 3. Do not expand write support to other set or global-search flows until separately reviewed and validated.
 4. Preserve dry-run-first import behavior, stable IDs, idempotency and collection isolation.
