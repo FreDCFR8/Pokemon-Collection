@@ -15,6 +15,10 @@ export type {
 } from './collectionCardOwnershipTypes';
 export { projectCollectionOwnership, projectCollectionOwnershipBatch } from './collectionCardOwnershipProjector';
 export {
+  COLLECTION_CARD_READ_BATCH_SIZE,
+  createCollectionCardReadBatches,
+} from './collectionCardReadBatching';
+export {
   getCollectionCardOwnershipForCatalogCards,
   MAX_COLLECTION_CARD_READ_CARD_IDS,
 } from './collectionCardReadService';

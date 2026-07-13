@@ -1,5 +1,9 @@
 import { createBrowserSupabaseClient } from '../../lib/supabase';
 import { projectCollectionOwnershipBatch } from './collectionCardOwnershipProjector';
+import {
+  COLLECTION_CARD_READ_BATCH_SIZE,
+  createCollectionCardReadBatches,
+} from './collectionCardReadBatching';
 import type { ConfirmedOwnership, OwnershipRecordInput } from './collectionCardOwnershipTypes';
 
 type CollectionCardStateDatabaseRow = {
@@ -16,7 +20,7 @@ export type GetCollectionCardOwnershipParams = {
   cardCatalogIds: string[];
 };
 
-export const MAX_COLLECTION_CARD_READ_CARD_IDS = 100;
+export const MAX_COLLECTION_CARD_READ_CARD_IDS = COLLECTION_CARD_READ_BATCH_SIZE;
 
 const COLLECTION_CARD_STATE_SELECT = 'id, collection_id, card_catalog_id, quantity, condition, status';
 
@@ -36,11 +40,8 @@ export async function getCollectionCardOwnershipForCatalogCards({
   cardCatalogIds,
 }: GetCollectionCardOwnershipParams): Promise<Map<string, ConfirmedOwnership>> {
   const normalizedCollectionId = collectionId.trim();
-  const uniqueCardCatalogIds = [...new Set(cardCatalogIds.map((cardCatalogId) => cardCatalogId.trim()).filter(Boolean))];
-
-  if (uniqueCardCatalogIds.length > MAX_COLLECTION_CARD_READ_CARD_IDS) {
-    throw new Error(`Collectiestatus kan voor maximaal ${MAX_COLLECTION_CARD_READ_CARD_IDS} kaarten tegelijk worden opgehaald.`);
-  }
+  const cardCatalogIdBatches = createCollectionCardReadBatches(cardCatalogIds);
+  const uniqueCardCatalogIds = cardCatalogIdBatches.flat();
 
   if (uniqueCardCatalogIds.length === 0) {
     return new Map();
@@ -56,20 +57,26 @@ export async function getCollectionCardOwnershipForCatalogCards({
     throw new Error('Collectiestatus kan niet worden opgehaald omdat de publieke Supabase configuratie ontbreekt.');
   }
 
-  const { data, error } = await supabase
-    .from('collection_cards')
-    .select(COLLECTION_CARD_STATE_SELECT)
-    .eq('collection_id', normalizedCollectionId)
-    .in('card_catalog_id', uniqueCardCatalogIds)
-    .returns<CollectionCardStateDatabaseRow[]>();
+  const databaseRowsByBatch = await Promise.all(
+    cardCatalogIdBatches.map(async (cardCatalogIdBatch) => {
+      const { data, error } = await supabase
+        .from('collection_cards')
+        .select(COLLECTION_CARD_STATE_SELECT)
+        .eq('collection_id', normalizedCollectionId)
+        .in('card_catalog_id', cardCatalogIdBatch)
+        .returns<CollectionCardStateDatabaseRow[]>();
 
-  if (error) {
-    throw new Error(`Collectiestatus ophalen uit public.collection_cards is mislukt: ${error.message}`);
-  }
+      if (error) {
+        throw new Error(`Collectiestatus ophalen uit public.collection_cards is mislukt: ${error.message}`);
+      }
+
+      return data ?? [];
+    }),
+  );
 
   return projectCollectionOwnershipBatch({
     collectionId: normalizedCollectionId,
     cardCatalogIds: uniqueCardCatalogIds,
-    records: (data ?? []).map(mapDatabaseRow),
+    records: databaseRowsByBatch.flat().map(mapDatabaseRow),
   });
 }
