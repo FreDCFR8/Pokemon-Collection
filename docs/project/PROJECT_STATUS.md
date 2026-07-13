@@ -1,14 +1,14 @@
 # Pokémon Collection V3 — Project Status
 
-_Last updated: 2026-07-11_
+_Last updated: 2026-07-13_
 
 This is a living document. Update it after meaningful merges, database phases or roadmap decisions.
 
 ## Current phase
 
-**Phase 7C-1B — paginate collection progress reads**
+**Phase 7B-2E — controlled write for sv3pt5**
 
-The current immediate objective is to make the existing read-only Sets progress flow reliable for collections above one Supabase/PostgREST response page, without changing database schema, writes or the Sets UI.
+The current immediate objective is to add an explicitly authorized, idempotent and recoverable write mode to the local catalog import for `sv3pt5`, while keeping dry-run as the default and keeping `collection_cards` outside the import process.
 
 ## Repository state
 
@@ -18,7 +18,13 @@ The current immediate objective is to make the existing read-only Sets progress 
 - PR 91 proved that the Vercel integration works
 - PR 91 also showed that live API calls from a Vercel Function are not the preferred architecture for reliable bulk import because of timeout and recoverability limits
 - PR 95–98 are merged
-- No import implementation is currently approved for merge
+- The Phase 7B-2E write implementation is under review; no live catalog write is approved yet
+
+## Phase 7B-2D live dry-run evidence
+
+The local live dry-run for Pokémon TCG API set `sv3pt5` (`151`) passed with exactly 207 of 207 cards. It found 71 existing external-reference matches and 136 new cards, with 0 ambiguous matches, 0 conflicts, 0 metadata changes and 0 database writes.
+
+Phase 7B-2E now adds the controlled write capability. The actual write may run only after code review and another green local dry-run of the new PR.
 
 ## Current architecture baseline
 
@@ -138,16 +144,15 @@ Mandatory design rules:
 - synchronization produces a clear report or log;
 - no automatic deletes are allowed.
 
-Catalog writes remain blocked until the local live dry-run of the catalog import is green and reviewed.
+Catalog writes remain blocked until the Phase 7B-2E code is reviewed, its new local dry-run is green and the user explicitly confirms readiness for the controlled write.
 
 ## Next steps
 
-1. Complete Phase 7C-1B by paginating collection progress reads and verifying the Sets page still behaves normally.
-2. Keep the local live dry-run of the catalog import open until it has a green reviewed result.
-3. Keep catalog writes blocked until that dry-run is approved.
-4. Then import one complete test set with transaction safeguards.
-5. Verify duplicates, counts, stable internal IDs, collection stability and query performance.
-6. Only then prepare full catalog synchronization.
+1. Review the complete Phase 7B-2E PR diff.
+2. Run the new local dry-run and reconfirm 71 existing matches, 136 new cards, 0 ambiguous matches, conflicts and metadata changes, and 0 database writes.
+3. Keep `--write` blocked until the user explicitly confirms readiness after those checks.
+4. Execute the controlled `sv3pt5` write locally and verify references, stable internal IDs and the unchanged `collection_cards` count.
+5. Continue Phase 7C work only from the verified catalog result.
 
 ## Roadmap
 

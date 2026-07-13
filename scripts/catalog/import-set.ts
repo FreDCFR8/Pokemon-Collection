@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { randomUUID } from 'node:crypto';
 
 const ALLOWED_SET_ID = 'sv3pt5';
 const SOURCE = 'pokemon_tcg_api';
@@ -12,7 +13,7 @@ const EXAMPLE_LIMIT = 10;
 const RETRY_STATUSES = new Set([429, 502, 503, 504]);
 const PERMANENT_STATUSES = new Set([400, 401, 403, 404]);
 
-type CliOptions = { setId: string };
+type CliOptions = { setId: string; write: boolean };
 
 type SupabaseConfig = { url: string; serviceRoleKey: string };
 
@@ -31,6 +32,12 @@ type CatalogCardRow = {
   rarity: string | null;
   image_small: string | null;
   image_large: string | null;
+};
+
+type CatalogIdentityRow = {
+  id: string;
+  external_source: string | null;
+  external_id: string | null;
 };
 
 type SetCatalogRow = {
@@ -69,6 +76,61 @@ type MatchingReport = {
   metadataChangedExamples: MatchExample[];
   fallbackAvailable: boolean;
   setCode?: string;
+  classifications: CardClassification[];
+  errors: string[];
+};
+
+type CardClassification =
+  | { kind: 'existing'; externalCard: PokemonCard; catalogCard: CatalogCardRow }
+  | { kind: 'fallback'; externalCard: PokemonCard; catalogCard: CatalogCardRow }
+  | { kind: 'new'; externalCard: PokemonCard };
+
+type PlannedCatalogInsert = {
+  id: string;
+  external_source: string;
+  external_id: string;
+  pokemon: string;
+  set_name: string;
+  number: string;
+  rarity: string | null;
+  image_small: string | null;
+  image_large: string | null;
+  set_code: string;
+};
+
+type PlannedReferenceInsert = {
+  card_catalog_id: string;
+  source: string;
+  external_id: string;
+  source_url: string | null;
+  last_seen_at: string;
+};
+
+type WritePlan = {
+  existingMatches: number;
+  newCatalogRows: PlannedCatalogInsert[];
+  referencesForNewCards: PlannedReferenceInsert[];
+  referencesForExistingCandidates: PlannedReferenceInsert[];
+  blockedItems: number;
+  plannedDatabaseWrites: number;
+  errors: string[];
+};
+
+type WriteStats = {
+  cardsCatalogInserted: number;
+  referencesInsertedForNewCards: number;
+  referencesInsertedForExistingCandidates: number;
+  existingMatchesUnchanged: number;
+  failedWrites: number;
+  errors: string[];
+};
+
+type PostWriteVerification = {
+  referenceCount: number;
+  uniqueExternalReferenceCount: number;
+  catalogLinkCount: number;
+  collectionCardsBefore: number;
+  collectionCardsAfter: number;
   errors: string[];
 };
 
@@ -124,11 +186,13 @@ class InvalidResponseError extends Error {}
 
 function parseArgs(argv: string[]): CliOptions {
   let setId: string | undefined;
+  let write = false;
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
 
     if (arg === '--set') {
+      if (setId !== undefined) throw new UserFacingError('--set mag slechts eenmaal worden opgegeven.');
       const value = argv[index + 1];
       if (!value || value.startsWith('--')) {
         throw new UserFacingError('Ontbrekende waarde voor --set. Gebruik: npm run catalog:import -- --set sv3pt5');
@@ -139,12 +203,19 @@ function parseArgs(argv: string[]): CliOptions {
     }
 
     if (arg.startsWith('--set=')) {
+      if (setId !== undefined) throw new UserFacingError('--set mag slechts eenmaal worden opgegeven.');
       setId = arg.slice('--set='.length);
       continue;
     }
 
-    if (arg === '--write' || arg.startsWith('--write=')) {
-      throw new UserFacingError('Writes worden in Phase 7B-2D niet ondersteund. Dit script draait uitsluitend in DRY RUN-modus.');
+    if (arg === '--write') {
+      if (write) throw new UserFacingError('--write mag slechts eenmaal worden opgegeven.');
+      write = true;
+      continue;
+    }
+
+    if (arg.startsWith('--write=')) {
+      throw new UserFacingError('Ongeldige --write-variant. Alleen het exacte argument --write is toegestaan.');
     }
 
     throw new UserFacingError(`Onbekend argument: ${arg}`);
@@ -158,7 +229,7 @@ function parseArgs(argv: string[]): CliOptions {
     throw new UserFacingError(`Ongeldige set-ID: ${setId}. In deze fase is alleen ${ALLOWED_SET_ID} toegestaan.`);
   }
 
-  return { setId };
+  return { setId, write };
 }
 
 function getApiKey(): string {
@@ -419,9 +490,17 @@ function addExample(list: MatchExample[], example: MatchExample): void {
   list.push(example);
 }
 
+function sanitizeErrorMessage(message: string): string {
+  let sanitized = message.replace(/([?&](?:apikey|key|token|access_token)=)[^&\s]+/gi, '$1[REDACTED]');
+  for (const secret of [process.env.POKEMON_TCG_API_KEY, process.env.SUPABASE_SERVICE_ROLE_KEY]) {
+    if (secret && secret.length >= 8) sanitized = sanitized.split(secret).join('[REDACTED]');
+  }
+  return sanitized;
+}
+
 async function readRows<T>(query: PromiseLike<{ data: T[] | null; error: { message: string } | null }>, label: string): Promise<T[]> {
   const { data, error } = await query;
-  if (error) throw new UserFacingError(`Supabase-query mislukt (${label}): ${error.message}`);
+  if (error) throw new UserFacingError(`Supabase-query mislukt (${label}): ${sanitizeErrorMessage(error.message)}`);
   return data ?? [];
 }
 
@@ -439,6 +518,32 @@ async function fetchExternalReferences(supabase: SupabaseClient, externalIds: st
       ...(await readRows<ExternalReferenceRow>(
         supabase.from('card_external_references').select('id,source,external_id,card_catalog_id').eq('source', SOURCE).in('external_id', batch),
         'card_external_references',
+      )),
+    );
+  }
+  return rows;
+}
+
+async function fetchReferencesByCardIds(supabase: SupabaseClient, cardIds: string[]): Promise<ExternalReferenceRow[]> {
+  const rows: ExternalReferenceRow[] = [];
+  for (const batch of chunks(uniqueSorted(cardIds), SUPABASE_BATCH_SIZE)) {
+    rows.push(
+      ...(await readRows<ExternalReferenceRow>(
+        supabase.from('card_external_references').select('id,source,external_id,card_catalog_id').eq('source', SOURCE).in('card_catalog_id', batch),
+        'card_external_references by card_catalog_id',
+      )),
+    );
+  }
+  return rows;
+}
+
+async function fetchCatalogIdentities(supabase: SupabaseClient, externalIds: string[]): Promise<CatalogIdentityRow[]> {
+  const rows: CatalogIdentityRow[] = [];
+  for (const batch of chunks(uniqueSorted(externalIds), SUPABASE_BATCH_SIZE)) {
+    rows.push(
+      ...(await readRows<CatalogIdentityRow>(
+        supabase.from('cards_catalog').select('id,external_source,external_id').eq('external_source', SOURCE).in('external_id', batch),
+        'cards_catalog by external identity',
       )),
     );
   }
@@ -467,6 +572,24 @@ async function fetchFallbackCandidates(supabase: SupabaseClient, setCode: string
         'cards_catalog fallback candidates',
       )),
     );
+  }
+  return rows;
+}
+
+async function fetchCatalogCardsForSet(supabase: SupabaseClient, setCode: string): Promise<CatalogCardRow[]> {
+  const rows: CatalogCardRow[] = [];
+  for (let offset = 0; ; offset += SUPABASE_BATCH_SIZE) {
+    const batch = await readRows<CatalogCardRow>(
+      supabase
+        .from('cards_catalog')
+        .select('id,set_code,number,pokemon,rarity,image_small,image_large')
+        .eq('set_code', setCode)
+        .order('id')
+        .range(offset, offset + SUPABASE_BATCH_SIZE - 1),
+      'cards_catalog post-write set verification',
+    );
+    rows.push(...batch);
+    if (batch.length < SUPABASE_BATCH_SIZE) break;
   }
   return rows;
 }
@@ -508,6 +631,14 @@ async function matchCards(supabase: SupabaseClient, setId: string, externalCards
   const linkedCardIds = uniqueSorted(references.map((reference) => reference.card_catalog_id).filter((cardId): cardId is string => Boolean(cardId)));
   const linkedCatalogCards = await fetchCatalogCardsByIds(supabase, linkedCardIds);
   const catalogById = new Map(linkedCatalogCards.map((card) => [card.id, card]));
+  const linkedSourceReferences = await fetchReferencesByCardIds(supabase, linkedCardIds);
+  const sourceReferencesByCardId = new Map<string, ExternalReferenceRow[]>();
+  for (const reference of linkedSourceReferences) {
+    if (!reference.card_catalog_id) continue;
+    const list = sourceReferencesByCardId.get(reference.card_catalog_id) ?? [];
+    list.push(reference);
+    sourceReferencesByCardId.set(reference.card_catalog_id, list);
+  }
 
   const cardsWithoutPrimary = externalCards.filter((card) => (referencesByExternalId.get(card.id) ?? []).length === 0);
   const fallbackNumbers = setCode ? uniqueSorted(cardsWithoutPrimary.map((card) => normalizeRequired(card.number)).filter(Boolean)) : [];
@@ -519,6 +650,17 @@ async function matchCards(supabase: SupabaseClient, setId: string, externalCards
     const list = fallbackByNumber.get(number) ?? [];
     list.push(card);
     fallbackByNumber.set(number, list);
+  }
+  const fallbackReferences = await fetchReferencesByCardIds(
+    supabase,
+    fallbackCards.map((card) => card.id),
+  );
+  const fallbackReferencesByCardId = new Map<string, ExternalReferenceRow[]>();
+  for (const reference of fallbackReferences) {
+    if (!reference.card_catalog_id) continue;
+    const list = fallbackReferencesByCardId.get(reference.card_catalog_id) ?? [];
+    list.push(reference);
+    fallbackReferencesByCardId.set(reference.card_catalog_id, list);
   }
 
   const report: MatchingReport = {
@@ -541,6 +683,7 @@ async function matchCards(supabase: SupabaseClient, setId: string, externalCards
     metadataChangedExamples: [],
     fallbackAvailable: Boolean(setCode),
     setCode,
+    classifications: [],
     errors,
   };
 
@@ -567,6 +710,12 @@ async function matchCards(supabase: SupabaseClient, setId: string, externalCards
         addExample(report.conflictExamples, { ...baseExample, card_catalog_id: reference.card_catalog_id, reason: 'dangling_card_catalog_id' });
         continue;
       }
+      const referencesForCatalogCard = sourceReferencesByCardId.get(reference.card_catalog_id) ?? [];
+      if (referencesForCatalogCard.length !== 1 || referencesForCatalogCard[0].id !== reference.id) {
+        report.conflicts += 1;
+        addExample(report.conflictExamples, { ...baseExample, card_catalog_id: reference.card_catalog_id, reason: 'catalog_card_has_multiple_source_references' });
+        continue;
+      }
 
       report.matchedByExternalReference += 1;
       const changedFields = compareMetadata(externalCard, catalogCard, setCode);
@@ -575,6 +724,7 @@ async function matchCards(supabase: SupabaseClient, setId: string, externalCards
         addExample(report.metadataChangedExamples, { ...baseExample, card_catalog_id: catalogCard.id, changed_fields: changedFields });
       } else {
         report.metadataUnchanged += 1;
+        report.classifications.push({ kind: 'existing', externalCard, catalogCard });
       }
       continue;
     }
@@ -587,14 +737,30 @@ async function matchCards(supabase: SupabaseClient, setId: string, externalCards
 
     const candidates = fallbackByNumber.get(normalizeRequired(externalCard.number)) ?? [];
     if (candidates.length === 1) {
-      report.candidateBySetAndNumber += 1;
-      addExample(report.candidateExamples, { ...baseExample, card_catalog_id: candidates[0].id });
+      const candidate = candidates[0];
+      const changedFields = compareMetadata(externalCard, candidate, setCode);
+      const conflictingReferences = fallbackReferencesByCardId.get(candidate.id) ?? [];
+      if (changedFields.length > 0) {
+        report.conflicts += 1;
+        report.metadataChanged += 1;
+        addExample(report.metadataChangedExamples, { ...baseExample, card_catalog_id: candidate.id, changed_fields: changedFields });
+        addExample(report.conflictExamples, { ...baseExample, card_catalog_id: candidate.id, changed_fields: changedFields, reason: 'fallback_metadata_mismatch' });
+      } else if (conflictingReferences.length > 0) {
+        report.conflicts += 1;
+        addExample(report.conflictExamples, { ...baseExample, card_catalog_id: candidate.id, reason: 'fallback_candidate_already_has_source_reference' });
+      } else {
+        report.candidateBySetAndNumber += 1;
+        report.metadataUnchanged += 1;
+        addExample(report.candidateExamples, { ...baseExample, card_catalog_id: candidate.id });
+        report.classifications.push({ kind: 'fallback', externalCard, catalogCard: candidate });
+      }
     } else if (candidates.length > 1) {
       report.ambiguous += 1;
       addExample(report.ambiguousExamples, { ...baseExample, reason: `${candidates.length}_fallback_candidates` });
     } else {
       report.newCards += 1;
       addExample(report.newExamples, baseExample);
+      report.classifications.push({ kind: 'new', externalCard });
     }
   }
 
@@ -609,6 +775,7 @@ async function matchCards(supabase: SupabaseClient, setId: string, externalCards
   if (report.conflicts > 0) errors.push('Conflicten gevonden in externe referenties.');
   if (report.ambiguous > 0) errors.push('Ambigue fallbackmatches gevonden.');
   if (report.unresolvedWithoutSetMapping > 0) errors.push('Niet-gematchte kaarten zonder betrouwbare setmapping gevonden.');
+  if (report.metadataChanged > 0) errors.push('Bestaande catalogusmetadata wijkt af; automatische metadata-updates zijn niet toegestaan.');
 
   report.candidateExamples = sortExamples(report.candidateExamples);
   report.newExamples = sortExamples(report.newExamples);
@@ -617,6 +784,224 @@ async function matchCards(supabase: SupabaseClient, setId: string, externalCards
   report.unresolvedWithoutSetMappingExamples = sortExamples(report.unresolvedWithoutSetMappingExamples);
   report.metadataChangedExamples = sortExamples(report.metadataChangedExamples);
   return report;
+}
+
+function buildWritePlan(matching: MatchingReport, setName: string, importedAt: string, totalCards: number): WritePlan {
+  const newCatalogRows: PlannedCatalogInsert[] = [];
+  const referencesForNewCards: PlannedReferenceInsert[] = [];
+  const referencesForExistingCandidates: PlannedReferenceInsert[] = [];
+  const setCode = matching.setCode;
+
+  for (const classification of [...matching.classifications].sort((a, b) => a.externalCard.id.localeCompare(b.externalCard.id))) {
+    if (classification.kind === 'existing') continue;
+    if (!setCode) continue;
+
+    if (classification.kind === 'fallback') {
+      referencesForExistingCandidates.push({
+        card_catalog_id: classification.catalogCard.id,
+        source: SOURCE,
+        external_id: classification.externalCard.id,
+        source_url: null,
+        last_seen_at: importedAt,
+      });
+      continue;
+    }
+
+    const id = randomUUID();
+    newCatalogRows.push({
+      id,
+      external_source: SOURCE,
+      external_id: classification.externalCard.id,
+      pokemon: normalizeRequired(classification.externalCard.name),
+      set_name: normalizeRequired(setName),
+      number: normalizeRequired(classification.externalCard.number),
+      rarity: normalizeOptional(classification.externalCard.rarity),
+      image_small: normalizeOptional(classification.externalCard.images?.small),
+      image_large: normalizeOptional(classification.externalCard.images?.large),
+      set_code: setCode,
+    });
+    referencesForNewCards.push({
+      card_catalog_id: id,
+      source: SOURCE,
+      external_id: classification.externalCard.id,
+      source_url: null,
+      last_seen_at: importedAt,
+    });
+  }
+
+  const existingMatches = matching.classifications.filter((classification) => classification.kind === 'existing').length;
+  const plannedReferences = [...referencesForNewCards, ...referencesForExistingCandidates];
+  const duplicatePlannedExternalIds = new Set(duplicateValues(plannedReferences.map((row) => row.external_id)));
+  const duplicatePlannedCatalogIds = new Set(duplicateValues(plannedReferences.map((row) => row.card_catalog_id)));
+  const unsafePlannedReferences = plannedReferences.filter(
+    (row) => duplicatePlannedExternalIds.has(row.external_id) || duplicatePlannedCatalogIds.has(row.card_catalog_id),
+  ).length;
+  const errors: string[] = [];
+  if (duplicatePlannedExternalIds.size > 0) errors.push('Het writeplan bevat dubbele geplande source + external_id-references.');
+  if (duplicatePlannedCatalogIds.size > 0) errors.push('Het writeplan bevat dubbele geplande card_catalog_id + source-references.');
+  if (newCatalogRows.length !== referencesForNewCards.length) errors.push('Nieuwe cataloguskaarten en hun geplande references vormen geen één-op-éénkoppeling.');
+  const blockedItems = totalCards - matching.classifications.length + unsafePlannedReferences;
+  return {
+    existingMatches,
+    newCatalogRows,
+    referencesForNewCards,
+    referencesForExistingCandidates,
+    blockedItems,
+    plannedDatabaseWrites: newCatalogRows.length + referencesForNewCards.length + referencesForExistingCandidates.length,
+    errors,
+  };
+}
+
+async function countCollectionCards(supabase: SupabaseClient): Promise<number> {
+  const { count, error } = await supabase.from('collection_cards').select('id', { count: 'exact', head: true });
+  if (error) throw new UserFacingError(`Supabase-query mislukt (collection_cards veiligheidscontrole): ${sanitizeErrorMessage(error.message)}`);
+  if (count === null) throw new UserFacingError('Supabase gaf geen collection_cards-count terug voor de veiligheidscontrole.');
+  return count;
+}
+
+async function assertNoCatalogIdentities(supabase: SupabaseClient, rows: PlannedCatalogInsert[]): Promise<void> {
+  const existing = await fetchCatalogIdentities(
+    supabase,
+    rows.map((row) => row.external_id),
+  );
+  if (existing.length > 0) {
+    throw new UserFacingError('Defensieve batchcontrole blokkeerde een cards_catalog-insert omdat de externe identiteit inmiddels bestaat. Voer de import opnieuw uit.');
+  }
+}
+
+async function assertNoReferences(supabase: SupabaseClient, rows: PlannedReferenceInsert[]): Promise<void> {
+  const byExternalId = await fetchExternalReferences(
+    supabase,
+    rows.map((row) => row.external_id),
+  );
+  const byCatalogId = await fetchReferencesByCardIds(
+    supabase,
+    rows.map((row) => row.card_catalog_id),
+  );
+  if (byExternalId.length > 0 || byCatalogId.length > 0) {
+    throw new UserFacingError('Defensieve batchcontrole blokkeerde een reference-insert omdat source + external_id of card_catalog_id + source inmiddels bestaat. Voer de import opnieuw uit.');
+  }
+}
+
+async function insertRows(supabase: SupabaseClient, table: 'cards_catalog' | 'card_external_references', rows: unknown[], label: string): Promise<number> {
+  const { data, error } = await supabase.from(table).insert(rows).select('id');
+  if (error) throw new UserFacingError(`Supabase-insert mislukt (${label}): ${sanitizeErrorMessage(error.message)}`);
+  if (!data || data.length !== rows.length) {
+    throw new UserFacingError(`Supabase-insert gaf een onverwacht aantal bevestigde rijen terug (${label}).`);
+  }
+  return data.length;
+}
+
+async function executeWritePlan(supabase: SupabaseClient, plan: WritePlan): Promise<WriteStats> {
+  const stats: WriteStats = {
+    cardsCatalogInserted: 0,
+    referencesInsertedForNewCards: 0,
+    referencesInsertedForExistingCandidates: 0,
+    existingMatchesUnchanged: plan.existingMatches,
+    failedWrites: 0,
+    errors: [],
+  };
+
+  for (const batch of chunks(plan.newCatalogRows, SUPABASE_BATCH_SIZE)) {
+    try {
+      await assertNoCatalogIdentities(supabase, batch);
+      stats.cardsCatalogInserted += await insertRows(supabase, 'cards_catalog', batch, 'nieuwe cards_catalog-records');
+    } catch (error) {
+      stats.failedWrites += batch.length;
+      stats.errors.push(error instanceof Error ? error.message : 'Onbekende fout bij cards_catalog-insert.');
+      return stats;
+    }
+  }
+
+  for (const batch of chunks(plan.referencesForNewCards, SUPABASE_BATCH_SIZE)) {
+    try {
+      await assertNoReferences(supabase, batch);
+      stats.referencesInsertedForNewCards += await insertRows(supabase, 'card_external_references', batch, 'references voor nieuwe kaarten');
+    } catch (error) {
+      stats.failedWrites += batch.length;
+      stats.errors.push(error instanceof Error ? error.message : 'Onbekende fout bij references voor nieuwe kaarten.');
+      return stats;
+    }
+  }
+
+  for (const batch of chunks(plan.referencesForExistingCandidates, SUPABASE_BATCH_SIZE)) {
+    try {
+      await assertNoReferences(supabase, batch);
+      stats.referencesInsertedForExistingCandidates += await insertRows(
+        supabase,
+        'card_external_references',
+        batch,
+        'references voor bestaande fallbackkandidaten',
+      );
+    } catch (error) {
+      stats.failedWrites += batch.length;
+      stats.errors.push(error instanceof Error ? error.message : 'Onbekende fout bij references voor bestaande fallbackkandidaten.');
+      return stats;
+    }
+  }
+
+  return stats;
+}
+
+function duplicateValues(values: string[]): string[] {
+  const counts = new Map<string, number>();
+  for (const value of values) counts.set(value, (counts.get(value) ?? 0) + 1);
+  return [...counts.entries()].filter(([, count]) => count > 1).map(([value]) => value);
+}
+
+async function verifyPostWrite(params: {
+  supabase: SupabaseClient;
+  externalCards: PokemonCard[];
+  expectedCards: number;
+  setCode: string;
+  collectionCardsBefore: number;
+}): Promise<PostWriteVerification> {
+  const collectionCardsAfter = await countCollectionCards(params.supabase);
+  const catalogCardsForSet = await fetchCatalogCardsForSet(params.supabase, params.setCode);
+  const referencesForSet = await fetchReferencesByCardIds(
+    params.supabase,
+    catalogCardsForSet.map((card) => card.id),
+  );
+  const incomingExternalIds = uniqueSorted(params.externalCards.map((card) => card.id));
+  const incomingReferences = await fetchExternalReferences(params.supabase, incomingExternalIds);
+  const incomingLinkedIds = uniqueSorted(
+    incomingReferences.map((reference) => reference.card_catalog_id).filter((cardId): cardId is string => Boolean(cardId)),
+  );
+  const incomingLinkedCards = await fetchCatalogCardsByIds(params.supabase, incomingLinkedIds);
+  const errors: string[] = [];
+  const referenceExternalIds = referencesForSet.map((reference) => reference.external_id);
+  const referenceCatalogIds = referencesForSet
+    .map((reference) => reference.card_catalog_id)
+    .filter((cardId): cardId is string => Boolean(cardId));
+  const uniqueExternalReferenceCount = new Set(referenceExternalIds).size;
+  const catalogLinkCount = new Set(referenceCatalogIds).size;
+
+  if (referencesForSet.length !== params.expectedCards) errors.push(`Post-write reference count is ${referencesForSet.length}; verwacht ${params.expectedCards}.`);
+  if (uniqueExternalReferenceCount !== params.expectedCards) errors.push(`Post-write unieke external_id-count is ${uniqueExternalReferenceCount}; verwacht ${params.expectedCards}.`);
+  if (catalogLinkCount !== params.expectedCards) errors.push(`Post-write unieke card_catalog_id-count is ${catalogLinkCount}; verwacht ${params.expectedCards}.`);
+  if (referencesForSet.some((reference) => !reference.card_catalog_id)) errors.push('Post-write verificatie vond een ontbrekende card_catalog_id.');
+  if (duplicateValues(referenceExternalIds).length > 0) errors.push('Post-write verificatie vond dubbele source + external_id-references.');
+  if (duplicateValues(referenceCatalogIds).length > 0) errors.push('Post-write verificatie vond dubbele card_catalog_id + source-references.');
+  if (incomingReferences.length !== params.expectedCards) errors.push(`Niet iedere API-kaart heeft na de write exact één externe reference (${incomingReferences.length}/${params.expectedCards}).`);
+  if (incomingReferences.some((reference) => !reference.card_catalog_id)) errors.push('Minstens één API-reference heeft na de write geen card_catalog_id.');
+  if (duplicateValues(incomingReferences.map((reference) => reference.external_id)).length > 0) errors.push('Een API external_id heeft na de write meer dan één source-reference.');
+  if (uniqueSorted(referenceExternalIds).join('|') !== incomingExternalIds.join('|')) errors.push('De externe references voor de set komen niet exact overeen met de gevalideerde API-kaart-ID’s.');
+  if (incomingLinkedCards.length !== incomingLinkedIds.length) errors.push('Minstens één externe reference verwijst niet naar een bestaande cards_catalog-rij.');
+  if (incomingLinkedCards.some((card) => card.set_code !== params.setCode)) errors.push('Minstens één gekoppelde cataloguskaart heeft niet de verwachte set_code.');
+  if (collectionCardsAfter !== params.collectionCardsBefore) {
+    errors.push(
+      `KRITIEKE VEILIGHEIDSWAARSCHUWING: collection_cards-count veranderde van ${params.collectionCardsBefore} naar ${collectionCardsAfter}. Externe gelijktijdige activiteit is mogelijk; dit script bevat geen collection_cards-writepad.`,
+    );
+  }
+
+  return {
+    referenceCount: referencesForSet.length,
+    uniqueExternalReferenceCount,
+    catalogLinkCount,
+    collectionCardsBefore: params.collectionCardsBefore,
+    collectionCardsAfter,
+    errors,
+  };
 }
 
 function printExamples(title: string, examples: MatchExample[]): void {
@@ -637,6 +1022,7 @@ function printExamples(title: string, examples: MatchExample[]): void {
 }
 
 function printReport(params: {
+  write: boolean;
   setId: string;
   setName: string;
   expectedCards: number | string;
@@ -652,13 +1038,12 @@ function printReport(params: {
   retriesUsed: number;
   durationMs: number;
   matching?: MatchingReport;
-  passed: boolean;
 }): void {
-  console.log('Catalog import dry run');
+  console.log(params.write ? 'Catalog import write' : 'Catalog import dry run');
   console.log(`Source: ${SOURCE}`);
   console.log(`Set: ${params.setId}`);
   console.log(`Set name: ${params.setName}`);
-  console.log('Mode: DRY RUN');
+  console.log(`Mode: ${params.write ? 'WRITE' : 'DRY RUN'}`);
   console.log('');
   console.log(`Expected cards: ${params.expectedCards}`);
   console.log(`Received cards: ${params.receivedCards}`);
@@ -696,18 +1081,49 @@ function printReport(params: {
     printExamples('Metadata changed samples', params.matching.metadataChangedExamples);
     console.log('');
   }
-  console.log(`Result: ${params.passed ? 'PASS' : 'FAIL'}`);
-  console.log('Database writes: 0');
+}
+
+function printWritePlan(plan: WritePlan): void {
+  console.log('Writeplan');
+  console.log(`Bestaande matches ongewijzigd: ${plan.existingMatches}`);
+  console.log(`Nieuwe cards_catalog-records: ${plan.newCatalogRows.length}`);
+  console.log(`Nieuwe card_external_references: ${plan.referencesForNewCards.length}`);
+  console.log(`Veilige references voor bestaande fallbackkandidaten: ${plan.referencesForExistingCandidates.length}`);
+  console.log(`Geblokkeerde items: ${plan.blockedItems}`);
+  console.log(`Geplande databasewrites: ${plan.plannedDatabaseWrites}`);
+  console.log('');
+}
+
+function printFinalResult(passed: boolean, databaseWrites: number): void {
+  console.log(`Result: ${passed ? 'PASS' : 'FAIL'}`);
+  console.log(`Database writes: ${databaseWrites}`);
+}
+
+function printPostWriteReport(stats: WriteStats, verification: PostWriteVerification): void {
+  console.log('Post-write resultaat');
+  console.log(`cards_catalog toegevoegd: ${stats.cardsCatalogInserted}`);
+  console.log(`References toegevoegd voor nieuwe kaarten: ${stats.referencesInsertedForNewCards}`);
+  console.log(`References toegevoegd voor bestaande kandidaten: ${stats.referencesInsertedForExistingCandidates}`);
+  console.log(`Bestaande matches ongewijzigd: ${stats.existingMatchesUnchanged}`);
+  console.log(`Mislukte writes: ${stats.failedWrites}`);
+  console.log(`Verificatie reference-count: ${verification.referenceCount}`);
+  console.log(`Verificatie unieke external-reference-count: ${verification.uniqueExternalReferenceCount}`);
+  console.log(`Verificatie cataloguskoppelingen: ${verification.catalogLinkCount}`);
+  console.log(`collection_cards vóór: ${verification.collectionCardsBefore}`);
+  console.log(`collection_cards na: ${verification.collectionCardsAfter}`);
+  console.log('');
 }
 
 async function main(): Promise<number> {
   const start = Date.now();
   const stats: FetchStats = { retriesUsed: 0 };
   let setId = ALLOWED_SET_ID;
+  let writeMode = process.argv.slice(2).includes('--write');
 
   try {
     const options = parseArgs(process.argv.slice(2));
     setId = options.setId;
+    writeMode = options.write;
     const apiKey = getApiKey();
     const supabaseConfig = getSupabaseConfig();
     const supabase = createSupabase(supabaseConfig);
@@ -716,10 +1132,15 @@ async function main(): Promise<number> {
     const validation = validate(set, cards);
     const uniqueExternalIds = new Set(cards.cards.map((card) => card.id).filter(Boolean)).size;
     const matching = await matchCards(supabase, setId, cards.cards);
-    const allErrors = [...validation.errors, ...matching.errors];
+    const writePlan = buildWritePlan(matching, set.name, new Date().toISOString(), cards.cards.length);
+    const allErrors = [...validation.errors, ...matching.errors, ...writePlan.errors];
+    if (writePlan.blockedItems > 0 && !allErrors.includes('Minstens één item kon niet eenduidig in het writeplan worden opgenomen.')) {
+      allErrors.push('Minstens één item kon niet eenduidig in het writeplan worden opgenomen.');
+    }
     const passed = allErrors.length === 0;
 
     printReport({
+      write: options.write,
       setId,
       setName: set.name,
       expectedCards: set.total,
@@ -735,24 +1156,85 @@ async function main(): Promise<number> {
       retriesUsed: stats.retriesUsed,
       durationMs: Date.now() - start,
       matching,
-      passed,
     });
+    printWritePlan(writePlan);
 
     if (!passed) {
       for (const error of allErrors) console.error(`Fout: ${error}`);
+      printFinalResult(false, 0);
+      return 1;
     }
 
-    return passed ? 0 : 1;
+    if (!options.write) {
+      printFinalResult(true, 0);
+      return 0;
+    }
+
+    try {
+      await assertNoCatalogIdentities(supabase, writePlan.newCatalogRows);
+      await assertNoReferences(supabase, [...writePlan.referencesForNewCards, ...writePlan.referencesForExistingCandidates]);
+    } catch (error) {
+      console.error(`Fout: pre-write gate geblokkeerd: ${error instanceof Error ? error.message : 'defensieve writecontrole mislukt.'}`);
+      printFinalResult(false, 0);
+      return 1;
+    }
+
+    let collectionCardsBefore: number;
+    try {
+      collectionCardsBefore = await countCollectionCards(supabase);
+    } catch (error) {
+      console.error(`Fout: ${error instanceof Error ? error.message : 'collection_cards veiligheidscontrole mislukt.'}`);
+      printFinalResult(false, 0);
+      return 1;
+    }
+
+    const writeStats = await executeWritePlan(supabase, writePlan);
+    let verification: PostWriteVerification;
+    try {
+      verification = await verifyPostWrite({
+        supabase,
+        externalCards: cards.cards,
+        expectedCards: set.total,
+        setCode: matching.setCode!,
+        collectionCardsBefore,
+      });
+    } catch (error) {
+      let collectionCardsAfter = -1;
+      try {
+        collectionCardsAfter = await countCollectionCards(supabase);
+      } catch {
+        // De oorspronkelijke verificatiefout blijft leidend; -1 maakt de ontbrekende count zichtbaar.
+      }
+      verification = {
+        referenceCount: -1,
+        uniqueExternalReferenceCount: -1,
+        catalogLinkCount: -1,
+        collectionCardsBefore,
+        collectionCardsAfter,
+        errors: [error instanceof Error ? error.message : 'Onbekende fout tijdens post-write verificatie.'],
+      };
+    }
+
+    const databaseWrites =
+      writeStats.cardsCatalogInserted + writeStats.referencesInsertedForNewCards + writeStats.referencesInsertedForExistingCandidates;
+    const writeErrors = [...writeStats.errors, ...verification.errors];
+    if (databaseWrites !== writePlan.plannedDatabaseWrites) {
+      writeErrors.push(`Werkelijke databasewrites (${databaseWrites}) verschillen van het goedgekeurde writeplan (${writePlan.plannedDatabaseWrites}).`);
+    }
+    const writePassed = writeErrors.length === 0;
+    printPostWriteReport(writeStats, verification);
+    for (const error of writeErrors) console.error(`Fout: ${sanitizeErrorMessage(error)}`);
+    printFinalResult(writePassed, databaseWrites);
+    return writePassed ? 0 : 1;
   } catch (error) {
-    console.error('Catalog import dry run');
+    console.error(writeMode ? 'Catalog import write' : 'Catalog import dry run');
     console.error(`Source: ${SOURCE}`);
     console.error(`Set: ${setId}`);
-    console.error('Mode: DRY RUN');
+    console.error(`Mode: ${writeMode ? 'WRITE' : 'DRY RUN'}`);
     console.error('');
-    const message = error instanceof Error ? error.message : 'Onbekende fout tijdens catalog import dry run.';
-    console.error(`Fout: ${message}`);
-    console.error('Result: FAIL');
-    console.error('Database writes: 0');
+    const message = error instanceof Error ? error.message : 'Onbekende fout tijdens catalog import.';
+    console.error(`Fout: ${sanitizeErrorMessage(message)}`);
+    printFinalResult(false, 0);
     return 1;
   }
 }
@@ -762,7 +1244,7 @@ main()
     process.exitCode = exitCode;
   })
   .catch(() => {
-    console.error('Onverwachte fout tijdens catalog import dry run.');
+    console.error('Onverwachte fout tijdens catalog import.');
     console.error('Result: FAIL');
     console.error('Database writes: 0');
     process.exitCode = 1;
