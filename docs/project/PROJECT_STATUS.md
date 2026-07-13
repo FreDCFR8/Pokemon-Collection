@@ -6,11 +6,11 @@ This is a living document. Update it after meaningful merges, database phases or
 
 ## Current phase
 
-**Active phase: Phase 7C-2B — add one card from an opened set**
+**Active phase: Phase 7C-2C1 — persist collection quantity security in repository**
 
-Opened set cards can now add exactly one catalog card to the active collection after the read-only collection-state check has proven that no `collection_cards` row exists for that card in the active collection. The first add flow uses fixed safe values: `quantity` 1, `condition` Near Mint and `status` owned. The browser insert is profile-bound through the existing `collection_cards_insert_own_collection` RLS policy.
+Phase 7C-2C1 database security is prepared as a reproducible Supabase migration after the same SQL was successfully applied and read-only verified in the live database. An authenticated user may manage the quantity of their own owned Near Mint cards. Each update must change quantity by exactly one, and deletion is allowed only when quantity is 1.
 
-This phase does not modify catalog records: `cards_catalog` and `card_external_references` remain read-only from this flow. Quantity, condition and status choices are not available yet and remain deferred to a later UX and policy phase.
+This phase adds no frontend controls and changes no existing `collection_cards` data. The separate min/plus UI follows in Phase 7C-2C2.
 
 ## Repository state
 
@@ -153,11 +153,10 @@ The controlled `sv3pt5` write was approved, executed and verified. This is not g
 
 ## Next steps
 
-1. Treat `sv3pt5` as the verified reference implementation for controlled catalog imports.
-2. Review and preview-test Phase 7C-2A for Lars and Lore on iPhone and desktop.
-3. Preview-test Phase 7C-2B for Lars and Lore, including duplicate-click protection and profile isolation.
-4. Do not expand write support to other set or global-search flows until separately reviewed and validated.
-5. Preserve dry-run-first import behavior, stable IDs, idempotency and collection isolation.
+1. Implement the separate Phase 7C-2C2 frontend controls for quantity changes.
+2. Treat `sv3pt5` as the verified reference implementation for controlled catalog imports.
+3. Do not expand write support to other set or global-search flows until separately reviewed and validated.
+4. Preserve dry-run-first import behavior, stable IDs, idempotency and collection isolation.
 
 ## Roadmap
 
