@@ -6,9 +6,11 @@ This is a living document. Update it after meaningful merges, database phases or
 
 ## Current phase
 
-**Phase 7B-2E — controlled write for sv3pt5**
+**Phase 7B-2E completed — controlled sv3pt5 catalog write**
 
-The current immediate objective is to add an explicitly authorized, idempotent and recoverable write mode to the local catalog import for `sv3pt5`, while keeping dry-run as the default and keeping `collection_cards` outside the import process.
+`sv3pt5` was imported completely through the controlled write path. The write and post-write verification passed, idempotency was proven, and `collection_cards` remained unchanged at 1,095 rows. This verified result does not automatically approve catalog writes for any other set.
+
+**Next active product direction: continue Phase 7C from the verified catalog baseline.**
 
 ## Repository state
 
@@ -18,13 +20,20 @@ The current immediate objective is to add an explicitly authorized, idempotent a
 - PR 91 proved that the Vercel integration works
 - PR 91 also showed that live API calls from a Vercel Function are not the preferred architecture for reliable bulk import because of timeout and recoverability limits
 - PR 95–98 are merged
-- The Phase 7B-2E write implementation is under review; no live catalog write is approved yet
+- PR 101 — controlled `sv3pt5` catalog write — is merged
+- The controlled live write for `sv3pt5` was executed and passed all post-write checks
+- The post-write idempotency check passed; there is no remaining `sv3pt5` import blocker
+- Catalog writes for other sets remain outside the current approval
 
-## Phase 7B-2D live dry-run evidence
+## Phase 7B-2E verified import result
 
-The local live dry-run for Pokémon TCG API set `sv3pt5` (`151`) passed with exactly 207 of 207 cards. It found 71 existing external-reference matches and 136 new cards, with 0 ambiguous matches, 0 conflicts, 0 metadata changes and 0 database writes.
+The controlled import for Pokémon TCG API set `sv3pt5` (`151`) passed all three verification stages:
 
-Phase 7B-2E now adds the controlled write capability. The actual write may run only after code review and another green local dry-run of the new PR.
+- **Pre-write dry-run:** 207 expected and 207 received cards; 71 existing external-reference matches; 136 new cards; 0 ambiguous matches, conflicts or metadata changes; 272 planned writes and 0 actual writes. Result: PASS.
+- **Controlled write:** 136 `cards_catalog` records and 136 external references added; 0 fallback references added for existing candidates; 71 existing matches unchanged; 0 failed writes; 207 verified references, 207 unique external references and 207 catalog links; `collection_cards` remained 1,095 → 1,095. Result: PASS with 272 database writes.
+- **Post-write idempotency dry-run:** 207 expected and 207 received cards; 207 external-reference matches; 0 new cards, ambiguous matches, conflicts, metadata changes or blocked items; 0 planned and 0 actual database writes. Result: PASS.
+
+The first idempotency attempt encountered one temporary HTTP 404 from the external Pokémon TCG API for `/v2/cards` and performed 0 database writes. The retry succeeded with 1 retry; this was an external API response, not a database or idempotency failure.
 
 ## Current architecture baseline
 
@@ -54,20 +63,18 @@ External card APIs are import and synchronization sources only. They are not run
 
 ### Card catalog
 
-- `cards_catalog`: 1,095 rows
-- linked enriched records: 1,080
-- protected placeholder records: 15
-- unused catalog records: 0
+- Last read-only global baseline before the `sv3pt5` write: 1,095 `cards_catalog` rows, including 1,080 linked enriched records and 15 protected placeholders, with 0 unused catalog records
+- `sv3pt5`: 207 verified catalog links through `pokemon_tcg_api`
+- The controlled `sv3pt5` import added 136 catalog records
 
 The previous 2,190-row catalog state was cleaned up. Exactly 1,095 unused legacy placeholders were removed after confirming that they were not referenced by any collection.
 
 ### External references
 
 - `card_external_references` exists
-- Pokémon TCG API references: 1,058
-- unique external IDs: 1,058
-- unique catalog links with this source: 1,058
-- collection cards without a Pokémon TCG API reference: 37
+- Last read-only global baseline before the `sv3pt5` write: 1,058 Pokémon TCG API references, 1,058 unique external IDs, 1,058 unique catalog links with this source and 37 collection cards without a Pokémon TCG API reference
+- The controlled `sv3pt5` import added 136 references
+- All 207 `sv3pt5` cards now match through external references
 
 Internal `cards_catalog.id` values and all `collection_cards` links remained stable during the backfill.
 
@@ -100,10 +107,7 @@ Available:
 - Sets page with grouped progress
 - Sets page with a fullscreen read-only set overlay
 - server-side set filtering, catalog cards loaded in batches of 30, search and name sorting
-
-Being fixed in Phase 7C-1B:
-
-- collection progress reads above 1,000 `collection_cards` rows must be explicitly paginated so set counts are not truncated by Supabase/PostgREST response limits
+- explicitly paginated Sets progress reads across more than 1,000 `collection_cards` rows
 
 Not yet available:
 
@@ -144,15 +148,15 @@ Mandatory design rules:
 - synchronization produces a clear report or log;
 - no automatic deletes are allowed.
 
-Catalog writes remain blocked until the Phase 7B-2E code is reviewed, its new local dry-run is green and the user explicitly confirms readiness for the controlled write.
+The controlled `sv3pt5` write was approved, executed and verified. This is not general permission to write other sets: every expansion to another set requires separately scoped validation and review. Dry-run remains the default, `--write` remains explicit, and `collection_cards` remains excluded from catalog imports.
 
 ## Next steps
 
-1. Review the complete Phase 7B-2E PR diff.
-2. Run the new local dry-run and reconfirm 71 existing matches, 136 new cards, 0 ambiguous matches, conflicts and metadata changes, and 0 database writes.
-3. Keep `--write` blocked until the user explicitly confirms readiness after those checks.
-4. Execute the controlled `sv3pt5` write locally and verify references, stable internal IDs and the unchanged `collection_cards` count.
-5. Continue Phase 7C work only from the verified catalog result.
+1. Treat `sv3pt5` as the verified reference implementation for controlled catalog imports.
+2. Continue Phase 7C from the verified catalog baseline.
+3. Define the next small product increment for adding cards from an opened set.
+4. Do not expand write support to other sets until that expansion is separately reviewed and validated.
+5. Preserve dry-run-first behavior, stable IDs, idempotency and collection isolation.
 
 ## Roadmap
 
