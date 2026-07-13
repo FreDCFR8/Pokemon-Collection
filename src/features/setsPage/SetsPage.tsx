@@ -128,6 +128,13 @@ export function SetsPage() {
   const cardDetailCloseButtonRef = useRef<HTMLButtonElement | null>(null);
   const overlayScrollRef = useRef<HTMLDivElement | null>(null);
 
+  function invalidateSetCardMutations() {
+    setCardMutationRequestIdRef.current += 1;
+    setCardMutationRequestIdsByCardRef.current.clear();
+    pendingSetCardMutationIdsRef.current.clear();
+    setSetCardMutationStates({});
+  }
+
   useEffect(() => {
     let isMounted = true;
 
@@ -167,7 +174,10 @@ export function SetsPage() {
   }, [openSetId, setsPageState.sets]);
 
   useEffect(() => {
-    activeCollectionIdRef.current = activeCollectionId;
+    if (activeCollectionIdRef.current !== activeCollectionId) {
+      activeCollectionIdRef.current = activeCollectionId;
+      invalidateSetCardMutations();
+    }
   }, [activeCollectionId]);
 
   useEffect(() => {
@@ -217,7 +227,7 @@ export function SetsPage() {
     if (!openSet) {
       setCardsRequestIdRef.current += 1;
       setSetCardsOverlayState(INITIAL_SET_CARDS_OVERLAY_STATE);
-      setSetCardMutationStates({});
+      invalidateSetCardMutations();
       return;
     }
 
@@ -731,6 +741,8 @@ export function SetsPage() {
   }
 
   function openSetOverlay(setId: string) {
+    openSetIdRef.current = setId;
+    invalidateSetCardMutations();
     setSelectedSetCardId(null);
     setSetCardSearchTerm('');
     setDebouncedSetCardSearchTerm('');
@@ -740,12 +752,13 @@ export function SetsPage() {
     setCardCollectionRequestIdRef.current += 1;
     setSetCardsOverlayState(INITIAL_SET_CARDS_OVERLAY_STATE);
     setSetCardCollectionState(INITIAL_SET_CARD_COLLECTION_STATE);
-    setSetCardMutationStates({});
     setOpenSetId(setId);
   }
 
   function closeSetOverlay() {
     const closingSetId = openSetId;
+    openSetIdRef.current = null;
+    invalidateSetCardMutations();
     setSelectedSetCardId(null);
     setOpenSetId(null);
     setSetCardSearchTerm('');
@@ -756,7 +769,6 @@ export function SetsPage() {
     setCardCollectionRequestIdRef.current += 1;
     setSetCardsOverlayState(INITIAL_SET_CARDS_OVERLAY_STATE);
     setSetCardCollectionState(INITIAL_SET_CARD_COLLECTION_STATE);
-    setSetCardMutationStates({});
     window.setTimeout(() => {
       if (closingSetId) {
         setButtonRefs.current.get(closingSetId)?.focus();
@@ -785,6 +797,7 @@ export function SetsPage() {
     async function loadSetsProgress() {
       setSetsProgressState({ status: 'loading', progressBySetCode: new Map() });
       activeCollectionIdRef.current = null;
+      invalidateSetCardMutations();
       setActiveCollectionId(null);
 
       try {
@@ -801,6 +814,7 @@ export function SetsPage() {
 
         if (isMounted) {
           activeCollectionIdRef.current = collectionId;
+          invalidateSetCardMutations();
           setActiveCollectionId(collectionId);
         }
 
@@ -1212,6 +1226,7 @@ export function SetsPage() {
             </div>
 
             {selectedSetCard ? (() => {
+              const detailImageUrl = selectedSetCard.image_large ?? selectedSetCard.image_small;
               const isCollectionStateLoaded = setCardCollectionState.status === 'success';
               const collectionInfo = setCardCollectionState.infoByCardCatalogId.get(selectedSetCard.id);
               const hasConflictingRows = collectionInfo?.hasConflictingManageableRows ?? false;
@@ -1282,12 +1297,13 @@ export function SetsPage() {
 
                     <div className="sets-page-set-card-detail-content">
                       <div className="sets-page-set-card-detail-image">
-                        {selectedSetCard.image_small ? (
+                        {detailImageUrl ? (
                           <img
-                            src={selectedSetCard.image_small}
+                            src={detailImageUrl}
                             alt={`${selectedSetCard.pokemon} kaart ${selectedSetCard.number ?? ''}`.trim()}
                             width="240"
                             height="336"
+                            decoding="async"
                           />
                         ) : (
                           <span aria-hidden="true" />
