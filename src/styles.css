@@ -725,109 +725,6 @@ button {
   font-weight: 800;
 }
 
-.collection-page-grid {
-  display: grid;
-  gap: 12px;
-  margin: 16px 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-.collection-page-grid li {
-  position: relative;
-  display: grid;
-  grid-template-columns: 78px minmax(0, 1fr);
-  gap: 12px;
-  min-width: 0;
-  border: 1px solid #e2e8f0;
-  border-radius: 20px;
-  background: #ffffff;
-  box-shadow: 0 10px 30px rgb(15 23 42 / 0.06);
-  padding: 12px;
-}
-
-.collection-page-card-button {
-  position: absolute;
-  z-index: 1;
-  inset: -1px;
-  border: 1px solid transparent;
-  border-radius: inherit;
-  background: transparent;
-  cursor: pointer;
-}
-
-.collection-page-card-button:hover {
-  border-color: #bfdbfe;
-  box-shadow: 0 12px 32px rgb(37 99 235 / 0.1);
-}
-
-.collection-page-card-button:focus-visible {
-  border-color: #2563eb;
-  outline: 3px solid rgb(37 99 235 / 0.2);
-  outline-offset: 3px;
-}
-
-.wishlist-page-grid li {
-  min-height: 0;
-}
-
-.wishlist-page-card-title {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-}
-
-.collection-page-grid img,
-.collection-page-grid .card-image-placeholder {
-  width: 78px;
-  min-height: 108px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, #eef2ff 0%, #e2e8f0 100%);
-  object-fit: cover;
-}
-
-.collection-page-card-body h3 {
-  margin: 0;
-  color: #172033;
-  font-size: 1rem;
-}
-
-.collection-page-card-body p {
-  margin: 4px 0 0;
-  font-size: 0.86rem;
-}
-
-.collection-page-card-meta {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  margin: 12px 0 0;
-}
-
-.collection-page-card-meta div {
-  border: 1px solid #e2e8f0;
-  border-radius: 999px;
-  background: #f8fafc;
-  padding: 7px 9px;
-}
-
-.collection-page-card-meta dt {
-  color: #64748b;
-  font-size: 0.7rem;
-  font-weight: 900;
-  text-transform: uppercase;
-}
-
-.collection-page-card-meta dd {
-  margin: 2px 0 0;
-  color: #172033;
-  font-size: 0.8rem;
-  font-weight: 900;
-}
-
 @media (min-width: 720px) {
   .collection-page-filters {
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -842,9 +739,6 @@ button {
     flex-direction: column;
   }
 
-  .collection-page-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 
 .sets-page {

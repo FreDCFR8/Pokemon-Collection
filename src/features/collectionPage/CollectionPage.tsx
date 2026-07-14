@@ -427,7 +427,7 @@ export function CollectionPage() {
     >
       <div className="collection-page-header">
         <div>
-          <p className="eyebrow">Read-only main collection</p>
+          <p className="eyebrow">Collectie</p>
           <h2 id="collection-page-title">Collection</h2>
           <p>{collectionPageState.message}</p>
           {collectionPageState.errorMessage ? <p className="status-note">Foutmelding: {collectionPageState.errorMessage}</p> : null}

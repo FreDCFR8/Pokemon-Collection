@@ -50,9 +50,6 @@ This document shows product direction and phase status. It intentionally avoids 
 
 ## Card detail
 
-- Phase 7C-2G is completed in PR118;
-- Phase 7C-2H — Wishlist and Collection binder-look is active;
-
 - ✅ functional set-card detail flow
 - ✅ Phase 7C-2D1 — shared Card Detail analysis and design
 - ✅ Phase 7C-2D2A — shared ownership contracts, projector and read service
@@ -85,7 +82,7 @@ This document shows product direction and phase status. It intentionally avoids 
 ## Collection states
 
 - ✅ wishlist add/remove vanuit shared Card Detail (PR116 afgerond)
-- 🚧 wishlist naar collectie vanuit Sets en Wishlist Card Detail
+- ✅ wishlist naar collectie vanuit Sets en Wishlist Card Detail
 - ⏳ wishlist beheer en read-model uitbreidingen
 - ⏳ trade workflow
 - ⏳ missing workflow

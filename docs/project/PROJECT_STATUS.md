@@ -6,15 +6,9 @@ This document contains current operational state only. Historical direction belo
 
 ## Current phase
 
-Phase 7C-2H is active. PR118 / Phase 7C-2G is the latest merged milestone.
-
 **Phase 7C-2H — Wishlist en Collection binder-look**
 
-PR118 / Phase 7C-2G is afgerond. Phase 7C-2H is de actieve follow-upfase.
-
 ## Latest merged product milestone
-
-PR118 is merged and forms the basis for the active Wishlist and Collection binder-look work.
 
 **PR118 — Phase 7C-2G: Wishlist naar collectie**
 
@@ -35,19 +29,12 @@ Available behavior:
 
 ## Active work
 
-Phase 7C-2G adds one safe wishlist-to-collection flow from shared Card Detail:
+Phase 7C-2H aligns Wishlist and Collection with the Sets binder presentation:
 
-- Wishlist cards are read from the active collection's wishlist rows with stable catalog identity and catalog image metadata;
-- Wishlist uses the same bounded server-side 24-card pagination and previous/next UX as Collection; it never loads the full catalog in the browser;
-- Wishlist page-level failures expose a retry that reloads only the Wishlist page;
-- selecting one wishlist card opens the shared Card Detail and loads ownership only for that selected catalog card through the existing read service;
-- Sets en Wishlist Card Detail tonen bij een geldige wishliststatus de primaire actie `Aan collectie toevoegen` en de secundaire actie `Van wishlist verwijderen`;
-- promotie gebruikt één security-invoker databasefunctie die ownership, exact één geldige wishlistrij en conflicterende states controleert;
-- de functie verwijdert de wishlist en voegt owned Near Mint quantity 1 atomair toe;
-- de RPC-response wordt volledig gevalideerd op collectie, cataloguskaart, status, quantity en condition;
-- Sets vernieuwt ownership, quantitybeheer en setprogress; Wishlist sluit het detail veilig en ververst/clamped de bounded pagina;
-- pending, success, error and retry states are controlled by the shared detail; late responses cannot update a closed or changed Sets context;
-- focused RLS migrations extend the existing ownership boundary to wishlist rows; Collection quantity management and Wishlist pagination remain otherwise unchanged.
+- Wishlist and Collection receive image-first, bounded binder overviews;
+- existing server-side pagination, search, filters, Card Detail and mutations remain unchanged;
+- Wishlist promotion/removal and Collection quantity management remain available in Card Detail;
+- no database changes, Supabase migrations or database push are part of this phase.
 
 ## Current architecture baseline
 
@@ -87,7 +74,7 @@ Expansion to other catalog sets requires separately scoped validation and approv
 
 ## Next phase scope
 
-After Phase 7C-2G is reviewed and merged, continue with the next separately approved small implementation phase from the shared Card Detail design. Trade, Search and condition/status editing remain outside the current phase.
+The next phase remains separately approved and scoped from the shared Card Detail design. Trade, Search and condition/status editing remain outside the current phase.
 
 ## Known attention points
 
