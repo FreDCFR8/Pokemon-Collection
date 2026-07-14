@@ -19,3 +19,19 @@ export {
   createCollectionCardReadBatches,
 } from './collectionCardReadBatching';
 export { getCollectionCardOwnershipForCatalogCards } from './collectionCardReadService';
+
+export {
+  CollectionCardMutationError,
+  addOwnedNearMintCollectionCard,
+  classifyDuplicateCollectionCardError,
+  decreaseCollectionCardQuantity,
+  increaseCollectionCardQuantity,
+  isDuplicateCollectionCardMutationError,
+} from './collectionCardMutationService';
+export type {
+  AddOwnedNearMintCollectionCardParams,
+  CollectionCardMutationErrorReason,
+  CollectionCardMutationRecord,
+  DecreaseCollectionCardQuantityMutationResult,
+  MutateCollectionCardQuantityParams,
+} from './collectionCardMutationService';

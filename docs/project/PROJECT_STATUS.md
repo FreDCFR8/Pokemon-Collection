@@ -1,6 +1,6 @@
 # Pokémon Collection V3 — Project Status
 
-_Last updated: 2026-07-13_
+_Last updated: 2026-07-14_
 
 This document contains current operational state only. Historical direction belongs in `ROADMAP.md`; lasting reasons belong in `DECISION_LOG.md`.
 

@@ -1,10 +1,8 @@
-export type CollectionCardMutationRecord = {
-  collectionCardId: string;
-  collectionId: string;
-  cardCatalogId: string;
-  quantity: number;
-  condition: string | null;
-  status: string;
+import type { OwnershipRecord } from './collectionCardOwnershipTypes';
+
+export type CollectionCardMutationRecord = Omit<OwnershipRecord<'owned'>, 'condition' | 'status'> & {
+  condition: 'Near Mint';
+  status: 'owned';
 };
 
 export type AddOwnedNearMintCollectionCardParams = {
@@ -154,7 +152,14 @@ function mapAndValidateCard(
     throw new CollectionCardMutationError('De teruggegeven collectiestatus wijkt af van de verwachte wijziging.', 'invalid-result');
   }
 
-  return card as CollectionCardMutationRecord;
+  return {
+    collectionCardId: card.collectionCardId,
+    collectionId: card.collectionId,
+    cardCatalogId: card.cardCatalogId,
+    quantity: card.quantity,
+    condition: 'Near Mint',
+    status: 'owned',
+  };
 }
 
 export async function addOwnedNearMintCollectionCard(
