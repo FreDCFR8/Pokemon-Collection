@@ -1,4 +1,9 @@
-import type { CardDetailCapabilities, CardDetailCard, CardDetailProductCopy } from '../cardDetail';
+import type {
+  CardDetailCapabilities,
+  CardDetailCard,
+  CardDetailMutationState,
+  CardDetailProductCopy,
+} from '../cardDetail';
 import { createCardDetailOwnershipPresentation } from '../cardDetail/cardDetailOwnershipPresentation.ts';
 import type {
   CollectionCardMutationRecord,
@@ -85,8 +90,12 @@ function isSingleManageableOwnedNearMint(ownership: ConfirmedOwnership | undefin
 
 export function createCollectionCardDetailCapabilities(
   ownership: CollectionOwnershipState,
+  mutationStatus: CardDetailMutationState['status'] = 'idle',
 ): CardDetailCapabilities {
-  const manageable = isSingleManageableOwnedNearMint(getConfirmedOwnership(ownership));
+  const manageable = ownership.status === 'ready' &&
+    mutationStatus !== 'pending' &&
+    mutationStatus !== 'conflict' &&
+    isSingleManageableOwnedNearMint(ownership.value);
 
   return {
     canAdd: false,
@@ -122,4 +131,38 @@ export function getCollectionCardDetailQuantityFromMutation(
   result: CollectionCardDetailQuantityMutationResult,
 ): number | null {
   return result.kind === 'updated' ? result.card.quantity : null;
+}
+
+export type CollectionCardDetailMutationExpectation = {
+  collectionId: string;
+  collectionCardId: string;
+  cardCatalogId: string;
+  expectedQuantity: number;
+};
+
+export class CollectionCardDetailInvalidResultError extends Error {
+  readonly reason = 'invalid-result' as const;
+
+  constructor() {
+    super('De teruggegeven collectiestatus wijkt af van de verwachte kaartwijziging.');
+    this.name = 'CollectionCardDetailInvalidResultError';
+  }
+}
+
+export function validateCollectionCardDetailMutationResult(
+  result: CollectionCardDetailQuantityMutationResult,
+  expected: CollectionCardDetailMutationExpectation,
+): CollectionCardDetailQuantityMutationResult {
+  const isValid = result.kind === 'updated'
+    ? result.card.collectionId === expected.collectionId &&
+      result.card.collectionCardId === expected.collectionCardId &&
+      result.card.cardCatalogId === expected.cardCatalogId &&
+      result.card.quantity === expected.expectedQuantity
+    : result.collectionCardId === expected.collectionCardId;
+
+  if (!isValid) {
+    throw new CollectionCardDetailInvalidResultError();
+  }
+
+  return result;
 }

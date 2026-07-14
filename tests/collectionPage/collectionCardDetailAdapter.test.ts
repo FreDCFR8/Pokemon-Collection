@@ -3,11 +3,13 @@ import test from 'node:test';
 
 import {
   createCollectionCardDetailCapabilities,
+  CollectionCardDetailInvalidResultError,
   getCollectionCardDetailQuantityFromMutation,
   mapCollectionCardDetailDecreaseResult,
   mapCollectionCardDetailIncreaseResult,
   shouldApplyCollectionCardDetailResponse,
   toCollectionCardDetailCard,
+  validateCollectionCardDetailMutationResult,
   type CollectionCardDetailRequest,
 } from '../../src/features/collectionPage/collectionCardDetailAdapter.ts';
 import { toCollectionPageCard, type CardsCatalogPageRow } from '../../src/features/collectionPage/collectionPageCardMapper.ts';
@@ -142,6 +144,18 @@ test('Collection capabilities disable wishlist, trade, missing, conflict and unk
   assert.equal(unknown.canDecrease, false);
 });
 
+test('Collection capabilities stay disabled during loading with previous ownership and during mutation conflict', () => {
+  const previous = ownershipState({ owned: [ownedRecord] }).value;
+  const loading: CollectionOwnershipState = { status: 'loading', previous };
+
+  assert.equal(createCollectionCardDetailCapabilities(loading).canIncrease, false);
+  assert.equal(createCollectionCardDetailCapabilities(loading).canDecrease, false);
+  assert.equal(createCollectionCardDetailCapabilities(ownershipState({ owned: [ownedRecord] }), 'conflict').canIncrease, false);
+  assert.equal(createCollectionCardDetailCapabilities(ownershipState({ owned: [ownedRecord] }), 'conflict').canDecrease, false);
+  assert.equal(createCollectionCardDetailCapabilities(ownershipState({ owned: [ownedRecord] }), 'idle').canIncrease, true);
+  assert.equal(createCollectionCardDetailCapabilities(ownershipState({ owned: [ownedRecord] }), 'idle').canDecrease, true);
+});
+
 test('Collection mutation result mapping accepts validated increase, decrease and delete responses', () => {
   const increased = mapCollectionCardDetailIncreaseResult({ ...ownedRecord, quantity: 3 });
   assert.equal(getCollectionCardDetailQuantityFromMutation(increased), 3);
@@ -152,6 +166,47 @@ test('Collection mutation result mapping accepts validated increase, decrease an
   const deleted = mapCollectionCardDetailDecreaseResult({ action: 'deleted', collectionCardId: ownedRecord.collectionCardId });
   assert.deepEqual(deleted, { kind: 'deleted', collectionCardId: ownedRecord.collectionCardId });
   assert.equal(getCollectionCardDetailQuantityFromMutation(deleted), null);
+});
+
+test('Collection mutation response validation accepts exact update and delete responses', () => {
+  const expected = {
+    collectionId,
+    collectionCardId: ownedRecord.collectionCardId,
+    cardCatalogId,
+    expectedQuantity: 3,
+  };
+  const update = mapCollectionCardDetailIncreaseResult({ ...ownedRecord, quantity: 3 });
+  const deleteResult = mapCollectionCardDetailDecreaseResult({ action: 'deleted', collectionCardId: ownedRecord.collectionCardId });
+
+  assert.deepEqual(validateCollectionCardDetailMutationResult(update, expected), update);
+  assert.deepEqual(validateCollectionCardDetailMutationResult(deleteResult, { ...expected, expectedQuantity: 1 }), deleteResult);
+});
+
+test('Collection mutation response validation rejects collection, row, card and quantity mismatches as invalid-result', () => {
+  const expected = {
+    collectionId,
+    collectionCardId: ownedRecord.collectionCardId,
+    cardCatalogId,
+    expectedQuantity: 3,
+  };
+  const update = mapCollectionCardDetailIncreaseResult({ ...ownedRecord, quantity: 3 });
+
+  for (const mismatch of [
+    { ...update.card, collectionId: 'other-collection' },
+    { ...update.card, collectionCardId: 'other-row' },
+    { ...update.card, cardCatalogId: 'other-card' },
+    { ...update.card, quantity: 4 },
+  ]) {
+    assert.throws(
+      () => validateCollectionCardDetailMutationResult({ kind: 'updated', card: mismatch }, expected),
+      (error: unknown) => error instanceof CollectionCardDetailInvalidResultError && error.reason === 'invalid-result',
+    );
+  }
+
+  assert.throws(
+    () => validateCollectionCardDetailMutationResult({ kind: 'deleted', collectionCardId: 'other-row' }, expected),
+    (error: unknown) => error instanceof CollectionCardDetailInvalidResultError && error.reason === 'invalid-result',
+  );
 });
 
 test('stale/conflict responses do not become a quantity success and active Collection context remains part of the request identity', () => {

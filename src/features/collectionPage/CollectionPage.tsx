@@ -10,11 +10,13 @@ import {
 import { checkCollectionReadiness } from '../collections';
 import {
   createCollectionCardDetailProductCopy,
+  CollectionCardDetailInvalidResultError,
   createCollectionCardDetailCapabilities,
   getCollectionCardDetailQuantityFromMutation,
   getConfirmedOwnership,
   mapCollectionCardDetailDecreaseResult,
   mapCollectionCardDetailIncreaseResult,
+  validateCollectionCardDetailMutationResult,
   shouldApplyCollectionCardDetailResponse,
   toCollectionCardDetailCard,
   type CollectionCardDetailRequest,
@@ -276,9 +278,10 @@ export function CollectionPage() {
     };
     detailRequestIdRef.current = request.requestId;
     activeDetailRequestRef.current = request;
+    const previousOwnership = getConfirmedOwnership(detailOwnership);
     setDetailOwnership((previous) => ({
       status: 'loading',
-      previous: getConfirmedOwnership(previous),
+      previous: previousOwnership ?? getConfirmedOwnership(previous),
     }));
 
     getCollectionCardOwnershipForCatalogCards({ collectionId, cardCatalogIds: [card.cardCatalogId] })
@@ -291,18 +294,22 @@ export function CollectionPage() {
         setDetailOwnership(
           ownership
             ? { status: 'ready', value: ownership }
-            : { status: 'error', previous: undefined, retryable: true },
+            : { status: 'error', previous: previousOwnership, retryable: true },
         );
-        setDetailMutation((currentMutation) => currentMutation.status === 'conflict'
-          ? { ...currentMutation, refreshStatus: 'ready' }
-          : currentMutation);
+        setDetailMutation((currentMutation) => currentMutation.status === 'pending'
+          ? { status: 'idle' }
+          : currentMutation.status === 'conflict'
+            ? { ...currentMutation, refreshStatus: 'ready' }
+            : currentMutation);
       })
       .catch(() => {
         if (shouldApplyCollectionCardDetailResponse(activeDetailRequestRef.current, request)) {
-          setDetailOwnership({ status: 'error', retryable: true });
-          setDetailMutation((currentMutation) => currentMutation.status === 'conflict'
-            ? { ...currentMutation, refreshStatus: 'error' }
-            : currentMutation);
+          setDetailOwnership({ status: 'error', previous: previousOwnership, retryable: true });
+          setDetailMutation((currentMutation) => currentMutation.status === 'pending'
+            ? { status: 'conflict', operation: undefined, refreshStatus: 'error', message: 'De wijziging is uitgevoerd, maar de collectiestatus kon niet worden vernieuwd.' }
+            : currentMutation.status === 'conflict'
+              ? { ...currentMutation, refreshStatus: 'error' }
+              : currentMutation);
         }
       });
   };
@@ -331,7 +338,7 @@ export function CollectionPage() {
     const manageable = confirmedOwnership?.kind === 'snapshot'
       ? confirmedOwnership.value.manageableOwnedNearMintRecord
       : undefined;
-    const capabilities = createCollectionCardDetailCapabilities(detailOwnership);
+    const capabilities = createCollectionCardDetailCapabilities(detailOwnership, detailMutation.status);
 
     if (!card || !collectionId || !manageable || !(operation === 'increase' ? capabilities.canIncrease : capabilities.canDecrease)) {
       return;
@@ -348,26 +355,32 @@ export function CollectionPage() {
       const result = operation === 'increase'
         ? mapCollectionCardDetailIncreaseResult(await increaseCollectionCardQuantity({ collectionId, collectionCardId: manageable.collectionCardId, currentQuantity: manageable.quantity }))
         : mapCollectionCardDetailDecreaseResult(await decreaseCollectionCardQuantity({ collectionId, collectionCardId: manageable.collectionCardId, currentQuantity: manageable.quantity }));
+      const validatedResult = validateCollectionCardDetailMutationResult(result, {
+        collectionId,
+        collectionCardId: manageable.collectionCardId,
+        cardCatalogId: card.cardCatalogId,
+        expectedQuantity: operation === 'increase' ? manageable.quantity + 1 : manageable.quantity - 1,
+      });
 
       if (mutationRequestIdRef.current !== mutationRequestId || !shouldApplyCollectionCardDetailResponse(activeDetailRequestRef.current, request)) return;
 
-      if (result.kind === 'deleted') {
+      if (validatedResult.kind === 'deleted') {
         closeCollectionCardDetail();
         refreshBoundedCollectionPage(request, mutationRequestId);
         return;
       }
 
-      const nextQuantity = getCollectionCardDetailQuantityFromMutation(result);
+      const nextQuantity = getCollectionCardDetailQuantityFromMutation(validatedResult);
       setCollectionPageState((currentState) => ({
         ...currentState,
         cards: currentState.cards.map((pageCard) => pageCard.cardCatalogId === card.cardCatalogId ? { ...pageCard, quantity: nextQuantity } : pageCard),
       }));
-      setDetailMutation({ status: 'idle' });
+      setDetailMutation({ status: 'pending', operation });
       loadSelectedCardOwnership(card, collectionId);
     } catch (error: unknown) {
       if (mutationRequestIdRef.current !== mutationRequestId || !shouldApplyCollectionCardDetailResponse(activeDetailRequestRef.current, request)) return;
 
-      if (error instanceof CollectionCardMutationError && (error.reason === 'stale' || error.reason === 'invalid-result')) {
+      if ((error instanceof CollectionCardMutationError && (error.reason === 'stale' || error.reason === 'invalid-result')) || error instanceof CollectionCardDetailInvalidResultError) {
         setDetailMutation({ status: 'conflict', operation, refreshStatus: 'pending', message: 'De status is gewijzigd. Collectiestatus wordt vernieuwd.' });
         loadSelectedCardOwnership(card, collectionId);
         return;
@@ -582,7 +595,7 @@ export function CollectionPage() {
         card={selectedDetailCard}
         ownership={detailOwnership}
         mutation={detailMutation}
-        capabilities={createCollectionCardDetailCapabilities(detailOwnership)}
+        capabilities={createCollectionCardDetailCapabilities(detailOwnership, detailMutation.status)}
         copy={createCollectionCardDetailProductCopy(detailOwnership)}
         onClose={closeCollectionCardDetail}
         onRetryOwnership={() => {
