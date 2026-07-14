@@ -1715,3 +1715,43 @@ button {
   border-radius: inherit;
   background: linear-gradient(90deg, #2563eb 0%, #38bdf8 100%);
 }
+
+.card-detail-status-list {
+  display: grid;
+  gap: 4px;
+  margin: 8px 0 0;
+  padding: 0;
+  color: #475569;
+  font-size: 0.78rem;
+  font-weight: 800;
+  list-style: none;
+}
+
+.card-detail-retry-button {
+  min-height: 44px;
+  border: 0;
+  border-radius: 999px;
+  margin-top: 8px;
+  background: #2563eb;
+  color: #ffffff;
+  cursor: pointer;
+  padding: 0 16px;
+  font-weight: 900;
+}
+
+@media (min-width: 820px) {
+  .sets-page-set-card-detail {
+    width: min(100%, 760px);
+  }
+
+  .sets-page-set-card-detail-content {
+    grid-template-columns: minmax(260px, 0.95fr) minmax(260px, 1fr);
+    align-items: center;
+    padding: 28px 28px 28px;
+  }
+
+  .sets-page-set-card-detail-body {
+    justify-items: start;
+    text-align: left;
+  }
+}

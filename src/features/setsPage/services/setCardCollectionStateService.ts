@@ -11,6 +11,7 @@ export type SetCardCollectionInfo = {
   hasAnyRecord: boolean;
   manageableOwnedNearMintRow?: ManageableOwnedNearMintRow;
   hasConflictingManageableRows: boolean;
+  ownership: ConfirmedOwnership;
 };
 
 export type GetSetCardCollectionInfoParams = {
@@ -22,6 +23,7 @@ function createEmptyCollectionInfo(): SetCardCollectionInfo {
   return {
     hasAnyRecord: false,
     hasConflictingManageableRows: false,
+    ownership: { kind: 'absent' },
   };
 }
 
@@ -38,6 +40,7 @@ function mapOwnershipToSetCardCollectionInfo(ownership: ConfirmedOwnership): Set
     return {
       hasAnyRecord: true,
       hasConflictingManageableRows: true,
+      ownership,
     };
   }
 
@@ -53,6 +56,7 @@ function mapOwnershipToSetCardCollectionInfo(ownership: ConfirmedOwnership): Set
         }
       : undefined,
     hasConflictingManageableRows: false,
+    ownership,
   };
 }
 

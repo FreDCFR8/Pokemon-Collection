@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
+import { CardDetailDialog, type CardDetailMutationState, type CardDetailProductCopy } from '../cardDetail';
+
 import { checkCollectionReadiness } from '../collections';
 import { getSetsCatalog, type SetsCatalogRow } from '../../services/setsCatalogService';
 import {
@@ -125,7 +127,6 @@ export function SetsPage() {
   const setButtonRefs = useRef(new Map<string, HTMLButtonElement>());
   const setCardButtonRefs = useRef(new Map<string, HTMLButtonElement>());
   const overlayCloseButtonRef = useRef<HTMLButtonElement | null>(null);
-  const cardDetailCloseButtonRef = useRef<HTMLButtonElement | null>(null);
   const overlayScrollRef = useRef<HTMLDivElement | null>(null);
 
   function invalidateSetCardMutations() {
@@ -359,6 +360,33 @@ export function SetsPage() {
           quantity: card.quantity,
         },
         hasConflictingManageableRows: false,
+        ownership: {
+          kind: 'snapshot',
+          value: {
+            byStatus: {
+              owned: [{
+                collectionCardId: card.id,
+                collectionId: card.collection_id,
+                cardCatalogId,
+                quantity: card.quantity,
+                condition: 'Near Mint',
+                status: 'owned',
+              }],
+              wishlist: [],
+              trade: [],
+              missing: [],
+            },
+            physicalPresence: 'present',
+            manageableOwnedNearMintRecord: {
+              collectionCardId: card.id,
+              collectionId: card.collection_id,
+              cardCatalogId,
+              quantity: card.quantity,
+              condition: 'Near Mint',
+              status: 'owned',
+            },
+          },
+        },
       });
 
       return { status: 'success', infoByCardCatalogId };
@@ -778,7 +806,6 @@ export function SetsPage() {
 
   function openSetCardDetail(cardCatalogId: string) {
     setSelectedSetCardId(cardCatalogId);
-    window.setTimeout(() => cardDetailCloseButtonRef.current?.focus(), 0);
   }
 
   function closeSetCardDetail() {
@@ -1052,7 +1079,12 @@ export function SetsPage() {
               </div>
             </header>
 
-            <div ref={overlayScrollRef} className="sets-page-set-overlay-scroll">
+            <div
+              ref={overlayScrollRef}
+              className="sets-page-set-overlay-scroll"
+              inert={selectedSetCard ? true : undefined}
+              aria-hidden={selectedSetCard ? true : undefined}
+            >
               <section className="sets-page-set-overlay-summary" aria-label="Setinformatie">
                 <div>
                   <span>Setnaam</span>
@@ -1226,157 +1258,85 @@ export function SetsPage() {
             </div>
 
             {selectedSetCard ? (() => {
-              const detailImageUrl = selectedSetCard.image_large ?? selectedSetCard.image_small;
               const isCollectionStateLoaded = setCardCollectionState.status === 'success';
               const collectionInfo = setCardCollectionState.infoByCardCatalogId.get(selectedSetCard.id);
               const hasConflictingRows = collectionInfo?.hasConflictingManageableRows ?? false;
               const manageableRow = collectionInfo?.manageableOwnedNearMintRow;
               const hasAnyRecord = collectionInfo?.hasAnyRecord ?? false;
               const mutationState = setCardMutationStates[selectedSetCard.id];
-              const isMutating =
-                mutationState?.status === 'adding' ||
-                mutationState?.status === 'increasing' ||
-                mutationState?.status === 'decreasing' ||
-                mutationState?.status === 'deleting';
               const isAbsent =
                 isCollectionStateLoaded && Boolean(collectionInfo) && !hasAnyRecord && !hasConflictingRows;
               const isManageable =
                 isCollectionStateLoaded && Boolean(manageableRow) && !hasConflictingRows;
               const showManageElsewhere =
                 isCollectionStateLoaded && hasAnyRecord && !manageableRow && !hasConflictingRows;
-              const ownershipLabel = isMutating
-                ? 'Bijwerken…'
-                : setCardCollectionState.status === 'loading'
-                  ? 'Status laden…'
-                  : !isCollectionStateLoaded || !collectionInfo || hasConflictingRows
-                    ? 'Status onbekend'
-                    : manageableRow
-                      ? manageableRow.quantity === 1
-                        ? 'In collectie'
-                        : `${manageableRow.quantity} in collectie`
-                      : hasAnyRecord
-                        ? 'In collectie'
-                        : 'Niet in collectie';
-              const ownershipStatusClassName = isMutating || setCardCollectionState.status === 'loading'
-                ? 'is-pending'
-                : !isCollectionStateLoaded || !collectionInfo || hasConflictingRows
-                  ? 'is-unknown'
-                  : hasAnyRecord
-                    ? 'is-present'
-                    : 'is-absent';
-              const feedbackMessage =
-                mutationState?.status === 'success' || mutationState?.status === 'error'
-                  ? mutationState.message
-                  : undefined;
+              const ownership = setCardCollectionState.status === 'loading'
+                ? { status: 'loading' as const, previous: collectionInfo?.ownership }
+                : setCardCollectionState.status === 'error'
+                  ? { status: 'error' as const, previous: collectionInfo?.ownership, retryable: true }
+                  : !isCollectionStateLoaded || !collectionInfo
+                    ? { status: 'error' as const, previous: undefined, retryable: true }
+                    : { status: 'ready' as const, value: collectionInfo.ownership };
+              const mutation: CardDetailMutationState = mutationState?.status === 'adding'
+                ? { status: 'pending', operation: 'add' }
+                : mutationState?.status === 'increasing'
+                  ? { status: 'pending', operation: 'increase' }
+                  : mutationState?.status === 'decreasing'
+                    ? { status: 'pending', operation: 'decrease' }
+                    : mutationState?.status === 'deleting'
+                      ? { status: 'pending', operation: 'delete' }
+                      : mutationState?.status === 'error'
+                        ? { status: hasConflictingRows ? 'conflict' : 'error', operation: undefined, retryable: true, refreshStatus: 'ready', message: mutationState.message ?? 'Bijwerken is mislukt.' } as CardDetailMutationState
+                        : mutationState?.status === 'success'
+                          ? { status: 'success', message: mutationState.message }
+                          : { status: 'idle' };
+              const statusItems = collectionInfo?.ownership.kind === 'snapshot'
+                ? Object.entries(collectionInfo.ownership.value.byStatus).flatMap(([status, records]) =>
+                    records.map((record) => ({
+                      status: status as 'owned' | 'wishlist' | 'trade' | 'missing',
+                      label: `${status === 'owned' ? 'In collectie' : status === 'wishlist' ? 'Op wishlist' : status === 'trade' ? 'Voor ruil' : 'Ontbreekt'} · ${record.quantity} exemplaar${record.quantity === 1 ? '' : 'en'}`,
+                    })),
+                  )
+                : [] ;
+              const copy: CardDetailProductCopy = {
+                statusItems,
+                physicalPresenceLabel: hasAnyRecord ? 'In collectie' : undefined,
+                managementMessage: showManageElsewhere
+                  ? 'Beheer via collectie'
+                  : hasConflictingRows
+                    ? 'Gegevensconflict'
+                    : undefined,
+              };
 
               return (
-                <div
-                  className="sets-page-set-card-detail-backdrop"
-                  onMouseDown={(event) => {
-                    if (event.target === event.currentTarget) {
-                      closeSetCardDetail();
+                <CardDetailDialog
+                  card={{
+                    cardCatalogId: selectedSetCard.id,
+                    name: selectedSetCard.pokemon,
+                    number: selectedSetCard.number,
+                    set: { setCode: openSet.set_code, name: openSet.name },
+                    rarity: selectedSetCard.rarity,
+                    images: { small: selectedSetCard.image_small, large: selectedSetCard.image_large },
+                  }}
+                  ownership={ownership}
+                  mutation={mutation}
+                  capabilities={{
+                    canAdd: isAbsent,
+                    canIncrease: isManageable,
+                    canDecrease: isManageable,
+                    unavailableReason: setCardCollectionState.status === 'error' ? 'Collectiestatus kon niet worden geladen.' : undefined,
+                  }}
+                  copy={copy}
+                  onClose={closeSetCardDetail}
+                  onRetryOwnership={() => {
+                    if (activeCollectionId && openSet) {
+                      void refreshVisibleCardCollectionState(activeCollectionId, openSet.id);
                     }
                   }}
-                >
-                  <section
-                    className="sets-page-set-card-detail"
-                    role="dialog"
-                    aria-modal="true"
-                    aria-labelledby="sets-page-set-card-detail-title"
-                  >
-                    <header className="sets-page-set-card-detail-header">
-                      <button
-                        ref={cardDetailCloseButtonRef}
-                        type="button"
-                        aria-label="Kaartdetails sluiten"
-                        onClick={closeSetCardDetail}
-                      >
-                        ×
-                      </button>
-                    </header>
-
-                    <div className="sets-page-set-card-detail-content">
-                      <div className="sets-page-set-card-detail-image">
-                        {detailImageUrl ? (
-                          <img
-                            src={detailImageUrl}
-                            alt={`${selectedSetCard.pokemon} kaart ${selectedSetCard.number ?? ''}`.trim()}
-                            width="240"
-                            height="336"
-                            decoding="async"
-                          />
-                        ) : (
-                          <span aria-hidden="true" />
-                        )}
-                      </div>
-
-                      <div className="sets-page-set-card-detail-body">
-                        <h4 id="sets-page-set-card-detail-title">{selectedSetCard.pokemon}</h4>
-                        <p className="sets-page-set-card-detail-subtitle">
-                          {openSet.name}
-                          {selectedSetCard.number ? ` · #${selectedSetCard.number}` : ''}
-                        </p>
-
-                        <span
-                          className="sets-page-set-card-quantity-control"
-                          role="group"
-                          aria-label="Aantal in collectie"
-                        >
-                          <button
-                            type="button"
-                            aria-label="Eén exemplaar verwijderen"
-                            disabled={!isManageable || isMutating}
-                            onClick={() => void handleCollectionCardQuantityChange(selectedSetCard, 'decrease')}
-                          >
-                            −
-                          </button>
-                          <span
-                            className={`sets-page-set-card-quantity-status ${ownershipStatusClassName}`}
-                            aria-live="polite"
-                          >
-                            {ownershipStatusClassName === 'is-present' ? (
-                              <span className="sets-page-set-card-quantity-status-mark" aria-hidden="true">
-                                ✓
-                              </span>
-                            ) : null}
-                            {ownershipLabel}
-                          </span>
-                          <button
-                            type="button"
-                            aria-label={isAbsent ? 'Kaart aan collectie toevoegen' : 'Eén exemplaar toevoegen'}
-                            disabled={(!isAbsent && !isManageable) || isMutating}
-                            onClick={() => {
-                              if (isAbsent) {
-                                void handleAddCardToCollection(selectedSetCard);
-                              } else if (isManageable) {
-                                void handleCollectionCardQuantityChange(selectedSetCard, 'increase');
-                              }
-                            }}
-                          >
-                            +
-                          </button>
-                        </span>
-
-                        {showManageElsewhere ? (
-                          <span className="sets-page-set-card-manage-elsewhere">Beheer via collectie</span>
-                        ) : null}
-                        {hasConflictingRows ? (
-                          <span className="sets-page-set-card-manage-elsewhere is-error">Gegevensconflict</span>
-                        ) : null}
-                        {feedbackMessage ? (
-                          <span
-                            className={`sets-page-set-card-add-message${
-                              mutationState?.status === 'error' ? ' is-error' : ' is-success'
-                            }`}
-                            role={mutationState?.status === 'error' ? 'alert' : 'status'}
-                          >
-                            {feedbackMessage}
-                          </span>
-                        ) : null}
-                      </div>
-                    </div>
-                  </section>
-                </div>
+                  onAdd={() => void handleAddCardToCollection(selectedSetCard)}
+                  onIncrease={() => void handleCollectionCardQuantityChange(selectedSetCard, 'increase')}
+                  onDecrease={() => void handleCollectionCardQuantityChange(selectedSetCard, 'decrease')}
+                />
               );
             })() : null}
           </div>

@@ -6,9 +6,9 @@ This document contains current operational state only. Historical direction belo
 
 ## Current phase
 
-**Phase 7C-2D2B — shared collection-card mutation service**
+**Phase 7C-2D2C — shared Card Detail presentation and Sets adapter**
 
-PR 110 merged Phase 7C-2D2A and introduced the reusable ownership foundation. Phase 7C-2D2B now moves add, increase, decrease and delete mutation behavior into the shared `collectionCards` feature boundary without changing the visible Sets experience.
+PR 111 merged Phase 7C-2D2B and introduced the shared `collectionCards` mutation service. Phase 7C-2D2C is now extracting the Sets Card Detail flow into a controlled shared presentation component with a thin Sets adapter.
 
 ## Latest merged product milestone
 
@@ -27,13 +27,13 @@ Available behavior:
 
 ## Active work
 
-Phase 7C-2D2B is limited to the shared mutation boundary:
+Phase 7C-2D2C is limited to shared Card Detail presentation and the Sets adapter:
 
-- shared camelCase mutation contracts add exactly one owned Near Mint copy or change quantity by exactly one;
-- update and delete writes retain expected-current-quantity filters to prevent stale confirmations;
-- full server responses are validated before success is returned;
-- duplicate, stale and invalid-result outcomes are typed domain errors;
-- existing Sets mutation services are thin compatibility adapters, with no JSX, CSS or visible UX changes.
+- `src/features/cardDetail/` owns the controlled presentational dialog contract;
+- the shared component receives card, ownership, mutation, capabilities, copy and callbacks through typed props;
+- the Sets page remains responsible for Sets context, visible-card ownership refresh, progress refresh, stale-response guards and focus restoration;
+- the shared detail component contains no Supabase client, query, mutation or Sets page state;
+- Collection, Wishlist, Trade and Search integration remain outside this phase.
 
 ## Current architecture baseline
 
@@ -73,7 +73,7 @@ Expansion to other catalog sets requires separately scoped validation and approv
 
 ## Next phase scope
 
-After Phase 7C-2D2B is reviewed and merged, continue with the next approved small implementation phase from the shared Card Detail design. Shared presentation and page adapters remain outside the current mutation-foundation phase.
+After Phase 7C-2D2C is reviewed and merged, continue with the next approved small implementation phase from the shared Card Detail design. Collection integration remains outside the current Sets-adapter phase.
 
 ## Known attention points
 
