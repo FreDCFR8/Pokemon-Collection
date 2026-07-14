@@ -57,7 +57,8 @@ This document shows product direction and phase status. It intentionally avoids 
 - ✅ Phase 7C-2D2C — shared presentational Card Detail and Sets adapter
 - ✅ Phase 7C-2D2D — read-only reuse in Collection
 - ✅ Phase 7C-2D2E — Collection Card Detail quantity management
-- 🚧 Phase 7C-2F — Wishlist add/remove vanuit shared Card Detail (PR116 open; pas na merge afgerond)
+- ✅ Phase 7C-2F — Wishlist add/remove vanuit shared Card Detail (PR116 afgerond)
+- 🚧 Phase 7C-2G — Wishlist naar collectie
 - ⏳ reuse in Wishlist, Trade and Search
 - ⏳ extended characteristics and metadata
 - ⏳ previous/next card navigation
@@ -67,7 +68,7 @@ This document shows product direction and phase status. It intentionally avoids 
 - ✅ collection overview, search, filters and pagination
 - 🔎 Collection V2 product and architecture design
 - ✅ read-only shared card detail integration
-- 🚧 shared card detail quantity management
+- ✅ shared card detail quantity management
 - ⏳ improved collection browsing and management
 - ⏳ multi-collection improvements
 
@@ -79,7 +80,8 @@ This document shows product direction and phase status. It intentionally avoids 
 
 ## Collection states
 
-- 🚧 wishlist add/remove vanuit shared Card Detail (PR116 open; pas na merge afgerond)
+- ✅ wishlist add/remove vanuit shared Card Detail (PR116 afgerond)
+- 🚧 wishlist naar collectie vanuit Sets en Wishlist Card Detail
 - ⏳ wishlist beheer en read-model uitbreidingen
 - ⏳ trade workflow
 - ⏳ missing workflow

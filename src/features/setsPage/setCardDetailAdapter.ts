@@ -8,7 +8,7 @@ import type { ConfirmedOwnership } from '../collectionCards';
 
 export { hasConfirmedAbsence, hasConfirmedPhysicalPresence };
 
-export type SetCardMutationOperation = 'add' | 'add-wishlist' | 'remove-wishlist' | 'increase' | 'decrease' | 'delete';
+export type SetCardMutationOperation = 'add' | 'add-wishlist' | 'remove-wishlist' | 'promote-wishlist' | 'increase' | 'decrease' | 'delete';
 
 export function getSetCardMutationRetryHandler(
   operation: SetCardMutationOperation | undefined,
@@ -34,6 +34,14 @@ export function getSetWishlistCapabilities(params: {
     canAddWishlist: false,
     canRemoveWishlist: wishlistCount === 1,
   };
+}
+
+export function canPromoteSetWishlist(params: {
+  ownership: ConfirmedOwnership | undefined;
+  hasConflictingRows: boolean;
+}): boolean {
+  return !params.hasConflictingRows && params.ownership?.kind === 'snapshot' && params.ownership.value.byStatus.wishlist.length === 1 &&
+    params.ownership.value.byStatus.owned.length === 0 && params.ownership.value.byStatus.trade.length === 0 && params.ownership.value.byStatus.missing.length === 0;
 }
 
 export function canStartSetWishlistAddMutation(params: {

@@ -18,6 +18,8 @@ export function getSafeWishlistPageAfterRemoval(currentPage: number, remainingCo
 
 export type WishlistRemovalRecovery = 'close' | 'retry-remove' | 'blocked';
 
+export type WishlistMutationOperation = 'remove-wishlist' | 'promote-wishlist';
+
 export type WishlistDetailRequestContext = {
   mutationRequestId: number;
   cardCatalogId: string;

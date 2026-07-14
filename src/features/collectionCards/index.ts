@@ -34,6 +34,16 @@ export {
   addCardToWishlist,
   removeCardFromWishlist,
 } from './wishlistMutationService';
+export {
+  WishlistPromotionError,
+  promoteWishlistToOwned,
+} from './wishlistPromotionService';
+export type {
+  PromotedWishlistRecord,
+  PromoteWishlistToOwnedParams,
+  WishlistPromotionClientFactory,
+  WishlistPromotionErrorReason,
+} from './wishlistPromotionService';
 export type {
   AddCardToWishlistParams,
   WishlistMutationClientFactory,

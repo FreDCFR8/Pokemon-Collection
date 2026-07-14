@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { canStartSetWishlistAddMutation, createSetCardDetailProductCopy, getSetCardMutationRetryHandler, getSetWishlistCapabilities } from '../../src/features/setsPage/setCardDetailAdapter.ts';
+import { canPromoteSetWishlist, canStartSetWishlistAddMutation, createSetCardDetailProductCopy, getSetCardMutationRetryHandler, getSetWishlistCapabilities } from '../../src/features/setsPage/setCardDetailAdapter.ts';
 import type { ConfirmedOwnership, OwnershipRecord } from '../../src/features/collectionCards/index.ts';
 
 const ownedRecord: OwnershipRecord<'owned'> = {
@@ -94,6 +94,13 @@ test('Sets wishlist capabilities fail closed for conflicts and duplicate wishlis
   assert.deepEqual(getSetWishlistCapabilities({ ownership: { kind: 'conflict', reason: 'conflict' }, hasConflictingRows: true }), { canAddWishlist: false, canRemoveWishlist: false });
 });
 
+test('Sets exposes promotion only for one clean wishlist row', () => {
+  const wishlist = { collectionCardId: 'wishlist-1', collectionId: 'collection-1', cardCatalogId: 'card-1', quantity: 1, condition: null, status: 'wishlist' as const };
+  const ownership = { kind: 'snapshot' as const, value: { byStatus: { owned: [], wishlist: [wishlist], trade: [], missing: [] }, physicalPresence: 'absent' as const } };
+  assert.equal(canPromoteSetWishlist({ ownership, hasConflictingRows: false }), true);
+  assert.equal(canPromoteSetWishlist({ ownership: { ...ownership, value: { ...ownership.value, byStatus: { ...ownership.value.byStatus, trade: [{ ...wishlist, status: 'trade' as const, condition: null }] } } }, hasConflictingRows: false }), false);
+});
+
 test('Sets wishlist add is only available for confirmed absence', () => {
   const makeRecord = (status: 'owned' | 'trade' | 'missing'): OwnershipRecord<typeof status> => ({
     collectionCardId: `${status}-1`, collectionId: 'collection-1', cardCatalogId: 'card-1', quantity: 1, condition: null, status,
@@ -137,7 +144,7 @@ test('Sets retry dispatch preserves each original operation and omits unknown op
     delete: () => calls.push('delete'),
   };
 
-  for (const operation of ['add', 'add-wishlist', 'remove-wishlist', 'increase', 'decrease', 'delete'] as const) {
+  for (const operation of ['add', 'add-wishlist', 'remove-wishlist', 'promote-wishlist', 'increase', 'decrease', 'delete'] as const) {
     getSetCardMutationRetryHandler(operation, handlers)?.();
   }
   assert.deepEqual(calls, ['add', 'add-wishlist', 'remove-wishlist', 'increase', 'decrease', 'delete']);
