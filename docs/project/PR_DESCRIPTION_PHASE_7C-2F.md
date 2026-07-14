@@ -13,7 +13,7 @@ Voeg vanuit shared Card Detail één kaart toe aan of verwijder die uit de wishl
 - herbruikbare `addCardToWishlist`-service met readiness-read, stabiele IDs, responsevalidatie en duplicate-safe gedrag;
 - herbruikbare `removeCardFromWishlist`-service met exacte deletefilters, ownershipvalidatie, stale/conflict fail-closed gedrag en volledige responsevalidatie;
 - pending, success, error en retry in Card Detail, met inert/onscrollbaar Sets op de achtergrond;
-- gerichte RLS/index migration voor `wishlist`, `quantity = 1`, `condition = null` en één wishlist-rij per kaart per collectie;
+- gerichte RLS-migrations voor wishlist-insert en wishlist-delete, met `quantity = 1`, `condition = null` en één wishlist-rij per kaart per collectie;
 - tests voor servicegedrag, duplicate-afhandeling, responsevalidatie en Sets Card Detail-contracten.
 - regressietests voor bestaande wishlist-rijen met afwijkende collectie-, kaart-, status- of rij-identiteit.
 - Sets add → remove → collection-add capability transition en Wishlist bounded-page refresh/clamping na verwijderen van de laatste kaart;
