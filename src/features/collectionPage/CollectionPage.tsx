@@ -1,5 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { CardDetailDialog, type CardDetailCard } from '../cardDetail';
+import { getCollectionCardOwnershipForCatalogCards, type CollectionOwnershipState } from '../collectionCards';
 import { checkCollectionReadiness } from '../collections';
+import {
+  createCollectionCardDetailProductCopy,
+  shouldApplyCollectionCardDetailResponse,
+  toCollectionCardDetailCard,
+  type CollectionCardDetailRequest,
+} from './collectionCardDetailAdapter';
 import { getCollectionFilterOptions, loadCollectionPage } from './collectionPageService';
 import {
   COLLECTION_PAGE_SIZE,
@@ -30,6 +38,7 @@ const initialCollectionPageState: CollectionPageState = {
   page: 1,
   pageSize: COLLECTION_PAGE_SIZE,
   cards: [],
+  collectionId: null,
 };
 
 function formatValue(value: string | number | null): string {
@@ -81,6 +90,11 @@ export function CollectionPage() {
   const [filterOptionsError, setFilterOptionsError] = useState<string | null>(null);
   const [areFilterOptionsLoading, setAreFilterOptionsLoading] = useState(true);
   const [collectionPageState, setCollectionPageState] = useState<CollectionPageState>(initialCollectionPageState);
+  const [selectedDetailCard, setSelectedDetailCard] = useState<CardDetailCard | null>(null);
+  const [detailOwnership, setDetailOwnership] = useState<CollectionOwnershipState>({ status: 'idle' });
+  const detailRequestIdRef = useRef(0);
+  const activeDetailRequestRef = useRef<CollectionCardDetailRequest | null>(null);
+  const cardButtonRefs = useRef(new Map<string, HTMLButtonElement>());
   const totalPages = useMemo(
     () => Math.max(1, Math.ceil(collectionPageState.totalCount / collectionPageState.pageSize)),
     [collectionPageState.pageSize, collectionPageState.totalCount],
@@ -97,6 +111,13 @@ export function CollectionPage() {
   const hasActiveCriteria = hasActiveSearch || hasActiveFilters;
   const firstVisibleCard = collectionPageState.totalCount === 0 ? 0 : (collectionPageState.page - 1) * collectionPageState.pageSize + 1;
   const lastVisibleCard = Math.min(collectionPageState.page * collectionPageState.pageSize, collectionPageState.totalCount);
+
+  useEffect(() => {
+    activeDetailRequestRef.current = null;
+    detailRequestIdRef.current += 1;
+    setSelectedDetailCard(null);
+    setDetailOwnership({ status: 'idle' });
+  }, [activeSearchTerm, collectionPageState.collectionId, filters, page]);
 
   useEffect(() => {
     let isMounted = true;
@@ -219,8 +240,71 @@ export function CollectionPage() {
   const goToPreviousPage = () => setPage((currentPage) => Math.max(1, currentPage - 1));
   const goToNextPage = () => setPage((currentPage) => Math.min(totalPages, currentPage + 1));
 
+  const loadSelectedCardOwnership = (card: CardDetailCard, collectionId: string) => {
+    const request: CollectionCardDetailRequest = {
+      requestId: detailRequestIdRef.current + 1,
+      collectionId,
+      cardCatalogId: card.cardCatalogId,
+      page: collectionPageState.page,
+    };
+    detailRequestIdRef.current = request.requestId;
+    activeDetailRequestRef.current = request;
+    setDetailOwnership({ status: 'loading' });
+
+    getCollectionCardOwnershipForCatalogCards({ collectionId, cardCatalogIds: [card.cardCatalogId] })
+      .then((ownershipByCardCatalogId) => {
+        if (!shouldApplyCollectionCardDetailResponse(activeDetailRequestRef.current, request)) {
+          return;
+        }
+
+        const ownership = ownershipByCardCatalogId.get(card.cardCatalogId);
+        setDetailOwnership(
+          ownership
+            ? { status: 'ready', value: ownership }
+            : { status: 'error', retryable: true },
+        );
+      })
+      .catch(() => {
+        if (shouldApplyCollectionCardDetailResponse(activeDetailRequestRef.current, request)) {
+          setDetailOwnership({ status: 'error', retryable: true });
+        }
+      });
+  };
+
+  const openCollectionCardDetail = (card: CollectionPageState['cards'][number]) => {
+    const detailCard = toCollectionCardDetailCard(card);
+    const collectionId = collectionPageState.collectionId;
+
+    if (!detailCard || !collectionId) {
+      return;
+    }
+
+    setSelectedDetailCard(detailCard);
+    loadSelectedCardOwnership(detailCard, collectionId);
+  };
+
+  const closeCollectionCardDetail = () => {
+    const closingCardCatalogId = selectedDetailCard?.cardCatalogId;
+    activeDetailRequestRef.current = null;
+    detailRequestIdRef.current += 1;
+    setSelectedDetailCard(null);
+    setDetailOwnership({ status: 'idle' });
+
+    window.setTimeout(() => {
+      if (closingCardCatalogId) {
+        cardButtonRefs.current.get(closingCardCatalogId)?.focus();
+      }
+    }, 0);
+  };
+
   return (
-    <section className="collection-page" aria-labelledby="collection-page-title">
+    <>
+    <section
+      className="collection-page"
+      aria-labelledby="collection-page-title"
+      inert={selectedDetailCard ? true : undefined}
+      aria-hidden={selectedDetailCard ? true : undefined}
+    >
       <div className="collection-page-header">
         <div>
           <p className="eyebrow">Read-only main collection</p>
@@ -335,25 +419,36 @@ export function CollectionPage() {
       {collectionPageState.cards.length > 0 ? (
         <>
           <ul className="collection-page-grid" aria-label="Collectiekaarten">
-            {collectionPageState.cards.map((card, index) => (
-              <li key={`${card.pokemon ?? 'kaart'}-${card.setName ?? 'set'}-${card.number ?? index}-${index}`}>
-                {card.imageSmall ? (
-                  <img src={card.imageSmall} alt={card.pokemon ? `${card.pokemon} kaart` : 'Collectiekaart'} loading="lazy" />
-                ) : (
-                  <div className="card-image-placeholder" aria-label="Geen afbeelding beschikbaar">
-                    Geen afbeelding
+            {collectionPageState.cards.map((card) => (
+              <li key={card.cardCatalogId}>
+                <button
+                  ref={(element) => {
+                    if (element) cardButtonRefs.current.set(card.cardCatalogId, element);
+                    else cardButtonRefs.current.delete(card.cardCatalogId);
+                  }}
+                  className="collection-page-card-button"
+                  type="button"
+                  aria-label={`Details openen voor ${card.pokemon ?? 'onbekende kaart'}, ${card.setName ?? 'onbekende set'}${card.number ? `, kaart ${card.number}` : ''}`}
+                  onClick={() => openCollectionCardDetail(card)}
+                >
+                  {card.imageSmall ? (
+                    <img src={card.imageSmall} alt={card.pokemon ? `${card.pokemon} kaart` : 'Collectiekaart'} loading="lazy" />
+                  ) : (
+                    <div className="card-image-placeholder" aria-label="Geen afbeelding beschikbaar">
+                      Geen afbeelding
+                    </div>
+                  )}
+                  <div className="collection-page-card-body">
+                    <h3>{formatValue(card.pokemon)}</h3>
+                    <p>{formatValue(card.setName)} · #{formatValue(card.number)}</p>
+                    <dl className="collection-page-card-meta">
+                      <div><dt>Rarity</dt><dd>{formatValue(card.rarity)}</dd></div>
+                      <div><dt>Aantal</dt><dd>{formatValue(card.quantity)}</dd></div>
+                      <div><dt>Conditie</dt><dd>{formatValue(card.condition)}</dd></div>
+                      <div><dt>Status</dt><dd>{formatValue(card.status)}</dd></div>
+                    </dl>
                   </div>
-                )}
-                <div className="collection-page-card-body">
-                  <h3>{formatValue(card.pokemon)}</h3>
-                  <p>{formatValue(card.setName)} · #{formatValue(card.number)}</p>
-                  <dl className="collection-page-card-meta">
-                    <div><dt>Rarity</dt><dd>{formatValue(card.rarity)}</dd></div>
-                    <div><dt>Aantal</dt><dd>{formatValue(card.quantity)}</dd></div>
-                    <div><dt>Conditie</dt><dd>{formatValue(card.condition)}</dd></div>
-                    <div><dt>Status</dt><dd>{formatValue(card.status)}</dd></div>
-                  </dl>
-                </div>
+                </button>
               </li>
             ))}
           </ul>
@@ -369,5 +464,26 @@ export function CollectionPage() {
         </>
       ) : null}
     </section>
+    {selectedDetailCard ? (
+      <CardDetailDialog
+        card={selectedDetailCard}
+        ownership={detailOwnership}
+        mutation={{ status: 'idle' }}
+        capabilities={{
+          canAdd: false,
+          canIncrease: false,
+          canDecrease: false,
+          unavailableReason: 'Beheer vanuit Collection is nog niet beschikbaar.',
+        }}
+        copy={createCollectionCardDetailProductCopy(detailOwnership)}
+        onClose={closeCollectionCardDetail}
+        onRetryOwnership={() => {
+          if (collectionPageState.collectionId) {
+            loadSelectedCardOwnership(selectedDetailCard, collectionPageState.collectionId);
+          }
+        }}
+      />
+    ) : null}
+    </>
   );
 }

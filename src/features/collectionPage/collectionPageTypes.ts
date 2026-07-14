@@ -10,11 +10,14 @@ export type CollectionPageStatus =
   | 'error';
 
 export type CollectionPageCard = {
+  cardCatalogId: string;
   pokemon: string | null;
   setName: string | null;
+  setCode: string | null;
   number: string | null;
   rarity: string | null;
   imageSmall: string | null;
+  imageLarge: string | null;
   quantity: number | null;
   condition: string | null;
   status: string | null;
@@ -47,5 +50,6 @@ export type CollectionPageState = {
   page: number;
   pageSize: number;
   cards: CollectionPageCard[];
+  collectionId: string | null;
   errorMessage?: string;
 };
