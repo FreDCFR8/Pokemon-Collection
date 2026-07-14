@@ -56,7 +56,7 @@ This document shows product direction and phase status. It intentionally avoids 
 - ✅ Phase 7C-2D2B — shared collection-card mutation service
 - ✅ Phase 7C-2D2C — shared presentational Card Detail and Sets adapter
 - ✅ Phase 7C-2D2D — read-only reuse in Collection
-- 🚧 Phase 7C-2D2E — Collection Card Detail quantity management
+- ✅ Phase 7C-2D2E — Collection Card Detail quantity management
 - 🚧 Phase 7C-2F — Wishlist toevoegen vanuit Sets Card Detail (PR116 open; pas na merge afgerond)
 - ⏳ reuse in Wishlist, Trade and Search
 - ⏳ extended characteristics and metadata

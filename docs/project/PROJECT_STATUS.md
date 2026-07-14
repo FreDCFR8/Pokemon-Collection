@@ -8,11 +8,11 @@ This document contains current operational state only. Historical direction belo
 
 **Phase 7C-2F — Wishlist toevoegen vanuit Sets Card Detail**
 
-PR 113 merged Phase 7C-2D2D and introduced the shared Collection Card Detail read-only flow. Phase 7C-2D2E now activates narrowly constrained quantity management from that shared detail.
+PR 114 merged Phase 7C-2D2E and made narrowly constrained Collection Card Detail quantity management available from the shared detail. Phase 7C-2F is the active follow-up phase.
 
 ## Latest merged product milestone
 
-**PR 113 — Phase 7C-2D2D: Collection read-only shared Card Detail**
+**PR 114 — Phase 7C-2D2E: Collection Card Detail quantity management**
 
 Available behavior:
 
@@ -23,6 +23,7 @@ Available behavior:
 - absent cards can be added as one owned Near Mint copy;
 - quantity changes use secured exact-step UPDATE behavior;
 - transition from one copy to zero uses secured DELETE behavior;
+- Collection Card Detail quantity management is available for the active collection;
 - set progress counts unique physical card presence, not quantity;
 - Lars and Lore remain isolated through the active collection and RLS.
 
