@@ -1131,8 +1131,8 @@ button {
 .sets-page-set-overlay-controls select:focus,
 .sets-page-set-card-search-control button:focus-visible,
 .sets-page-set-overlay-card-button:focus-visible,
-.sets-page-set-card-detail-header button:focus-visible,
-.sets-page-set-card-quantity-control button:focus-visible,
+.card-detail-header button:focus-visible,
+.card-detail-quantity-control button:focus-visible,
 .sets-page-set-overlay-message button:focus-visible,
 .sets-page-set-overlay-load-more button:focus-visible {
   outline: 3px solid rgb(37 99 235 / 0.28);
@@ -1352,7 +1352,7 @@ button {
   line-height: 1;
 }
 
-.sets-page-set-card-quantity-control {
+.card-detail-quantity-control {
   display: grid;
   grid-template-columns: 56px minmax(0, 1fr) 56px;
   align-items: stretch;
@@ -1364,7 +1364,7 @@ button {
   white-space: normal;
 }
 
-.sets-page-set-card-quantity-control button {
+.card-detail-quantity-control button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1381,12 +1381,12 @@ button {
   touch-action: manipulation;
 }
 
-.sets-page-set-card-quantity-control button:disabled {
+.card-detail-quantity-control button:disabled {
   cursor: not-allowed;
   opacity: 0.58;
 }
 
-.sets-page-set-card-quantity-control > span {
+.card-detail-quantity-control > span {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1406,37 +1406,37 @@ button {
   white-space: nowrap;
 }
 
-.sets-page-set-card-quantity-status.is-present {
+.card-detail-quantity-status.is-present {
   border-color: #82c995;
   background: #e5f5e9;
   color: #14532d;
 }
 
-.sets-page-set-card-quantity-status.is-absent {
+.card-detail-quantity-status.is-absent {
   border-color: #ddb9b9;
   background: #f8eeee;
   color: #7f1d1d;
 }
 
-.sets-page-set-card-quantity-status.is-pending {
+.card-detail-quantity-status.is-pending {
   border-color: #9fc3e6;
   background: #eaf3fc;
   color: #1e4f7a;
 }
 
-.sets-page-set-card-quantity-status.is-unknown {
+.card-detail-quantity-status.is-unknown {
   border-color: #dfbd7b;
   background: #fff4dd;
   color: #7c4a03;
 }
 
-.sets-page-set-card-quantity-status-mark {
+.card-detail-quantity-status-mark {
   flex: 0 0 auto;
   font-size: 0.9em;
   line-height: 1;
 }
 
-.sets-page-set-card-manage-elsewhere {
+.card-detail-management-message {
   display: block;
   margin-top: 8px;
   color: #475569;
@@ -1448,11 +1448,11 @@ button {
   white-space: normal;
 }
 
-.sets-page-set-card-manage-elsewhere.is-error {
+.card-detail-management-message.is-error {
   color: #991b1b;
 }
 
-.sets-page-set-card-add-message {
+.card-detail-feedback-message {
   margin-top: 8px;
   font-size: 0.75rem;
   font-weight: 900;
@@ -1461,15 +1461,15 @@ button {
   white-space: normal;
 }
 
-.sets-page-set-card-add-message.is-success {
+.card-detail-feedback-message.is-success {
   color: #166534;
 }
 
-.sets-page-set-card-add-message.is-error {
+.card-detail-feedback-message.is-error {
   color: #991b1b;
 }
 
-.sets-page-set-card-detail-backdrop {
+.card-detail-backdrop {
   position: fixed;
   z-index: 1100;
   inset: 0;
@@ -1481,7 +1481,7 @@ button {
   padding: max(4px, env(safe-area-inset-top)) 0 0;
 }
 
-.sets-page-set-card-detail {
+.card-detail-dialog {
   position: relative;
   width: 100%;
   height: calc(100dvh - max(4px, env(safe-area-inset-top)));
@@ -1493,7 +1493,7 @@ button {
   overscroll-behavior: contain;
 }
 
-.sets-page-set-card-detail-header {
+.card-detail-header {
   position: absolute;
   z-index: 2;
   top: 6px;
@@ -1505,7 +1505,7 @@ button {
   padding: 0;
 }
 
-.sets-page-set-card-detail-header button {
+.card-detail-header button {
   flex: 0 0 auto;
   width: 44px;
   min-height: 44px;
@@ -1521,21 +1521,21 @@ button {
   line-height: 1;
 }
 
-.sets-page-set-card-detail-content {
+.card-detail-content {
   display: grid;
   gap: 12px;
   min-width: 0;
   padding: 4px 4px calc(20px + env(safe-area-inset-bottom));
 }
 
-.sets-page-set-card-detail-image {
+.card-detail-image {
   display: grid;
   place-items: center;
   min-width: 0;
 }
 
-.sets-page-set-card-detail-image img,
-.sets-page-set-card-detail-image > span {
+.card-detail-image img,
+.card-detail-image > span {
   display: block;
   width: min(calc(100vw - 8px), 480px);
   max-width: 100%;
@@ -1544,15 +1544,15 @@ button {
   object-fit: contain;
 }
 
-.sets-page-set-card-detail-image img {
+.card-detail-image img {
   background: transparent;
 }
 
-.sets-page-set-card-detail-image > span {
+.card-detail-image > span {
   background: #f8fafc;
 }
 
-.sets-page-set-card-detail-body {
+.card-detail-body {
   display: grid;
   justify-items: center;
   gap: 2px;
@@ -1560,7 +1560,7 @@ button {
   text-align: center;
 }
 
-.sets-page-set-card-detail-body h4 {
+.card-detail-body h4 {
   max-width: 100%;
   margin: 0;
   color: #172033;
@@ -1570,7 +1570,7 @@ button {
   overflow-wrap: anywhere;
 }
 
-.sets-page-set-card-detail-subtitle {
+.card-detail-subtitle {
   max-width: 100%;
   margin: 6px 0 0;
   color: #64748b;
@@ -1580,7 +1580,7 @@ button {
   overflow-wrap: anywhere;
 }
 
-.sets-page-set-card-detail-body .sets-page-set-card-add-message {
+.card-detail-body .card-detail-feedback-message {
   max-width: 420px;
   font-size: 0.75rem;
 }
@@ -1670,12 +1670,12 @@ button {
     margin-inline: auto;
   }
 
-  .sets-page-set-card-detail-backdrop {
+  .card-detail-backdrop {
     align-items: center;
     padding: 16px;
   }
 
-  .sets-page-set-card-detail {
+  .card-detail-dialog {
     width: min(100%, 560px);
     height: auto;
     max-height: calc(100dvh - 32px);
@@ -1714,4 +1714,44 @@ button {
   max-width: 100%;
   border-radius: inherit;
   background: linear-gradient(90deg, #2563eb 0%, #38bdf8 100%);
+}
+
+.card-detail-status-list {
+  display: grid;
+  gap: 4px;
+  margin: 8px 0 0;
+  padding: 0;
+  color: #475569;
+  font-size: 0.78rem;
+  font-weight: 800;
+  list-style: none;
+}
+
+.card-detail-retry-button {
+  min-height: 44px;
+  border: 0;
+  border-radius: 999px;
+  margin-top: 8px;
+  background: #2563eb;
+  color: #ffffff;
+  cursor: pointer;
+  padding: 0 16px;
+  font-weight: 900;
+}
+
+@media (min-width: 820px) {
+  .card-detail-dialog {
+    width: min(100%, 760px);
+  }
+
+  .card-detail-content {
+    grid-template-columns: minmax(260px, 0.95fr) minmax(260px, 1fr);
+    align-items: center;
+    padding: 28px 28px 28px;
+  }
+
+  .card-detail-body {
+    justify-items: start;
+    text-align: left;
+  }
 }
