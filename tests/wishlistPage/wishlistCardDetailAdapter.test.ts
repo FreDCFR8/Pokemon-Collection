@@ -93,6 +93,11 @@ test('Wishlist removal safely moves an emptied last page to the previous valid p
   assert.equal(getSafeWishlistPageAfterRemoval(1, 0), 1);
 });
 
+test('Wishlist promotion reuses bounded refresh clamping when the promoted card was the last row', () => {
+  assert.equal(getSafeWishlistPageAfterRemoval(2, 24), 1);
+  assert.equal(getSafeWishlistPageAfterRemoval(2, 25), 2);
+});
+
 test('Wishlist remove recovery closes when stale row disappeared and keeps exact remove retry when it remains', () => {
   assert.equal(resolveWishlistRemovalRecovery({ kind: 'absent' }), 'close');
   assert.equal(resolveWishlistRemovalRecovery({ kind: 'snapshot', value: { byStatus: { owned: [], wishlist: [], trade: [], missing: [] }, physicalPresence: 'absent' } }), 'close');

@@ -1170,6 +1170,7 @@ button {
 .card-detail-header button:focus-visible,
 .card-detail-quantity-control button:focus-visible,
 .card-detail-wishlist-button:focus-visible,
+.card-detail-primary-action:focus-visible,
 .card-detail-retry-button:focus-visible,
 .sets-page-set-overlay-message button:focus-visible,
 .sets-page-set-overlay-load-more button:focus-visible {
@@ -1803,7 +1804,22 @@ button {
   touch-action: manipulation;
 }
 
+.card-detail-primary-action {
+  width: 100%;
+  min-height: 48px;
+  margin-top: 12px;
+  border: 1px solid #15803d;
+  border-radius: 14px;
+  background: #dcfce7;
+  color: #166534;
+  cursor: pointer;
+  padding: 0 16px;
+  font-weight: 900;
+  touch-action: manipulation;
+}
+
 .card-detail-wishlist-button:disabled,
+.card-detail-primary-action:disabled,
 .card-detail-retry-button:disabled {
   cursor: not-allowed;
   opacity: 0.58;

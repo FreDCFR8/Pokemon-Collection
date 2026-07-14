@@ -6,13 +6,15 @@ This document contains current operational state only. Historical direction belo
 
 ## Current phase
 
-**Phase 7C-2F — Wishlist toevoegen vanuit Sets Card Detail**
+**Phase 7C-2G — Wishlist naar collectie**
 
-PR 114 merged Phase 7C-2D2E and made narrowly constrained Collection Card Detail quantity management available from the shared detail. Phase 7C-2F is the active follow-up phase.
+PR116 / Phase 7C-2F is afgerond. Phase 7C-2G is de actieve follow-upfase.
 
 ## Latest merged product milestone
 
-**PR 114 — Phase 7C-2D2E: Collection Card Detail quantity management**
+**PR116 — Phase 7C-2F: Wishlist add/remove vanuit shared Card Detail**
+
+PR116 is gemerged en vormt de directe basis voor de actieve promotieflow.
 
 Available behavior:
 
@@ -29,17 +31,17 @@ Available behavior:
 
 ## Active work
 
-Phase 7C-2F adds one reversible wishlist flow from shared Card Detail:
+Phase 7C-2G adds one safe wishlist-to-collection flow from shared Card Detail:
 
 - Wishlist cards are read from the active collection's wishlist rows with stable catalog identity and catalog image metadata;
 - Wishlist uses the same bounded server-side 24-card pagination and previous/next UX as Collection; it never loads the full catalog in the browser;
 - Wishlist page-level failures expose a retry that reloads only the Wishlist page;
 - selecting one wishlist card opens the shared Card Detail and loads ownership only for that selected catalog card through the existing read service;
-- Sets card detail offers `Aan wishlist toevoegen` and, for one valid wishlist row, `Van wishlist verwijderen`; binder/grid and Collection expose no new wishlist action;
-- the mutation service performs a read-only active-collection ownership/readiness check before insert;
-- wishlist writes use stable `collectionId` and `cardCatalogId`, `quantity = 1`, `condition = null` and `status = wishlist`;
-- the server response is fully validated, duplicate writes are idempotently resolved, and the visible Sets ownership state reloads after success;
-- wishlist removal uses exact row/collection/card/status/quantity/condition filters, validates the delete response, and reloads the bounded Wishlist page after closing detail;
+- Sets en Wishlist Card Detail tonen bij een geldige wishliststatus de primaire actie `Aan collectie toevoegen` en de secundaire actie `Van wishlist verwijderen`;
+- promotie gebruikt één security-invoker databasefunctie die ownership, exact één geldige wishlistrij en conflicterende states controleert;
+- de functie verwijdert de wishlist en voegt owned Near Mint quantity 1 atomair toe;
+- de RPC-response wordt volledig gevalideerd op collectie, cataloguskaart, status, quantity en condition;
+- Sets vernieuwt ownership, quantitybeheer en setprogress; Wishlist sluit het detail veilig en ververst/clamped de bounded pagina;
 - pending, success, error and retry states are controlled by the shared detail; late responses cannot update a closed or changed Sets context;
 - focused RLS migrations extend the existing ownership boundary to wishlist rows; Collection quantity management and Wishlist pagination remain otherwise unchanged.
 
@@ -81,7 +83,7 @@ Expansion to other catalog sets requires separately scoped validation and approv
 
 ## Next phase scope
 
-After Phase 7C-2F is reviewed and merged, continue with the next separately approved small implementation phase from the shared Card Detail design. Trade, Search and condition/status editing remain outside the current phase.
+After Phase 7C-2G is reviewed and merged, continue with the next separately approved small implementation phase from the shared Card Detail design. Trade, Search and condition/status editing remain outside the current phase.
 
 ## Known attention points
 

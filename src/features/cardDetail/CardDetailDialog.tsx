@@ -6,7 +6,7 @@ import type {
 } from '../collectionCards';
 import { areCardDetailActionsBlocked } from './cardDetailMutationState';
 
-export type CardDetailMutationOperation = 'add' | 'add-wishlist' | 'remove-wishlist' | 'increase' | 'decrease' | 'delete';
+export type CardDetailMutationOperation = 'add' | 'add-wishlist' | 'remove-wishlist' | 'promote-wishlist' | 'increase' | 'decrease' | 'delete';
 
 export type CardDetailMutationState =
   | { status: 'idle' }
@@ -28,6 +28,7 @@ export type CardDetailCapabilities = {
   canAdd: boolean;
   canAddWishlist?: boolean;
   canRemoveWishlist?: boolean;
+  canPromoteWishlist?: boolean;
   canIncrease: boolean;
   canDecrease: boolean;
   unavailableReason?: string;
@@ -51,6 +52,7 @@ export type CardDetailDialogProps = {
   onAdd?(): void;
   onAddWishlist?(): void;
   onRemoveWishlist?(): void;
+  onPromoteWishlist?(): void;
   onRetryMutation?(): void;
   onIncrease?(): void;
   onDecrease?(): void;
@@ -104,6 +106,7 @@ export function CardDetailDialog({
   onAdd,
   onAddWishlist,
   onRemoveWishlist,
+  onPromoteWishlist,
   onRetryMutation,
   onIncrease,
   onDecrease,
@@ -219,6 +222,11 @@ export function CardDetailDialog({
                 onClick={onAddWishlist}
               >
                 Aan wishlist toevoegen
+              </button>
+            ) : null}
+            {capabilities.canPromoteWishlist ? (
+              <button className="card-detail-primary-action" type="button" disabled={areActionsBlocked} onClick={onPromoteWishlist}>
+                Aan collectie toevoegen
               </button>
             ) : null}
             {capabilities.canRemoveWishlist ? (

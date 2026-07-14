@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { CardDetailDialog, type CardDetailCard, type CardDetailMutationState } from '../cardDetail';
-import { getCollectionCardOwnershipForCatalogCards, removeCardFromWishlist, WishlistMutationError, type CollectionOwnershipState } from '../collectionCards';
+import { getCollectionCardOwnershipForCatalogCards, promoteWishlistToOwned, removeCardFromWishlist, WishlistMutationError, WishlistPromotionError, type CollectionOwnershipState } from '../collectionCards';
 import { createWishlistCardDetailProductCopy, toWishlistCardDetailCard } from './wishlistCardDetailAdapter';
 import { loadWishlistPage } from './wishlistPageService';
 import { createWishlistPageErrorState, createWishlistPageLoadingState, resolveWishlistRemovalRecovery, shouldApplyWishlistDetailResponse, WISHLIST_PAGE_SIZE, type WishlistPageCard, type WishlistPageState } from './wishlistPageTypes';
@@ -174,6 +174,27 @@ export function WishlistPage() {
     }
   };
 
+  const promoteSelectedWishlistCard = async () => {
+    const card = selectedCard;
+    const collectionId = pageState.collectionId;
+    const pageAtStart = page;
+    if (!card || !collectionId || ownership.status !== 'ready' || ownership.value.kind !== 'snapshot' || ownership.value.value.byStatus.wishlist.length !== 1 || ownership.value.value.byStatus.owned.length > 0 || ownership.value.value.byStatus.trade.length > 0 || ownership.value.value.byStatus.missing.length > 0 || detailMutation.status === 'pending' || detailMutation.status === 'conflict') return;
+    const mutationRequestId = mutationRequestIdRef.current + 1;
+    mutationRequestIdRef.current = mutationRequestId;
+    setDetailMutation({ status: 'pending', operation: 'promote-wishlist' });
+    try {
+      const result = await promoteWishlistToOwned({ collectionId, cardCatalogId: card.cardCatalogId });
+      if (result.collectionId !== collectionId || result.cardCatalogId !== card.cardCatalogId || result.quantity !== 1 || result.condition !== 'Near Mint' || result.status !== 'owned') throw new WishlistPromotionError('De promotierespons kon niet veilig worden bevestigd.', 'invalid-result');
+      if (!shouldApplyWishlistDetailResponse({ mutationRequestId, cardCatalogId: card.cardCatalogId, collectionId, page: pageAtStart }, { mutationRequestId: mutationRequestIdRef.current, cardCatalogId: selectedCardIdRef.current ?? '', collectionId: selectedCollectionIdRef.current ?? '', page: activePageRef.current })) return;
+      closeDetail();
+      setRetryNonce((current) => current + 1);
+    } catch (error: unknown) {
+      if (!shouldApplyWishlistDetailResponse({ mutationRequestId, cardCatalogId: card.cardCatalogId, collectionId, page: pageAtStart }, { mutationRequestId: mutationRequestIdRef.current, cardCatalogId: selectedCardIdRef.current ?? '', collectionId: selectedCollectionIdRef.current ?? '', page: activePageRef.current })) return;
+      setDetailMutation({ status: 'error', operation: 'promote-wishlist', retryable: true, message: error instanceof WishlistPromotionError && error.reason === 'conflict' ? 'Wishliststatus is intussen gewijzigd. Vernieuw de status en probeer opnieuw.' : 'Toevoegen aan collectie is mislukt. Probeer opnieuw.' });
+      if (error instanceof WishlistPromotionError && error.reason !== 'not-ready') await loadSelectedOwnership(card, collectionId);
+    }
+  };
+
   return (
     <>
       <section className="collection-page wishlist-page" aria-labelledby="wishlist-page-title" inert={selectedCard ? true : undefined} aria-hidden={selectedCard ? true : undefined}>
@@ -236,6 +257,7 @@ export function WishlistPage() {
           mutation={detailMutation}
           capabilities={{
             canAdd: false,
+            canPromoteWishlist: ownership.status === 'ready' && ownership.value.kind === 'snapshot' && ownership.value.value.byStatus.wishlist.length === 1 && ownership.value.value.byStatus.owned.length === 0 && ownership.value.value.byStatus.trade.length === 0 && ownership.value.value.byStatus.missing.length === 0,
             canRemoveWishlist: ownership.status === 'ready' && ownership.value.kind === 'snapshot' && ownership.value.value.byStatus.wishlist.length === 1,
             canIncrease: false,
             canDecrease: false,
@@ -247,7 +269,8 @@ export function WishlistPage() {
             if (pageState.collectionId) loadSelectedOwnership(selectedCard, pageState.collectionId);
           }}
           onRemoveWishlist={() => void removeSelectedWishlistCard()}
-          onRetryMutation={() => void removeSelectedWishlistCard()}
+          onPromoteWishlist={() => void promoteSelectedWishlistCard()}
+          onRetryMutation={() => void (detailMutation.status === 'error' && detailMutation.operation === 'promote-wishlist' ? promoteSelectedWishlistCard() : removeSelectedWishlistCard())}
         />
       ) : null}
     </>
