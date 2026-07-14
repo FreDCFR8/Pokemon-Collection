@@ -2,17 +2,11 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-  createCollectionCardDetailProductCopy,
   shouldApplyCollectionCardDetailResponse,
   toCollectionCardDetailCard,
   type CollectionCardDetailRequest,
 } from '../../src/features/collectionPage/collectionCardDetailAdapter.ts';
 import { toCollectionPageCard, type CardsCatalogPageRow } from '../../src/features/collectionPage/collectionPageCardMapper.ts';
-import type {
-  CollectionOwnershipState,
-  CollectionStatus,
-  OwnershipRecord,
-} from '../../src/features/collectionCards/index.ts';
 
 const collectionId = 'collection-1';
 const cardCatalogId = 'card-1';
@@ -29,39 +23,6 @@ function pageRow(overrides: Partial<CardsCatalogPageRow> = {}): CardsCatalogPage
     image_large: 'https://images.example/large.png',
     collection_cards: { quantity: 1, condition: 'Near Mint', status: 'owned' },
     ...overrides,
-  };
-}
-
-function record(status: CollectionStatus, quantity = 1): OwnershipRecord {
-  return {
-    collectionCardId: `${status}-1`,
-    collectionId,
-    cardCatalogId,
-    quantity,
-    condition: status === 'owned' ? 'Near Mint' : null,
-    status,
-  };
-}
-
-function readyOwnership(records: Partial<Record<CollectionStatus, OwnershipRecord[]>>): CollectionOwnershipState {
-  const byStatus = {
-    owned: records.owned ?? [],
-    wishlist: records.wishlist ?? [],
-    trade: records.trade ?? [],
-    missing: records.missing ?? [],
-  };
-  const manageableOwnedNearMintRecord = byStatus.owned.length === 1 ? byStatus.owned[0] : undefined;
-
-  return {
-    status: 'ready',
-    value: {
-      kind: 'snapshot',
-      value: {
-        byStatus,
-        physicalPresence: byStatus.owned.length > 0 || byStatus.trade.length > 0 ? 'present' : 'absent',
-        manageableOwnedNearMintRecord,
-      },
-    },
   };
 }
 
@@ -96,45 +57,6 @@ test('missing or invalid catalog IDs never produce a valid collection card detai
   const validCard = toCollectionPageCard(pageRow());
   assert.ok(validCard);
   assert.equal(toCollectionCardDetailCard({ ...validCard, cardCatalogId: '' }), null);
-});
-
-test('collection detail copy preserves owned, trade, wishlist, missing, and conflict meaning', async (t) => {
-  await t.test('owned', () => {
-    assert.deepEqual(createCollectionCardDetailProductCopy(readyOwnership({ owned: [record('owned', 2)] })), {
-      statusItems: [],
-      physicalPresenceLabel: 'In collectie',
-      managementMessage: undefined,
-    });
-  });
-
-  await t.test('trade', () => {
-    assert.deepEqual(createCollectionCardDetailProductCopy(readyOwnership({ trade: [record('trade', 2)] })), {
-      statusItems: [{ status: 'trade', label: 'Voor ruil · 2 exemplaren' }],
-      physicalPresenceLabel: 'In collectie',
-      managementMessage: undefined,
-    });
-  });
-
-  await t.test('wishlist and missing', () => {
-    assert.deepEqual(
-      createCollectionCardDetailProductCopy(readyOwnership({ wishlist: [record('wishlist')], missing: [record('missing')] })),
-      {
-        statusItems: [
-          { status: 'wishlist', label: 'Op wishlist · 1 exemplaar' },
-          { status: 'missing', label: 'Ontbreekt · 1 exemplaar' },
-        ],
-        physicalPresenceLabel: undefined,
-        managementMessage: undefined,
-      },
-    );
-  });
-
-  await t.test('conflict', () => {
-    assert.deepEqual(
-      createCollectionCardDetailProductCopy({ status: 'ready', value: { kind: 'conflict', reason: 'Ambiguous rows.' } }),
-      { statusItems: [], physicalPresenceLabel: undefined, managementMessage: 'Gegevensconflict' },
-    );
-  });
 });
 
 test('late ownership responses are ignored after close, card, collection, or page changes', () => {

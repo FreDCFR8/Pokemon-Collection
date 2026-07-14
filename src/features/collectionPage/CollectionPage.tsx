@@ -419,18 +419,13 @@ export function CollectionPage() {
       {collectionPageState.cards.length > 0 ? (
         <>
           <ul className="collection-page-grid" aria-label="Collectiekaarten">
-            {collectionPageState.cards.map((card) => (
-              <li key={card.cardCatalogId}>
-                <button
-                  ref={(element) => {
-                    if (element) cardButtonRefs.current.set(card.cardCatalogId, element);
-                    else cardButtonRefs.current.delete(card.cardCatalogId);
-                  }}
-                  className="collection-page-card-button"
-                  type="button"
-                  aria-label={`Details openen voor ${card.pokemon ?? 'onbekende kaart'}, ${card.setName ?? 'onbekende set'}${card.number ? `, kaart ${card.number}` : ''}`}
-                  onClick={() => openCollectionCardDetail(card)}
-                >
+            {collectionPageState.cards.map((card) => {
+              const titleId = `collection-card-${card.cardCatalogId}-title`;
+              const subtitleId = `collection-card-${card.cardCatalogId}-subtitle`;
+              const metadataId = `collection-card-${card.cardCatalogId}-metadata`;
+
+              return (
+                <li key={card.cardCatalogId}>
                   {card.imageSmall ? (
                     <img src={card.imageSmall} alt={card.pokemon ? `${card.pokemon} kaart` : 'Collectiekaart'} loading="lazy" />
                   ) : (
@@ -439,18 +434,29 @@ export function CollectionPage() {
                     </div>
                   )}
                   <div className="collection-page-card-body">
-                    <h3>{formatValue(card.pokemon)}</h3>
-                    <p>{formatValue(card.setName)} · #{formatValue(card.number)}</p>
-                    <dl className="collection-page-card-meta">
+                    <h3 id={titleId}>{formatValue(card.pokemon)}</h3>
+                    <p id={subtitleId}>{formatValue(card.setName)} · #{formatValue(card.number)}</p>
+                    <dl id={metadataId} className="collection-page-card-meta">
                       <div><dt>Rarity</dt><dd>{formatValue(card.rarity)}</dd></div>
                       <div><dt>Aantal</dt><dd>{formatValue(card.quantity)}</dd></div>
                       <div><dt>Conditie</dt><dd>{formatValue(card.condition)}</dd></div>
                       <div><dt>Status</dt><dd>{formatValue(card.status)}</dd></div>
                     </dl>
                   </div>
-                </button>
-              </li>
-            ))}
+                  <button
+                    ref={(element) => {
+                      if (element) cardButtonRefs.current.set(card.cardCatalogId, element);
+                      else cardButtonRefs.current.delete(card.cardCatalogId);
+                    }}
+                    className="collection-page-card-button"
+                    type="button"
+                    aria-labelledby={`${titleId} ${subtitleId}`}
+                    aria-describedby={metadataId}
+                    onClick={() => openCollectionCardDetail(card)}
+                  />
+                </li>
+              );
+            })}
           </ul>
 
           <CollectionPagination

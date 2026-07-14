@@ -1,20 +1,7 @@
-import type { CardDetailCard, CardDetailProductCopy } from '../cardDetail/CardDetailDialog';
-import type {
-  CollectionOwnershipState,
-  CollectionStatus,
-  ConfirmedOwnership,
-  OwnershipRecord,
-} from '../collectionCards';
-import type { CollectionPageCard } from './collectionPageTypes.ts';
-
-const STATUS_LABELS: Record<CollectionStatus, string> = {
-  owned: 'In collectie',
-  wishlist: 'Op wishlist',
-  trade: 'Voor ruil',
-  missing: 'Ontbreekt',
-};
-
-const STATUS_ORDER: CollectionStatus[] = ['owned', 'wishlist', 'trade', 'missing'];
+import type { CardDetailCard, CardDetailProductCopy } from '../cardDetail';
+import { createCardDetailOwnershipPresentation } from '../cardDetail/cardDetailOwnershipPresentation.ts';
+import type { CollectionOwnershipState, ConfirmedOwnership } from '../collectionCards';
+import type { CollectionPageCard } from './collectionPageTypes';
 
 export type CollectionCardDetailRequest = {
   requestId: number;
@@ -63,39 +50,14 @@ export function getConfirmedOwnership(ownership: CollectionOwnershipState): Conf
 
 export function createCollectionCardDetailProductCopy(ownership: CollectionOwnershipState): CardDetailProductCopy {
   const confirmedOwnership = getConfirmedOwnership(ownership);
-  const snapshot = confirmedOwnership?.kind === 'snapshot'
-    ? confirmedOwnership.value
-    : confirmedOwnership?.kind === 'conflict'
-      ? confirmedOwnership.value
-      : undefined;
-  const statusItems = snapshot
-    ? STATUS_ORDER.flatMap((status) => {
-        const quantity = snapshot.byStatus[status]
-          .reduce((total: number, record: OwnershipRecord) => total + Math.max(0, record.quantity), 0);
-
-        if (
-          status === 'owned' &&
-          snapshot.manageableOwnedNearMintRecord &&
-          snapshot.byStatus.owned.length === 1 &&
-          snapshot.byStatus.wishlist.length === 0 &&
-          snapshot.byStatus.trade.length === 0 &&
-          snapshot.byStatus.missing.length === 0
-        ) {
-          return [];
-        }
-
-        return quantity > 0
-          ? [{ status, label: `${STATUS_LABELS[status]} · ${quantity} ${quantity === 1 ? 'exemplaar' : 'exemplaren'}` }]
-          : [];
-      })
-    : [];
+  const presentation = createCardDetailOwnershipPresentation({
+    ownership: confirmedOwnership,
+    includeConflictSnapshotStatusItems: true,
+  });
 
   return {
-    statusItems,
-    physicalPresenceLabel:
-      snapshot?.physicalPresence === 'present'
-        ? 'In collectie'
-        : undefined,
-    managementMessage: confirmedOwnership?.kind === 'conflict' ? 'Gegevensconflict' : undefined,
+    statusItems: presentation.statusItems,
+    physicalPresenceLabel: presentation.physicalPresenceLabel,
+    managementMessage: presentation.conflictMessage,
   };
 }
