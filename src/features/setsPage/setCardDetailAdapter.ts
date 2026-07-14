@@ -36,6 +36,13 @@ export function getSetWishlistCapabilities(params: {
   };
 }
 
+export function canStartSetWishlistAddMutation(params: {
+  ownership: ConfirmedOwnership | undefined;
+  hasConflictingRows: boolean;
+}): boolean {
+  return getSetWishlistCapabilities(params).canAddWishlist;
+}
+
 export function createSetCardDetailProductCopy(params: {
   ownership: ConfirmedOwnership | undefined;
   hasConflictingRows: boolean;

@@ -9,6 +9,7 @@ import {
 import type { ConfirmedOwnership } from '../../src/features/collectionCards/collectionCardOwnershipTypes.ts';
 
 const params = { collectionId: 'collection-1', cardCatalogId: 'card-151-1' };
+type NonWishlistStatus = 'owned' | 'trade' | 'missing';
 
 function ownership(wishlist = false): ConfirmedOwnership {
   return {
@@ -39,13 +40,36 @@ function ownershipWithWishlistRow(row: unknown): ConfirmedOwnership {
   } as ConfirmedOwnership;
 }
 
+function ownershipWithStatus(status: NonWishlistStatus): ConfirmedOwnership {
+  const snapshot = ownership(false);
+  const row = {
+    collectionCardId: `${status}-row`,
+    ...params,
+    quantity: 1,
+    condition: status === 'owned' ? 'Near Mint' : null,
+    status,
+  };
+
+  return {
+    kind: 'snapshot',
+    value: {
+      ...snapshot.value,
+      byStatus: {
+        ...snapshot.value.byStatus,
+        [status]: [row],
+      },
+      physicalPresence: status === 'missing' ? 'absent' : 'present',
+    },
+  } as ConfirmedOwnership;
+}
+
 function fakeClient(response: { data: unknown; error: unknown }) {
-  let inserted = false;
+  let insertCount = 0;
   let deleted = false;
   const client = {
     from() {
       const query = {
-        insert() { inserted = true; return query; },
+        insert() { insertCount += 1; return query; },
         delete() { deleted = true; return query; },
         select() { return query; },
         eq() { return query; },
@@ -56,7 +80,7 @@ function fakeClient(response: { data: unknown; error: unknown }) {
       return query;
     },
   };
-  return { client, wasInserted: () => inserted, wasDeleted: () => deleted };
+  return { client, wasInserted: () => insertCount > 0, insertCount: () => insertCount, wasDeleted: () => deleted };
 }
 
 test('wishlist mutation performs the readiness read and returns an existing wishlist row without inserting', async () => {
@@ -109,7 +133,7 @@ test('wishlist mutation validates the inserted server response', async () => {
     data: { id: 'new-row', collection_id: params.collectionId, card_catalog_id: params.cardCatalogId, quantity: 1, condition: null, status: 'wishlist' },
     error: null,
   });
-  const result = await addCardToWishlist(params, () => fake.client, async () => ownership(false));
+  const result = await addCardToWishlist(params, () => fake.client, async () => ({ kind: 'absent' }));
 
   assert.deepEqual(result, {
     collectionCardId: 'new-row',
@@ -119,6 +143,31 @@ test('wishlist mutation validates the inserted server response', async () => {
     condition: null,
     status: 'wishlist',
   });
+  assert.equal(fake.insertCount(), 1);
+});
+
+test('wishlist add fails closed without inserting for existing non-wishlist ownership', async () => {
+  for (const status of ['owned', 'trade', 'missing'] as const) {
+    const fake = fakeClient({ data: null, error: null });
+
+    await assert.rejects(
+      () => addCardToWishlist(params, () => fake.client, async () => ownershipWithStatus(status)),
+      (error: unknown) => error instanceof WishlistMutationError && error.reason === 'not-ready',
+      status,
+    );
+    assert.equal(fake.wasInserted(), false, status);
+  }
+});
+
+test('confirmed absence performs exactly one wishlist insert', async () => {
+  const fake = fakeClient({
+    data: { id: 'new-row', collection_id: params.collectionId, card_catalog_id: params.cardCatalogId, quantity: 1, condition: null, status: 'wishlist' },
+    error: null,
+  });
+
+  await addCardToWishlist(params, () => fake.client, async () => ({ kind: 'absent' }));
+
+  assert.equal(fake.insertCount(), 1);
 });
 
 test('wishlist removal deletes the exact validated row', async () => {
@@ -186,11 +235,30 @@ test('duplicate insert is resolved by a fresh read and never creates a second wi
   let reads = 0;
   const result = await addCardToWishlist(params, () => fake.client, async () => {
     reads += 1;
-    return reads === 1 ? ownership(false) : ownership(true);
+    return reads === 1 ? { kind: 'absent' } : ownership(true);
   });
 
   assert.equal(result.collectionCardId, 'wishlist-row');
   assert.equal(reads, 2);
+  assert.equal(fake.insertCount(), 1);
+});
+
+test('duplicate fresh read also fails closed for non-wishlist ownership', async () => {
+  for (const status of ['owned', 'trade', 'missing'] as const) {
+    const fake = fakeClient({ data: null, error: { code: '23505' } });
+    let reads = 0;
+
+    await assert.rejects(
+      () => addCardToWishlist(params, () => fake.client, async () => {
+        reads += 1;
+        return reads === 1 ? { kind: 'absent' } : ownershipWithStatus(status);
+      }),
+      (error: unknown) => error instanceof WishlistMutationError && error.reason === 'not-ready',
+      status,
+    );
+    assert.equal(fake.insertCount(), 1, status);
+    assert.equal(reads, 2, status);
+  }
 });
 
 test('wishlist mutation rejects a stale or invalid readiness result before writing', async () => {

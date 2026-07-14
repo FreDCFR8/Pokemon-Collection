@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createSetCardDetailProductCopy, getSetCardMutationRetryHandler, getSetWishlistCapabilities } from '../../src/features/setsPage/setCardDetailAdapter.ts';
+import { canStartSetWishlistAddMutation, createSetCardDetailProductCopy, getSetCardMutationRetryHandler, getSetWishlistCapabilities } from '../../src/features/setsPage/setCardDetailAdapter.ts';
 import type { ConfirmedOwnership, OwnershipRecord } from '../../src/features/collectionCards/index.ts';
 
 const ownedRecord: OwnershipRecord<'owned'> = {
@@ -108,6 +108,22 @@ test('Sets wishlist add is only available for confirmed absence', () => {
       { canAddWishlist: false, canRemoveWishlist: false },
     );
   }
+});
+
+test('Sets wishlist add retry is blocked when ownership changed after the original error', () => {
+  const changedOwnership: ConfirmedOwnership = {
+    kind: 'snapshot',
+    value: {
+      byStatus: { owned: [ownedRecord], wishlist: [], trade: [], missing: [] },
+      physicalPresence: 'present',
+      manageableOwnedNearMintRecord: ownedRecord,
+    },
+  };
+
+  assert.equal(
+    canStartSetWishlistAddMutation({ ownership: changedOwnership, hasConflictingRows: false }),
+    false,
+  );
 });
 
 test('Sets retry dispatch preserves each original operation and omits unknown operations', () => {

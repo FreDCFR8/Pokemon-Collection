@@ -28,7 +28,7 @@ Voeg vanuit shared Card Detail één kaart toe aan of verwijder die uit de wishl
 ## Verificatie
 
 - volledige test-suite;
-- actuele lokale teststand: 73/73 tests groen (`node --experimental-strip-types --test "tests/**/*.test.ts"`);
+- actuele lokale teststand: 77/77 tests groen (`node --experimental-strip-types --test "tests/**/*.test.ts"`);
 - `npm.cmd run build`;
 - `git diff --check`;
 - handmatige/mobile review van de Sets 151-flow en keyboard/pending/error/retrygedrag.
@@ -36,10 +36,11 @@ Voeg vanuit shared Card Detail één kaart toe aan of verwijder die uit de wishl
 ## Exacte changed files
 
 - `docs/project/PROJECT_STATUS.md`
-- `docs/project/ROADMAP.md`
 - `docs/project/PR_DESCRIPTION_PHASE_7C-2F.md`
+- `docs/project/ROADMAP.md`
 - `src/features/cardDetail/CardDetailDialog.tsx`
 - `src/features/cardDetail/cardDetailMutationState.ts`
+- `src/features/collectionCards/collectionCardReadService.ts`
 - `src/features/collectionCards/index.ts`
 - `src/features/collectionCards/wishlistMutationService.ts`
 - `src/features/setsPage/SetsPage.tsx`
@@ -48,6 +49,8 @@ Voeg vanuit shared Card Detail één kaart toe aan of verwijder die uit de wishl
 - `src/features/wishlistPage/index.ts`
 - `src/features/wishlistPage/wishlistPageService.ts`
 - `src/features/wishlistPage/wishlistPageTypes.ts`
+- `src/styles.css`
+- `supabase/migrations/20260714120000_collection_cards_wishlist_security.sql`
 - `supabase/migrations/20260714182541_collection_cards_wishlist_delete_security.sql`
 - `tests/cardDetail/cardDetailWishlistActions.test.ts`
 - `tests/collectionCards/wishlistDeleteSecurity.test.ts`

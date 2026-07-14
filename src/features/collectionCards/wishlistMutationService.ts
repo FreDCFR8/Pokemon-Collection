@@ -133,6 +133,32 @@ async function readExistingWishlist(
   return createWishlistRecordFromOwnershipRow(wishlistRows[0], params);
 }
 
+async function readWishlistAddReadiness(
+  params: AddCardToWishlistParams,
+  readOwnership: WishlistOwnershipReader,
+): Promise<{ kind: 'absent' } | { kind: 'existing'; row: WishlistMutationRecord }> {
+  const ownership = await readOwnership(params);
+
+  if (!ownership || ownership.kind === 'conflict') {
+    throw new WishlistMutationError('Wishliststatus kon niet veilig worden bevestigd.', 'not-ready');
+  }
+
+  if (ownership.kind === 'absent') {
+    return { kind: 'absent' };
+  }
+
+  const wishlistRows = ownership.value.byStatus.wishlist;
+  if (wishlistRows.length > 1) {
+    throw new WishlistMutationError('Meerdere wishlist-rijen voor deze kaart konden niet veilig worden samengevoegd.', 'duplicate');
+  }
+
+  if (wishlistRows.length === 1) {
+    return { kind: 'existing', row: createWishlistRecordFromOwnershipRow(wishlistRows[0], params) };
+  }
+
+  throw new WishlistMutationError('Deze kaart heeft al een andere collectiestatus en kan niet veilig aan de wishlist worden toegevoegd.', 'not-ready');
+}
+
 export async function removeCardFromWishlist(
   rawParams: AddCardToWishlistParams,
   createClient: WishlistMutationClientFactory = () => createBrowserSupabaseClient() as unknown as WishlistMutationClient | null,
@@ -185,8 +211,8 @@ export async function addCardToWishlist(
     cardCatalogId: normalizeId(rawParams.cardCatalogId, 'Geen geldige cataloguskaart gekozen.'),
   };
 
-  const existing = await readExistingWishlist(params, readOwnership);
-  if (existing) return existing;
+  const readiness = await readWishlistAddReadiness(params, readOwnership);
+  if (readiness.kind === 'existing') return readiness.row;
 
   const supabase = createClient();
   if (!supabase) {
@@ -202,8 +228,8 @@ export async function addCardToWishlist(
 
   if (error) {
     if (isDuplicateError(error)) {
-      const duplicate = await readExistingWishlist(params, readOwnership);
-      if (duplicate) return duplicate;
+      const duplicateReadiness = await readWishlistAddReadiness(params, readOwnership);
+      if (duplicateReadiness.kind === 'existing') return duplicateReadiness.row;
       throw new WishlistMutationError('Deze kaart staat al op de wishlist, maar de status kon niet worden bevestigd.', 'duplicate');
     }
     throw error;
@@ -218,5 +244,6 @@ export const __wishlistMutationServiceTestUtils = {
   mapAndValidateWishlistRow,
   isDuplicateError,
   readExistingWishlist,
+  readWishlistAddReadiness,
   createWishlistRecordFromOwnershipRow,
 };

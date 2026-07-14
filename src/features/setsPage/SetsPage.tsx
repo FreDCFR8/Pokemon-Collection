@@ -27,6 +27,7 @@ import {
 import { addCardToWishlist, removeCardFromWishlist, WishlistMutationError } from '../collectionCards';
 import { getSetProgressForCollection, type SetProgress } from './services/setsProgressService';
 import {
+  canStartSetWishlistAddMutation,
   createSetCardDetailProductCopy,
   getSetCardMutationRetryHandler,
   getSetWishlistCapabilities,
@@ -636,9 +637,13 @@ export function SetsPage() {
     }
 
     const collectionInfo = setCardCollectionState.infoByCardCatalogId.get(card.id);
-    const hasWishlistRecord = collectionInfo?.ownership.kind === 'snapshot' && collectionInfo.ownership.value.byStatus.wishlist.length > 0;
+    const canAddWishlist = canStartSetWishlistAddMutation({
+      ownership: collectionInfo?.ownership,
+      hasConflictingRows: collectionInfo?.hasConflictingManageableRows ?? false,
+    });
+    const hasWishlistRecord = collectionInfo?.ownership.kind === 'snapshot' && collectionInfo.ownership.value.byStatus.wishlist.length === 1;
 
-    if (!collectionInfo || collectionInfo.hasConflictingManageableRows || hasWishlistRecord) {
+    if (!collectionInfo || !canAddWishlist) {
       setSetCardMutationStates((currentStates) => ({
         ...currentStates,
         [card.id]: { status: 'error', message: hasWishlistRecord ? 'Deze kaart staat al op je wishlist.' : 'Collectiestatus is niet eenduidig.' },
