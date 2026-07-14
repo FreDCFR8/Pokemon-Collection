@@ -6,6 +6,7 @@ import { CollectionReadinessCard } from './features/collections';
 import { EnvConfigStatusCard } from './features/config';
 import { ProfileReadinessCard, ProfileStatusCard } from './features/profiles';
 import { SetsPage } from './features/setsPage';
+import { WishlistPage } from './features/wishlistPage';
 
 const navigationItems = [
   { label: 'Dashboard', slug: 'dashboard' },
@@ -88,11 +89,7 @@ function MainContent({ activeNavigationItem }: { activeNavigationItem: Navigatio
     case 'Sets':
       return <SetsPage />;
     case 'Wishlist':
-      return (
-        <section className="placeholder-grid" aria-label="Wishlist scherm">
-          <PlaceholderCard title="Wishlist" description="Placeholder voor toekomstige wishlist-functionaliteit." />
-        </section>
-      );
+      return <WishlistPage />;
     case 'Pokédex':
       return (
         <section className="placeholder-grid" aria-label="Pokédex scherm">
