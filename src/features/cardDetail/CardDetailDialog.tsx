@@ -5,7 +5,7 @@ import type {
   CollectionStatus,
 } from '../collectionCards';
 
-export type CardDetailMutationOperation = 'add' | 'increase' | 'decrease' | 'delete';
+export type CardDetailMutationOperation = 'add' | 'add-wishlist' | 'increase' | 'decrease' | 'delete';
 
 export type CardDetailMutationState =
   | { status: 'idle' }
@@ -25,6 +25,7 @@ export type CardDetailCard = {
 
 export type CardDetailCapabilities = {
   canAdd: boolean;
+  canAddWishlist?: boolean;
   canIncrease: boolean;
   canDecrease: boolean;
   unavailableReason?: string;
@@ -46,6 +47,8 @@ export type CardDetailDialogProps = {
   onClose(): void;
   onRetryOwnership?(): void;
   onAdd?(): void;
+  onAddWishlist?(): void;
+  onRetryMutation?(): void;
   onIncrease?(): void;
   onDecrease?(): void;
 };
@@ -96,6 +99,8 @@ export function CardDetailDialog({
   onClose,
   onRetryOwnership,
   onAdd,
+  onAddWishlist,
+  onRetryMutation,
   onIncrease,
   onDecrease,
 }: CardDetailDialogProps) {
@@ -202,6 +207,21 @@ export function CardDetailDialog({
             )}
             {copy.statusItems.length > 0 ? <ul className="card-detail-status-list" aria-label="Collectiestatussen">{copy.statusItems.map((item) => <li key={item.status}>{item.label}</li>)}</ul> : null}
             {ownership.status === 'error' && onRetryOwnership ? <button className="card-detail-retry-button" type="button" onClick={onRetryOwnership}>Collectiestatus opnieuw laden</button> : null}
+            {capabilities.canAddWishlist ? (
+              <button
+                className="card-detail-wishlist-button"
+                type="button"
+                disabled={areActionsBlocked}
+                onClick={onAddWishlist}
+              >
+                Aan wishlist toevoegen
+              </button>
+            ) : null}
+            {mutation.status === 'error' && mutation.retryable && onRetryMutation ? (
+              <button className="card-detail-retry-button" type="button" onClick={onRetryMutation} disabled={isMutating}>
+                Opnieuw proberen
+              </button>
+            ) : null}
             {managementMessages.map((message) => <span key={message} className="card-detail-management-message">{message}</span>)}
             {feedbackMessage ? <span className={`card-detail-feedback-message${feedbackRole === 'alert' ? ' is-error' : ' is-success'}`} role={feedbackRole}>{feedbackMessage}</span> : null}
           </div>

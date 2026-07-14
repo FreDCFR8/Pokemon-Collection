@@ -1,6 +1,6 @@
-import { createBrowserSupabaseClient } from '../../lib/supabase';
-import { projectCollectionOwnershipBatch } from './collectionCardOwnershipProjector';
-import { createCollectionCardReadBatches } from './collectionCardReadBatching';
+import { createBrowserSupabaseClient } from '../../lib/supabase/supabaseClient.ts';
+import { projectCollectionOwnershipBatch } from './collectionCardOwnershipProjector.ts';
+import { createCollectionCardReadBatches } from './collectionCardReadBatching.ts';
 import type { ConfirmedOwnership, OwnershipRecordInput } from './collectionCardOwnershipTypes';
 
 type CollectionCardStateDatabaseRow = {

@@ -28,6 +28,18 @@ export {
   increaseCollectionCardQuantity,
   isDuplicateCollectionCardMutationError,
 } from './collectionCardMutationService';
+
+export {
+  WishlistMutationError,
+  addCardToWishlist,
+} from './wishlistMutationService';
+export type {
+  AddCardToWishlistParams,
+  WishlistMutationClientFactory,
+  WishlistMutationErrorReason,
+  WishlistMutationRecord,
+  WishlistOwnershipReader,
+} from './wishlistMutationService';
 export type {
   AddOwnedNearMintCollectionCardParams,
   CollectionCardMutationErrorReason,

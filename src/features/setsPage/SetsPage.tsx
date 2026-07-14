@@ -24,6 +24,7 @@ import {
   increaseCollectionCardQuantity,
   type ManagedCollectionCard,
 } from './services/manageCollectionCardQuantityService';
+import { addCardToWishlist, WishlistMutationError } from '../collectionCards';
 import { getSetProgressForCollection, type SetProgress } from './services/setsProgressService';
 import {
   createSetCardDetailProductCopy,
@@ -64,7 +65,7 @@ type SetCardCollectionState = {
 };
 
 type SetCardMutationState = {
-  status: 'idle' | 'adding' | 'increasing' | 'decreasing' | 'deleting' | 'success' | 'error';
+  status: 'idle' | 'adding' | 'adding-wishlist' | 'increasing' | 'decreasing' | 'deleting' | 'success' | 'error';
   message?: string;
   requestId?: number;
 };
@@ -605,6 +606,63 @@ export function SetsPage() {
       }
 
       setCardMutationResult(card.id, requestId, 'error', 'Kaart toevoegen is mislukt. Probeer opnieuw.');
+    } finally {
+      if (setCardMutationRequestIdsByCardRef.current.get(card.id) === requestId) {
+        pendingSetCardMutationIdsRef.current.delete(card.id);
+        setCardMutationRequestIdsByCardRef.current.delete(card.id);
+      }
+    }
+  }
+
+  async function handleAddCardToWishlist(card: SetCatalogCard) {
+    if (!openSet || !activeCollectionId || setCardCollectionState.status !== 'success') {
+      setSetCardMutationStates((currentStates) => ({
+        ...currentStates,
+        [card.id]: { status: 'error', message: 'Collectiestatus is nog niet bevestigd.' },
+      }));
+      return;
+    }
+
+    const collectionInfo = setCardCollectionState.infoByCardCatalogId.get(card.id);
+    const hasWishlistRecord = collectionInfo?.ownership.kind === 'snapshot' && collectionInfo.ownership.value.byStatus.wishlist.length > 0;
+
+    if (!collectionInfo || collectionInfo.hasConflictingManageableRows || hasWishlistRecord) {
+      setSetCardMutationStates((currentStates) => ({
+        ...currentStates,
+        [card.id]: { status: 'error', message: hasWishlistRecord ? 'Deze kaart staat al op je wishlist.' : 'Collectiestatus is niet eenduidig.' },
+      }));
+      return;
+    }
+
+    const requestId = beginCardMutation(card.id, 'adding-wishlist');
+    if (requestId === null) return;
+
+    const collectionIdForRequest = activeCollectionId;
+    const setIdForRequest = openSet.id;
+
+    try {
+      const result = await addCardToWishlist({ collectionId: collectionIdForRequest, cardCatalogId: card.id });
+      if (!isCurrentCardMutation(card.id, requestId, collectionIdForRequest, setIdForRequest)) return;
+      if (result.cardCatalogId !== card.id || result.collectionId !== collectionIdForRequest || result.status !== 'wishlist' || result.quantity !== 1 || result.condition !== null) {
+        throw new WishlistMutationError('De wishlistrespons kon niet veilig worden bevestigd.', 'invalid-result');
+      }
+
+      const refreshed = await refreshVisibleCardCollectionState(collectionIdForRequest, setIdForRequest);
+      if (!refreshed || !isCurrentCardMutation(card.id, requestId, collectionIdForRequest, setIdForRequest)) return;
+      setCardMutationResult(card.id, requestId, 'success', 'Op wishlist');
+    } catch (error) {
+      if (!isCurrentCardMutation(card.id, requestId, collectionIdForRequest, setIdForRequest)) return;
+      setCardMutationResult(
+        card.id,
+        requestId,
+        'error',
+        error instanceof WishlistMutationError && error.reason === 'duplicate'
+          ? 'Deze kaart staat al op je wishlist. Status is vernieuwd.'
+          : 'Wishlist toevoegen is mislukt. Probeer opnieuw.',
+      );
+      if (error instanceof WishlistMutationError && error.reason === 'duplicate') {
+        await refreshVisibleCardCollectionState(collectionIdForRequest, setIdForRequest);
+      }
     } finally {
       if (setCardMutationRequestIdsByCardRef.current.get(card.id) === requestId) {
         pendingSetCardMutationIdsRef.current.delete(card.id);
@@ -1274,6 +1332,9 @@ export function SetsPage() {
                 isCollectionStateLoaded && Boolean(collectionInfo) && hasConfirmedAbsence(collectionInfo?.ownership) && !hasConflictingRows;
               const isManageable =
                 isCollectionStateLoaded && Boolean(manageableRow) && !hasConflictingRows;
+              const canAddWishlist =
+                isCollectionStateLoaded && Boolean(collectionInfo) && !hasConflictingRows &&
+                !(collectionInfo?.ownership.kind === 'snapshot' && collectionInfo.ownership.value.byStatus.wishlist.length > 0);
               const showManageElsewhere =
                 isCollectionStateLoaded && hasAnyRecord && !manageableRow && !hasConflictingRows;
               const ownership = setCardCollectionState.status === 'loading'
@@ -1285,6 +1346,8 @@ export function SetsPage() {
                     : { status: 'ready' as const, value: collectionInfo.ownership };
               const mutation: CardDetailMutationState = mutationState?.status === 'adding'
                 ? { status: 'pending', operation: 'add' }
+                : mutationState?.status === 'adding-wishlist'
+                  ? { status: 'pending', operation: 'add-wishlist' }
                 : mutationState?.status === 'increasing'
                   ? { status: 'pending', operation: 'increase' }
                   : mutationState?.status === 'decreasing'
@@ -1316,6 +1379,7 @@ export function SetsPage() {
                   mutation={mutation}
                   capabilities={{
                     canAdd: isAbsent,
+                    canAddWishlist,
                     canIncrease: isManageable,
                     canDecrease: isManageable,
                     unavailableReason: setCardCollectionState.status === 'error' ? 'Collectiestatus kon niet worden geladen.' : undefined,
@@ -1328,6 +1392,8 @@ export function SetsPage() {
                     }
                   }}
                   onAdd={() => void handleAddCardToCollection(selectedSetCard)}
+                  onAddWishlist={() => void handleAddCardToWishlist(selectedSetCard)}
+                  onRetryMutation={() => void handleAddCardToWishlist(selectedSetCard)}
                   onIncrease={() => void handleCollectionCardQuantityChange(selectedSetCard, 'increase')}
                   onDecrease={() => void handleCollectionCardQuantityChange(selectedSetCard, 'decrease')}
                 />
