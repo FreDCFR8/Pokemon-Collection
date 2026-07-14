@@ -1,6 +1,11 @@
-import type { CardDetailCard, CardDetailProductCopy } from '../cardDetail';
+import type { CardDetailCapabilities, CardDetailCard, CardDetailProductCopy } from '../cardDetail';
 import { createCardDetailOwnershipPresentation } from '../cardDetail/cardDetailOwnershipPresentation.ts';
-import type { CollectionOwnershipState, ConfirmedOwnership } from '../collectionCards';
+import type {
+  CollectionCardMutationRecord,
+  CollectionOwnershipState,
+  ConfirmedOwnership,
+  DecreaseCollectionCardQuantityMutationResult,
+} from '../collectionCards';
 import type { CollectionPageCard } from './collectionPageTypes';
 
 export type CollectionCardDetailRequest = {
@@ -60,4 +65,61 @@ export function createCollectionCardDetailProductCopy(ownership: CollectionOwner
     physicalPresenceLabel: presentation.physicalPresenceLabel,
     managementMessage: presentation.conflictMessage,
   };
+}
+
+function isSingleManageableOwnedNearMint(ownership: ConfirmedOwnership | undefined): boolean {
+  if (ownership?.kind !== 'snapshot') {
+    return false;
+  }
+
+  const { byStatus, manageableOwnedNearMintRecord } = ownership.value;
+
+  return Boolean(
+    manageableOwnedNearMintRecord &&
+      byStatus.owned.length === 1 &&
+      byStatus.wishlist.length === 0 &&
+      byStatus.trade.length === 0 &&
+      byStatus.missing.length === 0,
+  );
+}
+
+export function createCollectionCardDetailCapabilities(
+  ownership: CollectionOwnershipState,
+): CardDetailCapabilities {
+  const manageable = isSingleManageableOwnedNearMint(getConfirmedOwnership(ownership));
+
+  return {
+    canAdd: false,
+    canIncrease: manageable,
+    canDecrease: manageable,
+    unavailableReason: manageable
+      ? undefined
+      : ownership.status === 'error' || ownership.status === 'loading'
+        ? 'Status onbekend. Laad de collectiestatus opnieuw.'
+        : 'Quantitybeheer is alleen beschikbaar voor één owned Near Mint-kaart.',
+  };
+}
+
+export type CollectionCardDetailQuantityMutationResult =
+  | { kind: 'updated'; card: CollectionCardMutationRecord }
+  | { kind: 'deleted'; collectionCardId: string };
+
+export function mapCollectionCardDetailIncreaseResult(
+  result: CollectionCardMutationRecord,
+): CollectionCardDetailQuantityMutationResult {
+  return { kind: 'updated', card: result };
+}
+
+export function mapCollectionCardDetailDecreaseResult(
+  result: DecreaseCollectionCardQuantityMutationResult,
+): CollectionCardDetailQuantityMutationResult {
+  return result.action === 'deleted'
+    ? { kind: 'deleted', collectionCardId: result.collectionCardId }
+    : { kind: 'updated', card: result.card };
+}
+
+export function getCollectionCardDetailQuantityFromMutation(
+  result: CollectionCardDetailQuantityMutationResult,
+): number | null {
+  return result.kind === 'updated' ? result.card.quantity : null;
 }

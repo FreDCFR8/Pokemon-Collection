@@ -2,14 +2,52 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  createCollectionCardDetailCapabilities,
+  getCollectionCardDetailQuantityFromMutation,
+  mapCollectionCardDetailDecreaseResult,
+  mapCollectionCardDetailIncreaseResult,
   shouldApplyCollectionCardDetailResponse,
   toCollectionCardDetailCard,
   type CollectionCardDetailRequest,
 } from '../../src/features/collectionPage/collectionCardDetailAdapter.ts';
 import { toCollectionPageCard, type CardsCatalogPageRow } from '../../src/features/collectionPage/collectionPageCardMapper.ts';
+import type { CollectionOwnershipState, OwnershipRecord } from '../../src/features/collectionCards/index.ts';
 
 const collectionId = 'collection-1';
 const cardCatalogId = 'card-1';
+
+function ownershipState(records: Partial<Record<'owned' | 'wishlist' | 'trade' | 'missing', OwnershipRecord[]>>): CollectionOwnershipState {
+  const byStatus = {
+    owned: records.owned ?? [],
+    wishlist: records.wishlist ?? [],
+    trade: records.trade ?? [],
+    missing: records.missing ?? [],
+  };
+  const manageableOwnedNearMintRecord = byStatus.owned.length === 1 && byStatus.owned[0]?.condition === 'Near Mint'
+    ? byStatus.owned[0]
+    : undefined;
+
+  return {
+    status: 'ready',
+    value: {
+      kind: 'snapshot',
+      value: {
+        byStatus,
+        physicalPresence: byStatus.owned.length > 0 || byStatus.trade.length > 0 ? 'present' : 'absent',
+        manageableOwnedNearMintRecord,
+      },
+    },
+  };
+}
+
+const ownedRecord: OwnershipRecord<'owned'> = {
+  collectionCardId: 'collection-card-1',
+  collectionId,
+  cardCatalogId,
+  quantity: 2,
+  condition: 'Near Mint',
+  status: 'owned',
+};
 
 function pageRow(overrides: Partial<CardsCatalogPageRow> = {}): CardsCatalogPageRow {
   return {
@@ -73,4 +111,52 @@ test('late ownership responses are ignored after close, card, collection, or pag
   assert.equal(shouldApplyCollectionCardDetailResponse({ ...completedRequest, cardCatalogId: 'card-2' }, completedRequest), false);
   assert.equal(shouldApplyCollectionCardDetailResponse({ ...completedRequest, collectionId: 'collection-2' }, completedRequest), false);
   assert.equal(shouldApplyCollectionCardDetailResponse({ ...completedRequest, page: 3 }, completedRequest), false);
+});
+
+test('Collection capabilities allow only one owned Near Mint row and never add', () => {
+  assert.deepEqual(createCollectionCardDetailCapabilities(ownershipState({ owned: [ownedRecord] })), {
+    canAdd: false,
+    canIncrease: true,
+    canDecrease: true,
+    unavailableReason: undefined,
+  });
+});
+
+test('Collection capabilities disable wishlist, trade, missing, conflict and unknown states', () => {
+  for (const records of [
+    { wishlist: [{ ...ownedRecord, status: 'wishlist' as const, condition: null }] },
+    { trade: [{ ...ownedRecord, status: 'trade' as const, condition: null }] },
+    { missing: [{ ...ownedRecord, status: 'missing' as const, condition: null }] },
+  ]) {
+    const capabilities = createCollectionCardDetailCapabilities(ownershipState(records));
+    assert.equal(capabilities.canAdd, false);
+    assert.equal(capabilities.canIncrease, false);
+    assert.equal(capabilities.canDecrease, false);
+  }
+
+  const conflict = createCollectionCardDetailCapabilities({ status: 'ready', value: { kind: 'conflict', reason: 'conflict' } });
+  const unknown = createCollectionCardDetailCapabilities({ status: 'error', retryable: true });
+  assert.equal(conflict.canIncrease, false);
+  assert.equal(conflict.canDecrease, false);
+  assert.equal(unknown.canIncrease, false);
+  assert.equal(unknown.canDecrease, false);
+});
+
+test('Collection mutation result mapping accepts validated increase, decrease and delete responses', () => {
+  const increased = mapCollectionCardDetailIncreaseResult({ ...ownedRecord, quantity: 3 });
+  assert.equal(getCollectionCardDetailQuantityFromMutation(increased), 3);
+
+  const decreased = mapCollectionCardDetailDecreaseResult({ action: 'updated', card: { ...ownedRecord, quantity: 1 } });
+  assert.equal(getCollectionCardDetailQuantityFromMutation(decreased), 1);
+
+  const deleted = mapCollectionCardDetailDecreaseResult({ action: 'deleted', collectionCardId: ownedRecord.collectionCardId });
+  assert.deepEqual(deleted, { kind: 'deleted', collectionCardId: ownedRecord.collectionCardId });
+  assert.equal(getCollectionCardDetailQuantityFromMutation(deleted), null);
+});
+
+test('stale/conflict responses do not become a quantity success and active Collection context remains part of the request identity', () => {
+  const request: CollectionCardDetailRequest = { requestId: 7, collectionId, cardCatalogId, page: 3 };
+  assert.equal(shouldApplyCollectionCardDetailResponse(request, { ...request, requestId: 8 }), false);
+  assert.equal(shouldApplyCollectionCardDetailResponse(request, { ...request, page: 4 }), false);
+  assert.equal(shouldApplyCollectionCardDetailResponse(request, request), true);
 });
