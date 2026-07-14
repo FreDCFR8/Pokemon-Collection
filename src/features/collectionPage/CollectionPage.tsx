@@ -1,9 +1,23 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { CardDetailDialog, type CardDetailCard } from '../cardDetail';
-import { getCollectionCardOwnershipForCatalogCards, type CollectionOwnershipState } from '../collectionCards';
+import { CardDetailDialog, type CardDetailCard, type CardDetailMutationState } from '../cardDetail';
+import {
+  CollectionCardMutationError,
+  decreaseCollectionCardQuantity,
+  getCollectionCardOwnershipForCatalogCards,
+  increaseCollectionCardQuantity,
+  type CollectionOwnershipState,
+} from '../collectionCards';
 import { checkCollectionReadiness } from '../collections';
 import {
   createCollectionCardDetailProductCopy,
+  CollectionCardDetailInvalidResultError,
+  createCollectionCardDetailCapabilities,
+  getCollectionCardDetailQuantityFromMutation,
+  getConfirmedOwnership,
+  mapCollectionCardDetailDecreaseResult,
+  mapCollectionCardDetailIncreaseResult,
+  resolveCollectionCardDetailOwnershipRefresh,
+  validateCollectionCardDetailMutationResult,
   shouldApplyCollectionCardDetailResponse,
   toCollectionCardDetailCard,
   type CollectionCardDetailRequest,
@@ -92,8 +106,16 @@ export function CollectionPage() {
   const [collectionPageState, setCollectionPageState] = useState<CollectionPageState>(initialCollectionPageState);
   const [selectedDetailCard, setSelectedDetailCard] = useState<CardDetailCard | null>(null);
   const [detailOwnership, setDetailOwnership] = useState<CollectionOwnershipState>({ status: 'idle' });
+  const [detailMutation, setDetailMutation] = useState<CardDetailMutationState>({ status: 'idle' });
   const detailRequestIdRef = useRef(0);
   const activeDetailRequestRef = useRef<CollectionCardDetailRequest | null>(null);
+  const mutationRequestIdRef = useRef(0);
+  const collectionContextRef = useRef({
+    collectionId: null as string | null,
+    page: 1,
+    searchTerm: '',
+    filters,
+  });
   const cardButtonRefs = useRef(new Map<string, HTMLButtonElement>());
   const totalPages = useMemo(
     () => Math.max(1, Math.ceil(collectionPageState.totalCount / collectionPageState.pageSize)),
@@ -112,11 +134,19 @@ export function CollectionPage() {
   const firstVisibleCard = collectionPageState.totalCount === 0 ? 0 : (collectionPageState.page - 1) * collectionPageState.pageSize + 1;
   const lastVisibleCard = Math.min(collectionPageState.page * collectionPageState.pageSize, collectionPageState.totalCount);
 
+  collectionContextRef.current = {
+    collectionId: collectionPageState.collectionId,
+    page,
+    searchTerm: activeSearchTerm,
+    filters,
+  };
+
   useEffect(() => {
     activeDetailRequestRef.current = null;
     detailRequestIdRef.current += 1;
     setSelectedDetailCard(null);
     setDetailOwnership({ status: 'idle' });
+    setDetailMutation({ status: 'idle' });
   }, [activeSearchTerm, collectionPageState.collectionId, filters, page]);
 
   useEffect(() => {
@@ -249,26 +279,122 @@ export function CollectionPage() {
     };
     detailRequestIdRef.current = request.requestId;
     activeDetailRequestRef.current = request;
-    setDetailOwnership({ status: 'loading' });
+    const refreshMutationRequestId = mutationRequestIdRef.current;
+    const previousOwnership = getConfirmedOwnership(detailOwnership);
+    setDetailOwnership((previous) => ({
+      status: 'loading',
+      previous: previousOwnership ?? getConfirmedOwnership(previous),
+    }));
 
     getCollectionCardOwnershipForCatalogCards({ collectionId, cardCatalogIds: [card.cardCatalogId] })
       .then((ownershipByCardCatalogId) => {
-        if (!shouldApplyCollectionCardDetailResponse(activeDetailRequestRef.current, request)) {
+        const appliesToRequest = shouldApplyCollectionCardDetailResponse(activeDetailRequestRef.current, request);
+        if (!appliesToRequest) {
           return;
         }
 
         const ownership = ownershipByCardCatalogId.get(card.cardCatalogId);
-        setDetailOwnership(
-          ownership
-            ? { status: 'ready', value: ownership }
-            : { status: 'error', retryable: true },
-        );
+        const isValidOwnership = Boolean(ownership && ownership.kind !== 'conflict');
+
+        if (isValidOwnership && ownership) {
+          setDetailOwnership({ status: 'ready', value: ownership });
+        } else {
+          setDetailOwnership({ status: 'error', previous: previousOwnership, retryable: true });
+        }
+
+        if (mutationRequestIdRef.current === refreshMutationRequestId) {
+          setDetailMutation((currentMutation) => resolveCollectionCardDetailOwnershipRefresh(
+            currentMutation,
+            isValidOwnership && ownership
+              ? { status: 'ready', ownership }
+              : { status: 'error' },
+          ));
+        }
       })
       .catch(() => {
         if (shouldApplyCollectionCardDetailResponse(activeDetailRequestRef.current, request)) {
-          setDetailOwnership({ status: 'error', retryable: true });
+          setDetailOwnership({ status: 'error', previous: previousOwnership, retryable: true });
+          if (mutationRequestIdRef.current === refreshMutationRequestId) {
+            setDetailMutation((currentMutation) => resolveCollectionCardDetailOwnershipRefresh(currentMutation, { status: 'error' }));
+          }
         }
       });
+  };
+
+  const refreshBoundedCollectionPage = (request: CollectionCardDetailRequest, mutationRequestId: number) => {
+    loadCollectionPage(request.page, { searchQuery: activeSearchTerm, filters }).then((nextState) => {
+      const currentContext = collectionContextRef.current;
+      if (
+        mutationRequestIdRef.current === mutationRequestId &&
+        currentContext.page === request.page &&
+        currentContext.searchTerm === activeSearchTerm &&
+        currentContext.collectionId === request.collectionId &&
+        currentContext.filters.rarity === filters.rarity &&
+        currentContext.filters.setCode === filters.setCode
+      ) {
+        setCollectionPageState(nextState);
+        setPage(nextState.page);
+      }
+    });
+  };
+
+  const handleCollectionCardQuantityChange = async (operation: 'increase' | 'decrease') => {
+    const card = selectedDetailCard;
+    const collectionId = collectionPageState.collectionId;
+    const confirmedOwnership = getConfirmedOwnership(detailOwnership);
+    const manageable = confirmedOwnership?.kind === 'snapshot'
+      ? confirmedOwnership.value.manageableOwnedNearMintRecord
+      : undefined;
+    const capabilities = createCollectionCardDetailCapabilities(detailOwnership, detailMutation.status);
+
+    if (!card || !collectionId || !manageable || !(operation === 'increase' ? capabilities.canIncrease : capabilities.canDecrease)) {
+      return;
+    }
+
+    const request = activeDetailRequestRef.current;
+    if (!request) return;
+
+    const mutationRequestId = mutationRequestIdRef.current + 1;
+    mutationRequestIdRef.current = mutationRequestId;
+    setDetailMutation({ status: 'pending', operation });
+
+    try {
+      const result = operation === 'increase'
+        ? mapCollectionCardDetailIncreaseResult(await increaseCollectionCardQuantity({ collectionId, collectionCardId: manageable.collectionCardId, currentQuantity: manageable.quantity }))
+        : mapCollectionCardDetailDecreaseResult(await decreaseCollectionCardQuantity({ collectionId, collectionCardId: manageable.collectionCardId, currentQuantity: manageable.quantity }));
+      const validatedResult = validateCollectionCardDetailMutationResult(result, {
+        collectionId,
+        collectionCardId: manageable.collectionCardId,
+        cardCatalogId: card.cardCatalogId,
+        expectedQuantity: operation === 'increase' ? manageable.quantity + 1 : manageable.quantity - 1,
+      });
+
+      if (mutationRequestIdRef.current !== mutationRequestId || !shouldApplyCollectionCardDetailResponse(activeDetailRequestRef.current, request)) return;
+
+      if (validatedResult.kind === 'deleted') {
+        closeCollectionCardDetail();
+        refreshBoundedCollectionPage(request, mutationRequestId);
+        return;
+      }
+
+      const nextQuantity = getCollectionCardDetailQuantityFromMutation(validatedResult);
+      setCollectionPageState((currentState) => ({
+        ...currentState,
+        cards: currentState.cards.map((pageCard) => pageCard.cardCatalogId === card.cardCatalogId ? { ...pageCard, quantity: nextQuantity } : pageCard),
+      }));
+      setDetailMutation({ status: 'pending', operation });
+      loadSelectedCardOwnership(card, collectionId);
+    } catch (error: unknown) {
+      if (mutationRequestIdRef.current !== mutationRequestId || !shouldApplyCollectionCardDetailResponse(activeDetailRequestRef.current, request)) return;
+
+      if ((error instanceof CollectionCardMutationError && (error.reason === 'stale' || error.reason === 'invalid-result')) || error instanceof CollectionCardDetailInvalidResultError) {
+        setDetailMutation({ status: 'conflict', operation, refreshStatus: 'pending', message: 'De status is gewijzigd. Collectiestatus wordt vernieuwd.' });
+        loadSelectedCardOwnership(card, collectionId);
+        return;
+      }
+
+      setDetailMutation({ status: 'error', operation, retryable: true, message: 'Bijwerken is mislukt. Probeer opnieuw.' });
+    }
   };
 
   const openCollectionCardDetail = (card: CollectionPageState['cards'][number]) => {
@@ -289,6 +415,7 @@ export function CollectionPage() {
     detailRequestIdRef.current += 1;
     setSelectedDetailCard(null);
     setDetailOwnership({ status: 'idle' });
+    setDetailMutation({ status: 'idle' });
 
     window.setTimeout(() => {
       if (closingCardCatalogId) {
@@ -474,13 +601,8 @@ export function CollectionPage() {
       <CardDetailDialog
         card={selectedDetailCard}
         ownership={detailOwnership}
-        mutation={{ status: 'idle' }}
-        capabilities={{
-          canAdd: false,
-          canIncrease: false,
-          canDecrease: false,
-          unavailableReason: 'Beheer vanuit Collection is nog niet beschikbaar.',
-        }}
+        mutation={detailMutation}
+        capabilities={createCollectionCardDetailCapabilities(detailOwnership, detailMutation.status)}
         copy={createCollectionCardDetailProductCopy(detailOwnership)}
         onClose={closeCollectionCardDetail}
         onRetryOwnership={() => {
@@ -488,6 +610,8 @@ export function CollectionPage() {
             loadSelectedCardOwnership(selectedDetailCard, collectionPageState.collectionId);
           }
         }}
+        onIncrease={() => void handleCollectionCardQuantityChange('increase')}
+        onDecrease={() => void handleCollectionCardQuantityChange('decrease')}
       />
     ) : null}
     </>

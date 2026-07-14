@@ -100,11 +100,12 @@ export function CardDetailDialog({
   const dialogRef = useRef<HTMLElement | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const detailImageUrl = card.images.large ?? card.images.small;
+  const areActionsBlocked = mutation.status === 'pending' || mutation.status === 'conflict';
   const isMutating = mutation.status === 'pending';
   const ownershipPresentation = useMemo(() => {
     if (isMutating) return { label: 'Bijwerken…', className: 'is-pending' };
     return getOwnershipLabel(ownership, copy);
-  }, [copy, isMutating, ownership]);
+  }, [copy, mutation.status, ownership]);
   const feedbackRole = mutation.status === 'error' || mutation.status === 'conflict' ? 'alert' : 'status';
   const feedbackMessage = mutation.status === 'success' || mutation.status === 'error' || mutation.status === 'conflict'
     ? mutation.message
@@ -183,12 +184,12 @@ export function CardDetailDialog({
               {card.set.name ?? 'Onbekende set'}{card.number ? ` · #${card.number}` : ''}
             </p>
             <span className="card-detail-quantity-control" role="group" aria-label="Aantal in collectie">
-              <button type="button" aria-label="Eén exemplaar verwijderen" disabled={!capabilities.canDecrease || isMutating} onClick={onDecrease}>−</button>
+              <button type="button" aria-label="Eén exemplaar verwijderen" disabled={!capabilities.canDecrease || areActionsBlocked} onClick={onDecrease}>−</button>
               <span id="card-detail-status" className={`card-detail-quantity-status ${ownershipPresentation.className}`} aria-live="polite">
                 {ownershipPresentation.className === 'is-present' ? <span className="card-detail-quantity-status-mark" aria-hidden="true">✓</span> : null}
                 {ownershipPresentation.label}
               </span>
-              <button type="button" aria-label={capabilities.canAdd ? 'Kaart aan collectie toevoegen' : 'Eén exemplaar toevoegen'} disabled={(!capabilities.canAdd && !capabilities.canIncrease) || isMutating} onClick={() => capabilities.canAdd ? onAdd?.() : onIncrease?.()}>+</button>
+              <button type="button" aria-label={capabilities.canAdd ? 'Kaart aan collectie toevoegen' : 'Eén exemplaar toevoegen'} disabled={(!capabilities.canAdd && !capabilities.canIncrease) || areActionsBlocked} onClick={() => capabilities.canAdd ? onAdd?.() : onIncrease?.()}>+</button>
             </span>
             {copy.statusItems.length > 0 ? <ul className="card-detail-status-list" aria-label="Collectiestatussen">{copy.statusItems.map((item) => <li key={item.status}>{item.label}</li>)}</ul> : null}
             {ownership.status === 'error' && onRetryOwnership ? <button className="card-detail-retry-button" type="button" onClick={onRetryOwnership}>Collectiestatus opnieuw laden</button> : null}
