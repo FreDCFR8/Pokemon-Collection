@@ -1,5 +1,4 @@
-import { getCollectionCardOwnershipForCatalogCards } from '../../collectionCards/collectionCardReadService';
-import type { ConfirmedOwnership, OwnershipSnapshot } from '../../collectionCards/collectionCardOwnershipTypes';
+import { getCollectionCardOwnershipForCatalogCards, type ConfirmedOwnership, type OwnershipSnapshot } from '../../collectionCards';
 
 export type ManageableOwnedNearMintRow = {
   id: string;

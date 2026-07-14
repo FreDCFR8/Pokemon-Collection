@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import type {
   CollectionOwnershipState,
   CollectionStatus,
-} from '../collectionCards/collectionCardOwnershipTypes';
+} from '../collectionCards';
 
 export type CardDetailMutationOperation = 'add' | 'increase' | 'decrease' | 'delete';
 
@@ -145,43 +145,43 @@ export function CardDetailDialog({
 
   return (
     <div
-      className="sets-page-set-card-detail-backdrop"
+      className="card-detail-backdrop"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
     >
       <section
         ref={dialogRef}
-        className="sets-page-set-card-detail"
+        className="card-detail-dialog"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="sets-page-set-card-detail-title"
-        aria-describedby="sets-page-set-card-detail-status"
+        aria-labelledby="card-detail-title"
+        aria-describedby="card-detail-status"
       >
-        <header className="sets-page-set-card-detail-header">
+        <header className="card-detail-header">
           <button ref={closeButtonRef} type="button" aria-label="Kaartdetails sluiten" onClick={onClose}>×</button>
         </header>
-        <div className="sets-page-set-card-detail-content">
-          <div className="sets-page-set-card-detail-image">
+        <div className="card-detail-content">
+          <div className="card-detail-image">
             {detailImageUrl ? <img src={detailImageUrl} alt={`${card.name} kaart ${card.number ?? ''}`.trim()} width="240" height="336" decoding="async" /> : <span aria-label="Geen afbeelding beschikbaar" />}
           </div>
-          <div className="sets-page-set-card-detail-body">
-            <h4 id="sets-page-set-card-detail-title">{card.name}</h4>
-            <p className="sets-page-set-card-detail-subtitle">
-              {card.set.name ?? 'Onbekende set'}{card.number ? ` · #${card.number}` : ''}{card.rarity ? ` · ${card.rarity}` : ''}
+          <div className="card-detail-body">
+            <h4 id="card-detail-title">{card.name}</h4>
+            <p className="card-detail-subtitle">
+              {card.set.name ?? 'Onbekende set'}{card.number ? ` · #${card.number}` : ''}
             </p>
-            <span className="sets-page-set-card-quantity-control" role="group" aria-label="Aantal in collectie">
+            <span className="card-detail-quantity-control" role="group" aria-label="Aantal in collectie">
               <button type="button" aria-label="Eén exemplaar verwijderen" disabled={!capabilities.canDecrease || isMutating} onClick={onDecrease}>−</button>
-              <span id="sets-page-set-card-detail-status" className={`sets-page-set-card-quantity-status ${ownershipPresentation.className}`} aria-live="polite">
-                {ownershipPresentation.className === 'is-present' ? <span className="sets-page-set-card-quantity-status-mark" aria-hidden="true">✓</span> : null}
+              <span id="card-detail-status" className={`card-detail-quantity-status ${ownershipPresentation.className}`} aria-live="polite">
+                {ownershipPresentation.className === 'is-present' ? <span className="card-detail-quantity-status-mark" aria-hidden="true">✓</span> : null}
                 {ownershipPresentation.label}
               </span>
               <button type="button" aria-label={capabilities.canAdd ? 'Kaart aan collectie toevoegen' : 'Eén exemplaar toevoegen'} disabled={(!capabilities.canAdd && !capabilities.canIncrease) || isMutating} onClick={() => capabilities.canAdd ? onAdd?.() : onIncrease?.()}>+</button>
             </span>
             {copy.statusItems.length > 0 ? <ul className="card-detail-status-list" aria-label="Collectiestatussen">{copy.statusItems.map((item) => <li key={item.status}>{item.label}</li>)}</ul> : null}
             {ownership.status === 'error' && onRetryOwnership ? <button className="card-detail-retry-button" type="button" onClick={onRetryOwnership}>Collectiestatus opnieuw laden</button> : null}
-            {copy.managementMessage || capabilities.unavailableReason ? <span className="sets-page-set-card-manage-elsewhere">{copy.managementMessage ?? capabilities.unavailableReason}</span> : null}
-            {feedbackMessage ? <span className={`sets-page-set-card-add-message${feedbackRole === 'alert' ? ' is-error' : ' is-success'}`} role={feedbackRole}>{feedbackMessage}</span> : null}
+            {copy.managementMessage || capabilities.unavailableReason ? <span className="card-detail-management-message">{copy.managementMessage ?? capabilities.unavailableReason}</span> : null}
+            {feedbackMessage ? <span className={`card-detail-feedback-message${feedbackRole === 'alert' ? ' is-error' : ' is-success'}`} role={feedbackRole}>{feedbackMessage}</span> : null}
           </div>
         </div>
       </section>

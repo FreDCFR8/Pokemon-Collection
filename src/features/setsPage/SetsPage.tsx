@@ -25,6 +25,11 @@ import {
   type ManagedCollectionCard,
 } from './services/manageCollectionCardQuantityService';
 import { getSetProgressForCollection, type SetProgress } from './services/setsProgressService';
+import {
+  createSetCardDetailProductCopy,
+  hasConfirmedAbsence,
+  hasConfirmedPhysicalPresence,
+} from './setCardDetailAdapter';
 import { calculateSetProgressPercent, getEffectiveSetTotal, hasKnownSetTotal } from './services/setTotals';
 
 type SetsPageState =
@@ -1063,7 +1068,11 @@ export function SetsPage() {
             aria-modal="true"
             aria-labelledby="sets-page-set-overlay-title"
           >
-            <header className="sets-page-set-overlay-header">
+            <header
+              className="sets-page-set-overlay-header"
+              inert={selectedSetCard ? true : undefined}
+              aria-hidden={selectedSetCard ? true : undefined}
+            >
               <button
                 ref={overlayCloseButtonRef}
                 type="button"
@@ -1195,11 +1204,8 @@ export function SetsPage() {
                     {setCardsOverlayState.cards.map((card) => {
                       const isCollectionStateLoaded = setCardCollectionState.status === 'success';
                       const collectionInfo = setCardCollectionState.infoByCardCatalogId.get(card.id);
-                      const hasConflictingRows = collectionInfo?.hasConflictingManageableRows ?? false;
                       const isInCollection =
-                        isCollectionStateLoaded &&
-                        Boolean(collectionInfo?.hasAnyRecord) &&
-                        !hasConflictingRows;
+                        isCollectionStateLoaded && hasConfirmedPhysicalPresence(collectionInfo?.ownership);
                       const cardButtonLabel = `Open ${card.pokemon}${
                         card.number ? `, kaart ${card.number}` : ''
                       }${isInCollection ? ', in collectie' : ''}`;
@@ -1265,7 +1271,7 @@ export function SetsPage() {
               const hasAnyRecord = collectionInfo?.hasAnyRecord ?? false;
               const mutationState = setCardMutationStates[selectedSetCard.id];
               const isAbsent =
-                isCollectionStateLoaded && Boolean(collectionInfo) && !hasAnyRecord && !hasConflictingRows;
+                isCollectionStateLoaded && Boolean(collectionInfo) && hasConfirmedAbsence(collectionInfo?.ownership) && !hasConflictingRows;
               const isManageable =
                 isCollectionStateLoaded && Boolean(manageableRow) && !hasConflictingRows;
               const showManageElsewhere =
@@ -1290,23 +1296,11 @@ export function SetsPage() {
                         : mutationState?.status === 'success'
                           ? { status: 'success', message: mutationState.message }
                           : { status: 'idle' };
-              const statusItems = collectionInfo?.ownership.kind === 'snapshot'
-                ? Object.entries(collectionInfo.ownership.value.byStatus).flatMap(([status, records]) =>
-                    records.map((record) => ({
-                      status: status as 'owned' | 'wishlist' | 'trade' | 'missing',
-                      label: `${status === 'owned' ? 'In collectie' : status === 'wishlist' ? 'Op wishlist' : status === 'trade' ? 'Voor ruil' : 'Ontbreekt'} · ${record.quantity} exemplaar${record.quantity === 1 ? '' : 'en'}`,
-                    })),
-                  )
-                : [] ;
-              const copy: CardDetailProductCopy = {
-                statusItems,
-                physicalPresenceLabel: hasAnyRecord ? 'In collectie' : undefined,
-                managementMessage: showManageElsewhere
-                  ? 'Beheer via collectie'
-                  : hasConflictingRows
-                    ? 'Gegevensconflict'
-                    : undefined,
-              };
+              const copy: CardDetailProductCopy = createSetCardDetailProductCopy({
+                ownership: collectionInfo?.ownership,
+                hasConflictingRows,
+                showManageElsewhere,
+              });
 
               return (
                 <CardDetailDialog
