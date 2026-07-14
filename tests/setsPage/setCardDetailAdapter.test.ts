@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createSetCardDetailProductCopy, getSetWishlistCapabilities } from '../../src/features/setsPage/setCardDetailAdapter.ts';
+import { createSetCardDetailProductCopy, getSetCardMutationRetryHandler, getSetWishlistCapabilities } from '../../src/features/setsPage/setCardDetailAdapter.ts';
 import type { ConfirmedOwnership, OwnershipRecord } from '../../src/features/collectionCards/index.ts';
 
 const ownedRecord: OwnershipRecord<'owned'> = {
@@ -92,4 +92,39 @@ test('Sets wishlist capabilities fail closed for conflicts and duplicate wishlis
   };
   assert.deepEqual(getSetWishlistCapabilities({ ownership: duplicateWishlistOwnership, hasConflictingRows: false }), { canAddWishlist: false, canRemoveWishlist: false });
   assert.deepEqual(getSetWishlistCapabilities({ ownership: { kind: 'conflict', reason: 'conflict' }, hasConflictingRows: true }), { canAddWishlist: false, canRemoveWishlist: false });
+});
+
+test('Sets wishlist add is only available for confirmed absence', () => {
+  const makeRecord = (status: 'owned' | 'trade' | 'missing'): OwnershipRecord<typeof status> => ({
+    collectionCardId: `${status}-1`, collectionId: 'collection-1', cardCatalogId: 'card-1', quantity: 1, condition: null, status,
+  });
+
+  for (const status of ['owned', 'trade', 'missing'] as const) {
+    assert.deepEqual(
+      getSetWishlistCapabilities({
+        ownership: { kind: 'snapshot', value: { byStatus: { owned: status === 'owned' ? [makeRecord(status)] : [], wishlist: [], trade: status === 'trade' ? [makeRecord(status)] : [], missing: status === 'missing' ? [makeRecord(status)] : [] }, physicalPresence: status === 'owned' || status === 'trade' ? 'present' : 'absent' } },
+        hasConflictingRows: false,
+      }),
+      { canAddWishlist: false, canRemoveWishlist: false },
+    );
+  }
+});
+
+test('Sets retry dispatch preserves each original operation and omits unknown operations', () => {
+  const calls: string[] = [];
+  const handlers = {
+    add: () => calls.push('add'),
+    'add-wishlist': () => calls.push('add-wishlist'),
+    'remove-wishlist': () => calls.push('remove-wishlist'),
+    increase: () => calls.push('increase'),
+    decrease: () => calls.push('decrease'),
+    delete: () => calls.push('delete'),
+  };
+
+  for (const operation of ['add', 'add-wishlist', 'remove-wishlist', 'increase', 'decrease', 'delete'] as const) {
+    getSetCardMutationRetryHandler(operation, handlers)?.();
+  }
+  assert.deepEqual(calls, ['add', 'add-wishlist', 'remove-wishlist', 'increase', 'decrease', 'delete']);
+  assert.equal(getSetCardMutationRetryHandler(undefined, handlers), undefined);
+  assert.equal(getSetCardMutationRetryHandler('unknown' as never, handlers), undefined);
 });

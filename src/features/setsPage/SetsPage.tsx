@@ -28,9 +28,11 @@ import { addCardToWishlist, removeCardFromWishlist, WishlistMutationError } from
 import { getSetProgressForCollection, type SetProgress } from './services/setsProgressService';
 import {
   createSetCardDetailProductCopy,
+  getSetCardMutationRetryHandler,
   getSetWishlistCapabilities,
   hasConfirmedAbsence,
   hasConfirmedPhysicalPresence,
+  type SetCardMutationOperation,
 } from './setCardDetailAdapter';
 import { calculateSetProgressPercent, getEffectiveSetTotal, hasKnownSetTotal } from './services/setTotals';
 
@@ -69,6 +71,8 @@ type SetCardMutationState = {
   status: 'idle' | 'adding' | 'adding-wishlist' | 'removing-wishlist' | 'increasing' | 'decreasing' | 'deleting' | 'success' | 'error';
   message?: string;
   requestId?: number;
+  operation?: SetCardMutationOperation;
+  retryable?: boolean;
 };
 
 const FALLBACK_SERIES_LABEL = 'Overige sets';
@@ -508,6 +512,7 @@ export function SetsPage() {
   function beginCardMutation(
     cardCatalogId: string,
     status: SetCardMutationState['status'],
+    operation: SetCardMutationOperation,
   ): number | null {
     if (pendingSetCardMutationIdsRef.current.has(cardCatalogId)) {
       return null;
@@ -519,7 +524,7 @@ export function SetsPage() {
     pendingSetCardMutationIdsRef.current.add(cardCatalogId);
     setSetCardMutationStates((currentStates) => ({
       ...currentStates,
-      [cardCatalogId]: { status, requestId },
+      [cardCatalogId]: { status, requestId, operation },
     }));
 
     return requestId;
@@ -533,7 +538,13 @@ export function SetsPage() {
   ) {
     setSetCardMutationStates((currentStates) => ({
       ...currentStates,
-      [cardCatalogId]: { status, message, requestId },
+      [cardCatalogId]: {
+        ...currentStates[cardCatalogId],
+        status,
+        message,
+        requestId,
+        retryable: status === 'error',
+      },
     }));
   }
 
@@ -561,7 +572,7 @@ export function SetsPage() {
       return;
     }
 
-    const requestId = beginCardMutation(card.id, 'adding');
+    const requestId = beginCardMutation(card.id, 'adding', 'add');
 
     if (requestId === null) {
       return;
@@ -635,7 +646,7 @@ export function SetsPage() {
       return;
     }
 
-    const requestId = beginCardMutation(card.id, 'adding-wishlist');
+    const requestId = beginCardMutation(card.id, 'adding-wishlist', 'add-wishlist');
     if (requestId === null) return;
 
     const collectionIdForRequest = activeCollectionId;
@@ -692,7 +703,7 @@ export function SetsPage() {
       return;
     }
 
-    const requestId = beginCardMutation(card.id, 'removing-wishlist');
+    const requestId = beginCardMutation(card.id, 'removing-wishlist', 'remove-wishlist');
     if (requestId === null) return;
 
     const collectionIdForRequest = activeCollectionId;
@@ -746,7 +757,12 @@ export function SetsPage() {
       : manageableRow.quantity === 1
         ? 'deleting'
         : 'decreasing';
-    const requestId = beginCardMutation(card.id, mutationStatus);
+    const quantityOperation: SetCardMutationOperation = direction === 'increase'
+      ? 'increase'
+      : manageableRow.quantity === 1
+        ? 'delete'
+        : 'decrease';
+    const requestId = beginCardMutation(card.id, mutationStatus, quantityOperation);
 
     if (requestId === null) {
       return;
@@ -1416,7 +1432,7 @@ export function SetsPage() {
                     : mutationState?.status === 'deleting'
                       ? { status: 'pending', operation: 'delete' }
                       : mutationState?.status === 'error'
-                        ? { status: hasConflictingRows ? 'conflict' : 'error', operation: undefined, retryable: true, refreshStatus: 'ready', message: mutationState.message ?? 'Bijwerken is mislukt.' } as CardDetailMutationState
+                        ? { status: hasConflictingRows ? 'conflict' : 'error', operation: mutationState.operation, retryable: mutationState.retryable === true, refreshStatus: 'ready', message: mutationState.message ?? 'Bijwerken is mislukt.' } as CardDetailMutationState
                         : mutationState?.status === 'success'
                           ? { status: 'success', message: mutationState.message }
                           : { status: 'idle' };
@@ -1425,6 +1441,16 @@ export function SetsPage() {
                 hasConflictingRows,
                 showManageElsewhere,
               });
+              const retryMutation = mutationState?.status === 'error' && mutationState.retryable
+                ? getSetCardMutationRetryHandler(mutationState.operation, {
+                    add: () => void handleAddCardToCollection(selectedSetCard),
+                    'add-wishlist': () => void handleAddCardToWishlist(selectedSetCard),
+                    'remove-wishlist': () => void handleRemoveCardFromWishlist(selectedSetCard),
+                    increase: () => void handleCollectionCardQuantityChange(selectedSetCard, 'increase'),
+                    decrease: () => void handleCollectionCardQuantityChange(selectedSetCard, 'decrease'),
+                    delete: () => void handleCollectionCardQuantityChange(selectedSetCard, 'decrease'),
+                  })
+                : undefined;
 
               return (
                 <CardDetailDialog
@@ -1456,7 +1482,7 @@ export function SetsPage() {
                   onAdd={() => void handleAddCardToCollection(selectedSetCard)}
                   onAddWishlist={() => void handleAddCardToWishlist(selectedSetCard)}
                   onRemoveWishlist={() => void handleRemoveCardFromWishlist(selectedSetCard)}
-                  onRetryMutation={() => void (canRemoveWishlist ? handleRemoveCardFromWishlist(selectedSetCard) : handleAddCardToWishlist(selectedSetCard))}
+                  onRetryMutation={retryMutation}
                   onIncrease={() => void handleCollectionCardQuantityChange(selectedSetCard, 'increase')}
                   onDecrease={() => void handleCollectionCardQuantityChange(selectedSetCard, 'decrease')}
                 />

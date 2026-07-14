@@ -6,6 +6,8 @@ export {
   createWishlistPageLoadingState,
   getWishlistPageRange,
   getSafeWishlistPageAfterRemoval,
+  resolveWishlistRemovalRecovery,
+  shouldApplyWishlistDetailResponse,
   WISHLIST_PAGE_SIZE,
 } from './wishlistPageTypes';
 export type { WishlistPageCard, WishlistPageState } from './wishlistPageTypes';

@@ -86,7 +86,7 @@ After Phase 7C-2F is reviewed and merged, continue with the next separately appr
 ## Known attention points
 
 - global full-catalog search and add flow are not yet available;
-- wishlist read-only pagination remains unchanged; wishlist actions from other surfaces are not available;
+- wishlist pagination remains bounded; wishlist actions from binder/grid and Collection are not available;
 - trade and missing workflows are not yet available;
 - full external catalog synchronization remains future work;
 - historical project facts should not be added back to this status document unless they are operationally current.

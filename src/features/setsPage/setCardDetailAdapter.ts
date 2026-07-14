@@ -8,6 +8,15 @@ import type { ConfirmedOwnership } from '../collectionCards';
 
 export { hasConfirmedAbsence, hasConfirmedPhysicalPresence };
 
+export type SetCardMutationOperation = 'add' | 'add-wishlist' | 'remove-wishlist' | 'increase' | 'decrease' | 'delete';
+
+export function getSetCardMutationRetryHandler(
+  operation: SetCardMutationOperation | undefined,
+  handlers: Partial<Record<SetCardMutationOperation, () => void>>,
+): (() => void) | undefined {
+  return operation ? handlers[operation] : undefined;
+}
+
 export function getSetWishlistCapabilities(params: {
   ownership: ConfirmedOwnership | undefined;
   hasConflictingRows: boolean;
@@ -22,7 +31,7 @@ export function getSetWishlistCapabilities(params: {
 
   const wishlistCount = params.ownership.value.byStatus.wishlist.length;
   return {
-    canAddWishlist: wishlistCount === 0,
+    canAddWishlist: false,
     canRemoveWishlist: wishlistCount === 1,
   };
 }
