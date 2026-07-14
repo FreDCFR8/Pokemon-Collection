@@ -2,10 +2,11 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-const migration = readFileSync('supabase/migrations/20260714193000_phase_7c_2g_promote_wishlist_to_owned.sql', 'utf8');
+const migration = readFileSync('supabase/migrations/20260714210000_phase_7c_2g_promote_wishlist_to_owned_without_collection_lock.sql', 'utf8');
 
 test('wishlist promotion migration is atomic, invoker-scoped and explicitly ownership checked', () => {
   assert.match(migration, /security invoker/i);
+  assert.doesNotMatch(migration, /for\s+update/i);
   assert.match(migration, /p\.auth_user_id\s*=\s*auth\.uid\(\)/i);
   assert.match(migration, /select count\(\*\).*into v_wishlist_count/is);
   assert.match(migration, /v_wishlist_count <> 1/i);

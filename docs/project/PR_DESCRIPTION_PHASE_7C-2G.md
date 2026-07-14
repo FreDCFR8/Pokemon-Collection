@@ -25,9 +25,9 @@ Maak het mogelijk om een wishlistkaart rechtstreeks vanuit Sets Card Detail of W
 
 ## Verificatie
 
-- `node --experimental-strip-types --test "tests/**/*.test.ts"`;
-- `npm.cmd run build`;
-- `git diff --check`;
+- `node --experimental-strip-types --test "tests/**/*.test.ts"` — 84 passed;
+- `npm.cmd run build` — passed; direct `npm run build` is blocked by the local PowerShell execution policy;
+- `git diff --check` — passed;
 - changed-file controle.
 
 ## Exacte changed files
@@ -45,6 +45,7 @@ Maak het mogelijk om een wishlistkaart rechtstreeks vanuit Sets Card Detail of W
 - `src/features/wishlistPage/wishlistPageTypes.ts`
 - `src/styles.css`
 - `supabase/migrations/20260714193000_phase_7c_2g_promote_wishlist_to_owned.sql`
+- `supabase/migrations/20260714210000_phase_7c_2g_promote_wishlist_to_owned_without_collection_lock.sql`
 - `tests/collectionCards/wishlistPromotionSecurity.test.ts`
 - `tests/collectionCards/wishlistPromotionService.test.ts`
 - `tests/setsPage/setCardDetailAdapter.test.ts`
