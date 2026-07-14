@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createWishlistCardDetailProductCopy, toWishlistCardDetailCard } from '../../src/features/wishlistPage/wishlistCardDetailAdapter.ts';
 import type { CollectionOwnershipState, OwnershipRecord } from '../../src/features/collectionCards/index.ts';
-import type { WishlistPageCard } from '../../src/features/wishlistPage/wishlistPageTypes.ts';
+import { createWishlistPageErrorState, createWishlistPageLoadingState, getWishlistPageRange, type WishlistPageCard } from '../../src/features/wishlistPage/wishlistPageTypes.ts';
 
 const wishlistCard: WishlistPageCard = {
   cardCatalogId: 'catalog-42',
@@ -70,4 +70,19 @@ test('Wishlist read-only copy keeps loading and error states available for retry
     physicalPresenceLabel: undefined,
     managementMessage: undefined,
   });
+});
+
+test('Wishlist pagination keeps the browser bounded and addresses the second page', () => {
+  assert.deepEqual(getWishlistPageRange(1), { from: 0, to: 23 });
+  assert.deepEqual(getWishlistPageRange(2), { from: 24, to: 47 });
+  assert.deepEqual(getWishlistPageRange(3, 10), { from: 20, to: 29 });
+});
+
+test('Wishlist page retry preserves the requested page and resets only Wishlist state', () => {
+  const error = createWishlistPageErrorState(2, 'Load failed');
+  const retryState = createWishlistPageLoadingState(error.page);
+  assert.equal(error.status, 'error');
+  assert.equal(retryState.status, 'loading');
+  assert.equal(retryState.page, 2);
+  assert.deepEqual(retryState.cards, []);
 });

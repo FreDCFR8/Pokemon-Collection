@@ -1,6 +1,6 @@
 import { createBrowserSupabaseClient } from '../../lib/supabase';
 import { checkCollectionReadiness } from '../collections';
-import { WISHLIST_PAGE_SIZE, type WishlistPageCard, type WishlistPageState } from './wishlistPageTypes';
+import { getWishlistPageRange, WISHLIST_PAGE_SIZE, type WishlistPageCard, type WishlistPageState } from './wishlistPageTypes';
 
 type WishlistCatalogRow = {
   id: unknown;
@@ -40,19 +40,20 @@ function toWishlistPageCard(row: WishlistCatalogRow): WishlistPageCard | null {
   };
 }
 
-function unavailableState(status: WishlistPageState['status'], message: string, collectionId: string | null = null): WishlistPageState {
-  return { status, message, totalCount: 0, cards: [], collectionId };
+function unavailableState(status: WishlistPageState['status'], message: string, page: number, collectionId: string | null = null, errorMessage?: string): WishlistPageState {
+  return { status, message, totalCount: 0, page, pageSize: WISHLIST_PAGE_SIZE, cards: [], collectionId, errorMessage };
 }
 
-export async function loadWishlistPage(): Promise<WishlistPageState> {
+export async function loadWishlistPage(requestedPage = 1): Promise<WishlistPageState> {
+  const page = Number.isFinite(requestedPage) && requestedPage >= 1 ? Math.floor(requestedPage) : 1;
   const readiness = await checkCollectionReadiness();
   if (readiness.status !== 'collection-ready' || !readiness.mainCollection?.id) {
-    return unavailableState(readiness.status === 'collection-ready' ? 'error' : readiness.status, readiness.message);
+    return unavailableState(readiness.status === 'collection-ready' ? 'error' : readiness.status, readiness.message, page);
   }
 
   const collectionId = readiness.mainCollection.id;
   const supabase = createBrowserSupabaseClient();
-  if (!supabase) return unavailableState('config-missing', 'Wishlist kan niet starten omdat de publieke Supabase-configuratie ontbreekt.', collectionId);
+  if (!supabase) return unavailableState('config-missing', 'Wishlist kan niet starten omdat de publieke Supabase-configuratie ontbreekt.', page, collectionId);
 
   const countResult = await supabase
     .from('cards_catalog')
@@ -61,8 +62,13 @@ export async function loadWishlistPage(): Promise<WishlistPageState> {
     .eq('collection_cards.status', 'wishlist');
 
   if (countResult.error) {
-    return { ...unavailableState('error', 'Wishlistkaarten tellen is mislukt.', collectionId), errorMessage: safeErrorMessage(countResult.error.message) };
+    return unavailableState('error', 'Wishlistkaarten tellen is mislukt.', page, collectionId, safeErrorMessage(countResult.error.message));
   }
+
+  const totalCount = countResult.count ?? 0;
+  const totalPages = Math.max(1, Math.ceil(totalCount / WISHLIST_PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const range = getWishlistPageRange(safePage);
 
   const { data, error } = await supabase
     .from('cards_catalog')
@@ -72,16 +78,19 @@ export async function loadWishlistPage(): Promise<WishlistPageState> {
     .order('pokemon', { ascending: true })
     .order('set_name', { ascending: true })
     .order('number', { ascending: true })
-    .range(0, WISHLIST_PAGE_SIZE - 1);
+    .order('id', { ascending: true })
+    .range(range.from, range.to);
 
   if (error) {
-    return { ...unavailableState('error', 'Wishlistkaarten laden is mislukt.', collectionId), errorMessage: safeErrorMessage(error.message) };
+    return unavailableState('error', 'Wishlistkaarten laden is mislukt.', safePage, collectionId, safeErrorMessage(error.message));
   }
 
   return {
     status: 'ready',
     message: (countResult.count ?? 0) > 0 ? 'Wishlistkaarten geladen.' : 'Nog geen kaarten op de wishlist.',
-    totalCount: countResult.count ?? 0,
+    totalCount,
+    page: safePage,
+    pageSize: WISHLIST_PAGE_SIZE,
     cards: ((data ?? []) as WishlistCatalogRow[]).flatMap((row) => {
       const card = toWishlistPageCard(row);
       return card ? [card] : [];

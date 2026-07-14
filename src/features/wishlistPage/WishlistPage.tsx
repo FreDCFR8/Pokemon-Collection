@@ -3,18 +3,22 @@ import { CardDetailDialog, type CardDetailCard } from '../cardDetail';
 import { getCollectionCardOwnershipForCatalogCards, type CollectionOwnershipState } from '../collectionCards';
 import { createWishlistCardDetailProductCopy, toWishlistCardDetailCard } from './wishlistCardDetailAdapter';
 import { loadWishlistPage } from './wishlistPageService';
-import { type WishlistPageCard, type WishlistPageState } from './wishlistPageTypes';
+import { createWishlistPageErrorState, createWishlistPageLoadingState, WISHLIST_PAGE_SIZE, type WishlistPageCard, type WishlistPageState } from './wishlistPageTypes';
 
 const initialState: WishlistPageState = {
   status: 'loading',
   message: 'Wishlist wordt voorbereid.',
   totalCount: 0,
+  page: 1,
+  pageSize: WISHLIST_PAGE_SIZE,
   cards: [],
   collectionId: null,
 };
 
 export function WishlistPage() {
   const [pageState, setPageState] = useState(initialState);
+  const [page, setPage] = useState(1);
+  const [retryNonce, setRetryNonce] = useState(0);
   const [selectedCard, setSelectedCard] = useState<CardDetailCard | null>(null);
   const [ownership, setOwnership] = useState<CollectionOwnershipState>({ status: 'idle' });
   const requestIdRef = useRef(0);
@@ -22,12 +26,28 @@ export function WishlistPage() {
 
   useEffect(() => {
     let isMounted = true;
-    setPageState(initialState);
-    loadWishlistPage().then((nextState) => {
-      if (isMounted) setPageState(nextState);
-    });
+    setPageState(createWishlistPageLoadingState(page));
+    loadWishlistPage(page)
+      .then((nextState) => {
+        if (isMounted) {
+          setPageState(nextState);
+          setPage(nextState.page);
+        }
+      })
+      .catch((error: unknown) => {
+        if (isMounted) {
+          setPageState(createWishlistPageErrorState(page, error instanceof Error ? error.message : 'Onbekende wishlistfout.'));
+        }
+      });
     return () => { isMounted = false; };
-  }, []);
+  }, [page, retryNonce]);
+
+  const totalPages = Math.max(1, Math.ceil(pageState.totalCount / pageState.pageSize));
+  const isLoading = pageState.status === 'loading';
+
+  const retryWishlist = () => setRetryNonce((current) => current + 1);
+  const goToPreviousPage = () => setPage((current) => Math.max(1, current - 1));
+  const goToNextPage = () => setPage((current) => Math.min(totalPages, current + 1));
 
   const loadSelectedOwnership = (card: CardDetailCard, collectionId: string) => {
     const requestId = requestIdRef.current + 1;
@@ -72,12 +92,22 @@ export function WishlistPage() {
             <h2 id="wishlist-page-title">Wishlist</h2>
             <p>{pageState.message}</p>
             {pageState.errorMessage ? <p className="status-note">Foutmelding: {pageState.errorMessage}</p> : null}
+            {pageState.status === 'error' ? <button type="button" onClick={retryWishlist}>Wishlist opnieuw laden</button> : null}
           </div>
         </div>
+
+        {pageState.status === 'ready' ? (
+          <nav className="collection-page-pagination" aria-label="Wishlistpaginatie boven">
+            <button type="button" onClick={goToPreviousPage} disabled={isLoading || pageState.page <= 1}>Previous</button>
+            <span>Pagina {pageState.page} van {totalPages}</span>
+            <button type="button" onClick={goToNextPage} disabled={isLoading || pageState.page >= totalPages}>Next</button>
+          </nav>
+        ) : null}
 
         {pageState.status === 'ready' && pageState.cards.length === 0 ? <div className="collection-page-empty"><p>Je wishlist bevat nog geen kaarten.</p></div> : null}
 
         {pageState.cards.length > 0 ? (
+          <>
           <ul className="collection-page-grid wishlist-page-grid" aria-label="Wishlistkaarten">
             {pageState.cards.map((card) => {
               const titleId = `wishlist-card-${card.cardCatalogId}-title`;
@@ -99,6 +129,12 @@ export function WishlistPage() {
               );
             })}
           </ul>
+          <nav className="collection-page-pagination" aria-label="Wishlistpaginatie onder">
+            <button type="button" onClick={goToPreviousPage} disabled={isLoading || pageState.page <= 1}>Previous</button>
+            <span>Pagina {pageState.page} van {totalPages}</span>
+            <button type="button" onClick={goToNextPage} disabled={isLoading || pageState.page >= totalPages}>Next</button>
+          </nav>
+          </>
         ) : null}
       </section>
 

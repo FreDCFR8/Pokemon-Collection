@@ -31,6 +31,8 @@ Available behavior:
 Phase 7C-2E is limited to Wishlist read-only use of the shared Card Detail:
 
 - Wishlist cards are read from the active collection's wishlist rows with stable catalog identity and catalog image metadata;
+- Wishlist uses the same bounded server-side 24-card pagination and previous/next UX as Collection; it never loads the full catalog in the browser;
+- Wishlist page-level failures expose a retry that reloads only the Wishlist page;
 - selecting one wishlist card opens the shared Card Detail and loads ownership only for that selected catalog card through the existing read service;
 - Wishlist detail is explicitly read-only: no quantity, add/remove, status or condition controls;
 - loading, empty, error and retry states remain visible in the shared detail presentation;
