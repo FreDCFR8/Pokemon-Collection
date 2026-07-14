@@ -6,7 +6,7 @@ This document contains current operational state only. Historical direction belo
 
 ## Current phase
 
-**Phase 7C-2D2E — Collection Card Detail quantity management**
+**Phase 7C-2E — Wishlist read-only shared Card Detail**
 
 PR 113 merged Phase 7C-2D2D and introduced the shared Collection Card Detail read-only flow. Phase 7C-2D2E now activates narrowly constrained quantity management from that shared detail.
 
@@ -28,15 +28,13 @@ Available behavior:
 
 ## Active work
 
-Phase 7C-2D2E is limited to Collection quantity management from the shared Card Detail:
+Phase 7C-2E is limited to Wishlist read-only use of the shared Card Detail:
 
-- Collection cards receive stable catalog identity, set code and large-image data while the existing server-side search, filters, sorting, count and 24-card pagination remain unchanged;
-- selecting one card opens the shared Card Detail immediately and loads ownership only for that selected catalog card through the shared read service;
-- stale ownership responses after close, card, collection or page changes are ignored;
-- Collection capabilities are enabled only for one confirmed manageable owned Near Mint row; failed reads remain unknown with retry;
-- confirmed increase/decrease responses update visible quantity and refresh selected ownership;
-- confirmed deletion closes detail and refreshes the bounded Collection page;
-- Wishlist, Trade, Search and condition/status editing remain outside this phase.
+- Wishlist cards are read from the active collection's wishlist rows with stable catalog identity and catalog image metadata;
+- selecting one wishlist card opens the shared Card Detail and loads ownership only for that selected catalog card through the existing read service;
+- Wishlist detail is explicitly read-only: no quantity, add/remove, status or condition controls;
+- loading, empty, error and retry states remain visible in the shared detail presentation;
+- Collection and Sets behavior remains unchanged; database, SQL, RLS, dependency and lockfile changes remain outside this phase.
 
 ## Current architecture baseline
 
@@ -76,7 +74,7 @@ Expansion to other catalog sets requires separately scoped validation and approv
 
 ## Next phase scope
 
-After Phase 7C-2D2E is reviewed and merged, continue with the next separately approved small implementation phase from the shared Card Detail design. Wishlist, Trade, Search and condition/status editing remain outside the current phase.
+After Phase 7C-2E is reviewed and merged, continue with the next separately approved small implementation phase from the shared Card Detail design. Trade, Search and condition/status editing remain outside the current phase.
 
 ## Known attention points
 

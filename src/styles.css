@@ -767,6 +767,19 @@ button {
   outline-offset: 3px;
 }
 
+.wishlist-page-grid li {
+  min-height: 0;
+}
+
+.wishlist-page-card-title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
 .collection-page-grid img,
 .collection-page-grid .card-image-placeholder {
   width: 78px;
@@ -1451,6 +1464,17 @@ button {
   border-color: #dfbd7b;
   background: #fff4dd;
   color: #7c4a03;
+}
+
+.card-detail-read-only-status {
+  display: inline-flex;
+  min-height: 52px;
+  align-items: center;
+  justify-content: center;
+  max-width: 420px;
+  width: 100%;
+  margin: 18px auto 0;
+  box-sizing: border-box;
 }
 
 .card-detail-quantity-status-mark {
