@@ -7,6 +7,7 @@ import {
   getCollectionCardDetailQuantityFromMutation,
   mapCollectionCardDetailDecreaseResult,
   mapCollectionCardDetailIncreaseResult,
+  resolveCollectionCardDetailOwnershipRefresh,
   shouldApplyCollectionCardDetailResponse,
   toCollectionCardDetailCard,
   validateCollectionCardDetailMutationResult,
@@ -14,6 +15,7 @@ import {
 } from '../../src/features/collectionPage/collectionCardDetailAdapter.ts';
 import { toCollectionPageCard, type CardsCatalogPageRow } from '../../src/features/collectionPage/collectionPageCardMapper.ts';
 import type { CollectionOwnershipState, OwnershipRecord } from '../../src/features/collectionCards/index.ts';
+import type { CardDetailMutationState } from '../../src/features/cardDetail/index.ts';
 
 const collectionId = 'collection-1';
 const cardCatalogId = 'card-1';
@@ -154,6 +156,47 @@ test('Collection capabilities stay disabled during loading with previous ownersh
   assert.equal(createCollectionCardDetailCapabilities(ownershipState({ owned: [ownedRecord] }), 'conflict').canDecrease, false);
   assert.equal(createCollectionCardDetailCapabilities(ownershipState({ owned: [ownedRecord] }), 'idle').canIncrease, true);
   assert.equal(createCollectionCardDetailCapabilities(ownershipState({ owned: [ownedRecord] }), 'idle').canDecrease, true);
+});
+
+test('pending and conflict mutation become idle after a valid ownership refresh and controls reactivate', () => {
+  const ownership = ownershipState({ owned: [ownedRecord] }).value;
+  const pending: CardDetailMutationState = { status: 'pending', operation: 'increase' };
+  const conflict: CardDetailMutationState = {
+    status: 'conflict',
+    operation: 'increase',
+    refreshStatus: 'pending',
+    message: 'Conflict',
+  };
+
+  assert.deepEqual(resolveCollectionCardDetailOwnershipRefresh(pending, { status: 'ready', ownership }), { status: 'idle' });
+  assert.deepEqual(resolveCollectionCardDetailOwnershipRefresh(conflict, { status: 'ready', ownership }), { status: 'idle' });
+  assert.equal(createCollectionCardDetailCapabilities({ status: 'ready', value: ownership }, 'idle').canIncrease, true);
+  assert.equal(createCollectionCardDetailCapabilities({ status: 'ready', value: ownership }, 'idle').canDecrease, true);
+});
+
+test('pending mutation with failed or missing ownership refresh stays conflict and blocked', () => {
+  const pending: CardDetailMutationState = { status: 'pending', operation: 'decrease' };
+  const failed = resolveCollectionCardDetailOwnershipRefresh(pending, { status: 'error' });
+  assert.equal(failed.status, 'conflict');
+  assert.equal(createCollectionCardDetailCapabilities({ status: 'error', previous: ownershipState({ owned: [ownedRecord] }).value, retryable: true }, failed.status).canDecrease, false);
+
+  const missing = resolveCollectionCardDetailOwnershipRefresh(pending, { status: 'error' });
+  assert.equal(missing.status, 'conflict');
+  assert.equal(missing.refreshStatus, 'error');
+});
+
+test('retry after a refresh conflict can return to idle after the next valid refresh', () => {
+  const ownership = ownershipState({ owned: [ownedRecord] }).value;
+  const conflict: CardDetailMutationState = {
+    status: 'conflict',
+    operation: 'increase',
+    refreshStatus: 'error',
+    message: 'Refresh mislukt',
+  };
+
+  const retried = resolveCollectionCardDetailOwnershipRefresh(conflict, { status: 'ready', ownership });
+  assert.deepEqual(retried, { status: 'idle' });
+  assert.equal(createCollectionCardDetailCapabilities({ status: 'ready', value: ownership }, retried.status).canIncrease, true);
 });
 
 test('Collection mutation result mapping accepts validated increase, decrease and delete responses', () => {

@@ -16,6 +16,7 @@ import {
   getConfirmedOwnership,
   mapCollectionCardDetailDecreaseResult,
   mapCollectionCardDetailIncreaseResult,
+  resolveCollectionCardDetailOwnershipRefresh,
   validateCollectionCardDetailMutationResult,
   shouldApplyCollectionCardDetailResponse,
   toCollectionCardDetailCard,
@@ -278,6 +279,7 @@ export function CollectionPage() {
     };
     detailRequestIdRef.current = request.requestId;
     activeDetailRequestRef.current = request;
+    const refreshMutationRequestId = mutationRequestIdRef.current;
     const previousOwnership = getConfirmedOwnership(detailOwnership);
     setDetailOwnership((previous) => ({
       status: 'loading',
@@ -286,30 +288,35 @@ export function CollectionPage() {
 
     getCollectionCardOwnershipForCatalogCards({ collectionId, cardCatalogIds: [card.cardCatalogId] })
       .then((ownershipByCardCatalogId) => {
-        if (!shouldApplyCollectionCardDetailResponse(activeDetailRequestRef.current, request)) {
+        const appliesToRequest = shouldApplyCollectionCardDetailResponse(activeDetailRequestRef.current, request);
+        if (!appliesToRequest) {
           return;
         }
 
         const ownership = ownershipByCardCatalogId.get(card.cardCatalogId);
-        setDetailOwnership(
-          ownership
-            ? { status: 'ready', value: ownership }
-            : { status: 'error', previous: previousOwnership, retryable: true },
-        );
-        setDetailMutation((currentMutation) => currentMutation.status === 'pending'
-          ? { status: 'idle' }
-          : currentMutation.status === 'conflict'
-            ? { ...currentMutation, refreshStatus: 'ready' }
-            : currentMutation);
+        const isValidOwnership = Boolean(ownership && ownership.kind !== 'conflict');
+
+        if (isValidOwnership && ownership) {
+          setDetailOwnership({ status: 'ready', value: ownership });
+        } else {
+          setDetailOwnership({ status: 'error', previous: previousOwnership, retryable: true });
+        }
+
+        if (mutationRequestIdRef.current === refreshMutationRequestId) {
+          setDetailMutation((currentMutation) => resolveCollectionCardDetailOwnershipRefresh(
+            currentMutation,
+            isValidOwnership && ownership
+              ? { status: 'ready', ownership }
+              : { status: 'error' },
+          ));
+        }
       })
       .catch(() => {
         if (shouldApplyCollectionCardDetailResponse(activeDetailRequestRef.current, request)) {
           setDetailOwnership({ status: 'error', previous: previousOwnership, retryable: true });
-          setDetailMutation((currentMutation) => currentMutation.status === 'pending'
-            ? { status: 'conflict', operation: undefined, refreshStatus: 'error', message: 'De wijziging is uitgevoerd, maar de collectiestatus kon niet worden vernieuwd.' }
-            : currentMutation.status === 'conflict'
-              ? { ...currentMutation, refreshStatus: 'error' }
-              : currentMutation);
+          if (mutationRequestIdRef.current === refreshMutationRequestId) {
+            setDetailMutation((currentMutation) => resolveCollectionCardDetailOwnershipRefresh(currentMutation, { status: 'error' }));
+          }
         }
       });
   };

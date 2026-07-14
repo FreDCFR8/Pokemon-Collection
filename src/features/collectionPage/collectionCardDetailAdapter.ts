@@ -58,6 +58,26 @@ export function getConfirmedOwnership(ownership: CollectionOwnershipState): Conf
   return undefined;
 }
 
+export function resolveCollectionCardDetailOwnershipRefresh(
+  mutation: CardDetailMutationState,
+  refresh: { status: 'ready'; ownership: ConfirmedOwnership } | { status: 'error' },
+): CardDetailMutationState {
+  if (mutation.status !== 'pending' && mutation.status !== 'conflict') {
+    return mutation;
+  }
+
+  if (refresh.status === 'ready' && refresh.ownership.kind !== 'conflict') {
+    return { status: 'idle' };
+  }
+
+  return {
+    status: 'conflict',
+    operation: mutation.operation,
+    refreshStatus: 'error',
+    message: 'De collectiestatus kon niet veilig worden bevestigd. Probeer opnieuw.',
+  };
+}
+
 export function createCollectionCardDetailProductCopy(ownership: CollectionOwnershipState): CardDetailProductCopy {
   const confirmedOwnership = getConfirmedOwnership(ownership);
   const presentation = createCardDetailOwnershipPresentation({
