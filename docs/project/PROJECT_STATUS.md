@@ -6,15 +6,19 @@ This document contains current operational state only. Historical direction belo
 
 ## Current phase
 
-**Phase 7C-2G — Wishlist naar collectie**
+Phase 7C-2H is active. PR118 / Phase 7C-2G is the latest merged milestone.
 
-PR116 / Phase 7C-2F is afgerond. Phase 7C-2G is de actieve follow-upfase.
+**Phase 7C-2H — Wishlist en Collection binder-look**
+
+PR118 / Phase 7C-2G is afgerond. Phase 7C-2H is de actieve follow-upfase.
 
 ## Latest merged product milestone
 
-**PR116 — Phase 7C-2F: Wishlist add/remove vanuit shared Card Detail**
+PR118 is merged and forms the basis for the active Wishlist and Collection binder-look work.
 
-PR116 is gemerged en vormt de directe basis voor de actieve promotieflow.
+**PR118 — Phase 7C-2G: Wishlist naar collectie**
+
+PR118 is gemerged en vormt de directe basis voor de actieve binder-overviewfase.
 
 Available behavior:
 
