@@ -1,4 +1,9 @@
-import { createBrowserSupabaseClient } from '../../../lib/supabase';
+import {
+  addOwnedNearMintCollectionCard,
+  classifyDuplicateCollectionCardError,
+  isDuplicateCollectionCardMutationError,
+  type AddOwnedNearMintCollectionCardParams,
+} from '../../collectionCards/collectionCardMutationService';
 
 export type AddedCollectionCard = {
   id: string;
@@ -9,71 +14,21 @@ export type AddedCollectionCard = {
   status: string;
 };
 
-export type AddCardToCollectionParams = {
-  collectionId: string;
-  cardCatalogId: string;
-};
+export type AddCardToCollectionParams = AddOwnedNearMintCollectionCardParams;
 
 export function isDuplicateCollectionCardError(error: unknown): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    (error as { code?: unknown }).code === '23505'
-  );
+  return isDuplicateCollectionCardMutationError(error) || classifyDuplicateCollectionCardError(error) !== null;
 }
 
-export async function addCardToCollection({
-  collectionId,
-  cardCatalogId,
-}: AddCardToCollectionParams): Promise<AddedCollectionCard> {
-  const normalizedCollectionId = collectionId.trim();
-  const normalizedCardCatalogId = cardCatalogId.trim();
+export async function addCardToCollection(params: AddCardToCollectionParams): Promise<AddedCollectionCard> {
+  const card = await addOwnedNearMintCollectionCard(params);
 
-  if (!normalizedCollectionId) {
-    throw new Error('Geen actieve collectie beschikbaar.');
-  }
-
-  if (!normalizedCardCatalogId) {
-    throw new Error('Geen geldige cataloguskaart gekozen.');
-  }
-
-  const supabase = createBrowserSupabaseClient();
-
-  if (!supabase) {
-    throw new Error('Kaart toevoegen is niet beschikbaar omdat de publieke Supabase configuratie ontbreekt.');
-  }
-
-  const { data, error } = await supabase
-    .from('collection_cards')
-    .insert({
-      collection_id: normalizedCollectionId,
-      card_catalog_id: normalizedCardCatalogId,
-      quantity: 1,
-      condition: 'Near Mint',
-      status: 'owned',
-    })
-    .select('id, collection_id, card_catalog_id, quantity, condition, status')
-    .single()
-    .returns<AddedCollectionCard>();
-
-  if (error) {
-    throw error;
-  }
-
-  if (!data) {
-    throw new Error('Kaart toevoegen is mislukt. Probeer opnieuw.');
-  }
-
-  if (
-    data.collection_id !== normalizedCollectionId ||
-    data.card_catalog_id !== normalizedCardCatalogId ||
-    data.quantity !== 1 ||
-    data.condition !== 'Near Mint' ||
-    data.status !== 'owned'
-  ) {
-    throw new Error('De toegevoegde kaart kon niet veilig worden bevestigd.');
-  }
-
-  return data;
+  return {
+    id: card.collectionCardId,
+    collection_id: card.collectionId,
+    card_catalog_id: card.cardCatalogId,
+    quantity: card.quantity,
+    condition: card.condition,
+    status: card.status,
+  };
 }

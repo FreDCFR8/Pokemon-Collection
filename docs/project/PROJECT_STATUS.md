@@ -6,9 +6,9 @@ This document contains current operational state only. Historical direction belo
 
 ## Current phase
 
-**Phase 7C-2D2A — shared ownership contracts and read service**
+**Phase 7C-2D2B — shared collection-card mutation service**
 
-PR 109 merged Phase 7C-2D1 and approved the shared Card Detail architecture and UX design. Phase 7C-2D2A now introduces the reusable ownership foundation without changing the visible Sets experience.
+PR 110 merged Phase 7C-2D2A and introduced the reusable ownership foundation. Phase 7C-2D2B now moves add, increase, decrease and delete mutation behavior into the shared `collectionCards` feature boundary without changing the visible Sets experience.
 
 ## Latest merged product milestone
 
@@ -27,12 +27,13 @@ Available behavior:
 
 ## Active work
 
-Phase 7C-2D2A is limited to the shared ownership read boundary:
+Phase 7C-2D2B is limited to the shared mutation boundary:
 
-- stable camelCase ownership contracts keep `owned`, `wishlist`, `trade` and `missing` separate;
-- a pure projector determines confirmed absence, physical presence, manageable owned Near Mint state and safe conflicts;
-- one bounded batch read loads collection state for one collection and requested catalog-card IDs without N+1 queries;
-- the existing Sets service remains a thin compatibility adapter, with no JSX, CSS or mutation changes.
+- shared camelCase mutation contracts add exactly one owned Near Mint copy or change quantity by exactly one;
+- update and delete writes retain expected-current-quantity filters to prevent stale confirmations;
+- full server responses are validated before success is returned;
+- duplicate, stale and invalid-result outcomes are typed domain errors;
+- existing Sets mutation services are thin compatibility adapters, with no JSX, CSS or visible UX changes.
 
 ## Current architecture baseline
 
@@ -72,7 +73,7 @@ Expansion to other catalog sets requires separately scoped validation and approv
 
 ## Next phase scope
 
-After Phase 7C-2D2A is reviewed and merged, continue with the next approved small implementation phase from the shared Card Detail design. Shared presentation and page adapters remain outside the current ownership-foundation phase.
+After Phase 7C-2D2B is reviewed and merged, continue with the next approved small implementation phase from the shared Card Detail design. Shared presentation and page adapters remain outside the current mutation-foundation phase.
 
 ## Known attention points
 

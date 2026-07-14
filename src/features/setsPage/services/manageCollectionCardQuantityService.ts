@@ -1,4 +1,11 @@
-import { createBrowserSupabaseClient } from '../../../lib/supabase';
+import {
+  CollectionCardMutationError,
+  decreaseCollectionCardQuantity as decreaseSharedCollectionCardQuantity,
+  increaseCollectionCardQuantity as increaseSharedCollectionCardQuantity,
+  type CollectionCardMutationErrorReason,
+  type CollectionCardMutationRecord,
+  type MutateCollectionCardQuantityParams,
+} from '../../collectionCards/collectionCardMutationService';
 
 export type ManagedCollectionCard = {
   id: string;
@@ -9,158 +16,58 @@ export type ManagedCollectionCard = {
   status: string;
 };
 
-export type ManageCollectionCardQuantityParams = {
-  collectionId: string;
-  collectionCardId: string;
-  currentQuantity: number;
-};
+export type ManageCollectionCardQuantityParams = MutateCollectionCardQuantityParams;
 
 export type DecreaseCollectionCardQuantityResult =
   | { action: 'updated'; card: ManagedCollectionCard }
   | { action: 'deleted'; collectionCardId: string };
 
-export class CollectionCardQuantityStateError extends Error {
-  constructor(
-    message: string,
-    readonly reason: 'stale' | 'invalid-result',
-  ) {
-    super(message);
+export class CollectionCardQuantityStateError extends CollectionCardMutationError {
+  constructor(message: string, reason: Exclude<CollectionCardMutationErrorReason, 'duplicate'>) {
+    super(message, reason);
     this.name = 'CollectionCardQuantityStateError';
   }
 }
 
-const MANAGED_COLLECTION_CARD_SELECT = 'id, collection_id, card_catalog_id, quantity, condition, status';
-
-function normalizeParams({
-  collectionId,
-  collectionCardId,
-  currentQuantity,
-}: ManageCollectionCardQuantityParams): ManageCollectionCardQuantityParams {
-  const normalizedCollectionId = collectionId.trim();
-  const normalizedCollectionCardId = collectionCardId.trim();
-
-  if (!normalizedCollectionId) {
-    throw new Error('Geen actieve collectie beschikbaar.');
-  }
-
-  if (!normalizedCollectionCardId) {
-    throw new Error('Geen geldige collectiekaart gekozen.');
-  }
-
-  if (!Number.isInteger(currentQuantity) || currentQuantity < 1) {
-    throw new Error('Het huidige aantal moet een positief geheel getal zijn.');
-  }
-
+function toManagedCollectionCard(card: CollectionCardMutationRecord): ManagedCollectionCard {
   return {
-    collectionId: normalizedCollectionId,
-    collectionCardId: normalizedCollectionCardId,
-    currentQuantity,
+    id: card.collectionCardId,
+    collection_id: card.collectionId,
+    card_catalog_id: card.cardCatalogId,
+    quantity: card.quantity,
+    condition: card.condition,
+    status: card.status,
   };
 }
 
-function validateReturnedCard(
-  card: ManagedCollectionCard,
-  params: ManageCollectionCardQuantityParams,
-  expectedQuantity: number,
-): ManagedCollectionCard {
-  if (
-    card.id !== params.collectionCardId ||
-    card.collection_id !== params.collectionId ||
-    !card.card_catalog_id ||
-    card.condition !== 'Near Mint' ||
-    card.status !== 'owned' ||
-    card.quantity !== expectedQuantity
-  ) {
-    throw new CollectionCardQuantityStateError(
-      'De teruggegeven collectiestatus wijkt af van de verwachte wijziging.',
-      'invalid-result',
-    );
+function wrapQuantityError(error: unknown): never {
+  if (error instanceof CollectionCardMutationError && error.reason !== 'duplicate') {
+    throw new CollectionCardQuantityStateError(error.message, error.reason);
   }
 
-  return card;
+  throw error;
 }
 
 export async function increaseCollectionCardQuantity(
-  rawParams: ManageCollectionCardQuantityParams,
+  params: ManageCollectionCardQuantityParams,
 ): Promise<ManagedCollectionCard> {
-  const params = normalizeParams(rawParams);
-  const expectedQuantity = params.currentQuantity + 1;
-  const supabase = createBrowserSupabaseClient();
-
-  if (!supabase) {
-    throw new Error('Aantal bijwerken is niet beschikbaar omdat de publieke Supabase configuratie ontbreekt.');
+  try {
+    return toManagedCollectionCard(await increaseSharedCollectionCardQuantity(params));
+  } catch (error) {
+    wrapQuantityError(error);
   }
-
-  const { data, error } = await supabase
-    .from('collection_cards')
-    .update({ quantity: expectedQuantity })
-    .eq('id', params.collectionCardId)
-    .eq('collection_id', params.collectionId)
-    .eq('quantity', params.currentQuantity)
-    .select(MANAGED_COLLECTION_CARD_SELECT)
-    .maybeSingle<ManagedCollectionCard>();
-
-  if (error) {
-    throw error;
-  }
-
-  if (!data) {
-    throw new CollectionCardQuantityStateError('De quantity is intussen gewijzigd.', 'stale');
-  }
-
-  return validateReturnedCard(data, params, expectedQuantity);
 }
 
 export async function decreaseCollectionCardQuantity(
-  rawParams: ManageCollectionCardQuantityParams,
+  params: ManageCollectionCardQuantityParams,
 ): Promise<DecreaseCollectionCardQuantityResult> {
-  const params = normalizeParams(rawParams);
-  const supabase = createBrowserSupabaseClient();
+  try {
+    const result = await decreaseSharedCollectionCardQuantity(params);
 
-  if (!supabase) {
-    throw new Error('Aantal bijwerken is niet beschikbaar omdat de publieke Supabase configuratie ontbreekt.');
+    return result.action === 'updated'
+      ? { action: 'updated', card: toManagedCollectionCard(result.card) }
+      : result;
+  } catch (error) {
+    wrapQuantityError(error);
   }
-
-  if (params.currentQuantity === 1) {
-    const { data, error } = await supabase
-      .from('collection_cards')
-      .delete()
-      .eq('id', params.collectionCardId)
-      .eq('collection_id', params.collectionId)
-      .eq('quantity', 1)
-      .select(MANAGED_COLLECTION_CARD_SELECT)
-      .maybeSingle<ManagedCollectionCard>();
-
-    if (error) {
-      throw error;
-    }
-
-    if (!data) {
-      throw new CollectionCardQuantityStateError('De quantity is intussen gewijzigd.', 'stale');
-    }
-
-    validateReturnedCard(data, params, 1);
-
-    return { action: 'deleted', collectionCardId: data.id };
-  }
-
-  const expectedQuantity = params.currentQuantity - 1;
-  const { data, error } = await supabase
-    .from('collection_cards')
-    .update({ quantity: expectedQuantity })
-    .eq('id', params.collectionCardId)
-    .eq('collection_id', params.collectionId)
-    .eq('quantity', params.currentQuantity)
-    .select(MANAGED_COLLECTION_CARD_SELECT)
-    .maybeSingle<ManagedCollectionCard>();
-
-  if (error) {
-    throw error;
-  }
-
-  if (!data) {
-    throw new CollectionCardQuantityStateError('De quantity is intussen gewijzigd.', 'stale');
-  }
-
-  return { action: 'updated', card: validateReturnedCard(data, params, expectedQuantity) };
 }
