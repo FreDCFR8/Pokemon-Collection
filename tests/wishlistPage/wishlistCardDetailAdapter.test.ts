@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createWishlistCardDetailProductCopy, toWishlistCardDetailCard } from '../../src/features/wishlistPage/wishlistCardDetailAdapter.ts';
 import type { CollectionOwnershipState, OwnershipRecord } from '../../src/features/collectionCards/index.ts';
-import { createWishlistPageErrorState, createWishlistPageLoadingState, getWishlistPageRange, type WishlistPageCard } from '../../src/features/wishlistPage/wishlistPageTypes.ts';
+import { createWishlistPageErrorState, createWishlistPageLoadingState, getSafeWishlistPageAfterRemoval, getWishlistPageRange, resolveWishlistRemovalRecovery, shouldApplyWishlistDetailResponse, type WishlistPageCard } from '../../src/features/wishlistPage/wishlistPageTypes.ts';
 
 const wishlistCard: WishlistPageCard = {
   cardCatalogId: 'catalog-42',
@@ -85,4 +85,27 @@ test('Wishlist page retry preserves the requested page and resets only Wishlist 
   assert.equal(retryState.status, 'loading');
   assert.equal(retryState.page, 2);
   assert.deepEqual(retryState.cards, []);
+});
+
+test('Wishlist removal safely moves an emptied last page to the previous valid page', () => {
+  assert.equal(getSafeWishlistPageAfterRemoval(2, 24), 1);
+  assert.equal(getSafeWishlistPageAfterRemoval(2, 25), 2);
+  assert.equal(getSafeWishlistPageAfterRemoval(1, 0), 1);
+});
+
+test('Wishlist remove recovery closes when stale row disappeared and keeps exact remove retry when it remains', () => {
+  assert.equal(resolveWishlistRemovalRecovery({ kind: 'absent' }), 'close');
+  assert.equal(resolveWishlistRemovalRecovery({ kind: 'snapshot', value: { byStatus: { owned: [], wishlist: [], trade: [], missing: [] }, physicalPresence: 'absent' } }), 'close');
+  assert.equal(resolveWishlistRemovalRecovery({ kind: 'snapshot', value: { byStatus: { owned: [], wishlist: [{ collectionCardId: 'row', collectionId: 'collection', cardCatalogId: 'card', quantity: 1, condition: null, status: 'wishlist' }], trade: [], missing: [] }, physicalPresence: 'absent' } }), 'retry-remove');
+  assert.equal(resolveWishlistRemovalRecovery({ kind: 'conflict', reason: 'late response' }), 'blocked');
+  assert.equal(resolveWishlistRemovalRecovery(null), 'blocked');
+});
+
+test('Wishlist late recovery responses are ignored after close, card, collection or page changes', () => {
+  const expected = { mutationRequestId: 4, cardCatalogId: 'card-1', collectionId: 'collection-1', page: 2 };
+  assert.equal(shouldApplyWishlistDetailResponse(expected, expected), true);
+  assert.equal(shouldApplyWishlistDetailResponse(expected, { ...expected, mutationRequestId: 5 }), false);
+  assert.equal(shouldApplyWishlistDetailResponse(expected, { ...expected, cardCatalogId: 'card-2' }), false);
+  assert.equal(shouldApplyWishlistDetailResponse(expected, { ...expected, collectionId: 'collection-2' }), false);
+  assert.equal(shouldApplyWishlistDetailResponse(expected, { ...expected, page: 1 }), false);
 });

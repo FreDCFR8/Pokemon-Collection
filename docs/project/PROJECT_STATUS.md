@@ -6,13 +6,13 @@ This document contains current operational state only. Historical direction belo
 
 ## Current phase
 
-**Phase 7C-2E — Wishlist read-only shared Card Detail**
+**Phase 7C-2F — Wishlist toevoegen vanuit Sets Card Detail**
 
-PR 113 merged Phase 7C-2D2D and introduced the shared Collection Card Detail read-only flow. Phase 7C-2D2E now activates narrowly constrained quantity management from that shared detail.
+PR 114 merged Phase 7C-2D2E and made narrowly constrained Collection Card Detail quantity management available from the shared detail. Phase 7C-2F is the active follow-up phase.
 
 ## Latest merged product milestone
 
-**PR 113 — Phase 7C-2D2D: Collection read-only shared Card Detail**
+**PR 114 — Phase 7C-2D2E: Collection Card Detail quantity management**
 
 Available behavior:
 
@@ -23,20 +23,25 @@ Available behavior:
 - absent cards can be added as one owned Near Mint copy;
 - quantity changes use secured exact-step UPDATE behavior;
 - transition from one copy to zero uses secured DELETE behavior;
+- Collection Card Detail quantity management is available for the active collection;
 - set progress counts unique physical card presence, not quantity;
 - Lars and Lore remain isolated through the active collection and RLS.
 
 ## Active work
 
-Phase 7C-2E is limited to Wishlist read-only use of the shared Card Detail:
+Phase 7C-2F adds one reversible wishlist flow from shared Card Detail:
 
 - Wishlist cards are read from the active collection's wishlist rows with stable catalog identity and catalog image metadata;
 - Wishlist uses the same bounded server-side 24-card pagination and previous/next UX as Collection; it never loads the full catalog in the browser;
 - Wishlist page-level failures expose a retry that reloads only the Wishlist page;
 - selecting one wishlist card opens the shared Card Detail and loads ownership only for that selected catalog card through the existing read service;
-- Wishlist detail is explicitly read-only: no quantity, add/remove, status or condition controls;
-- loading, empty, error and retry states remain visible in the shared detail presentation;
-- Collection and Sets behavior remains unchanged; database, SQL, RLS, dependency and lockfile changes remain outside this phase.
+- Sets card detail offers `Aan wishlist toevoegen` and, for one valid wishlist row, `Van wishlist verwijderen`; binder/grid and Collection expose no new wishlist action;
+- the mutation service performs a read-only active-collection ownership/readiness check before insert;
+- wishlist writes use stable `collectionId` and `cardCatalogId`, `quantity = 1`, `condition = null` and `status = wishlist`;
+- the server response is fully validated, duplicate writes are idempotently resolved, and the visible Sets ownership state reloads after success;
+- wishlist removal uses exact row/collection/card/status/quantity/condition filters, validates the delete response, and reloads the bounded Wishlist page after closing detail;
+- pending, success, error and retry states are controlled by the shared detail; late responses cannot update a closed or changed Sets context;
+- focused RLS migrations extend the existing ownership boundary to wishlist rows; Collection quantity management and Wishlist pagination remain otherwise unchanged.
 
 ## Current architecture baseline
 
@@ -76,11 +81,12 @@ Expansion to other catalog sets requires separately scoped validation and approv
 
 ## Next phase scope
 
-After Phase 7C-2E is reviewed and merged, continue with the next separately approved small implementation phase from the shared Card Detail design. Trade, Search and condition/status editing remain outside the current phase.
+After Phase 7C-2F is reviewed and merged, continue with the next separately approved small implementation phase from the shared Card Detail design. Trade, Search and condition/status editing remain outside the current phase.
 
 ## Known attention points
 
 - global full-catalog search and add flow are not yet available;
-- wishlist, trade and missing workflows are not yet available;
+- wishlist pagination remains bounded; wishlist actions from binder/grid and Collection are not available;
+- trade and missing workflows are not yet available;
 - full external catalog synchronization remains future work;
 - historical project facts should not be added back to this status document unless they are operationally current.

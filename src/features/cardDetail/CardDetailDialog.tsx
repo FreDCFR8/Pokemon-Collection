@@ -4,8 +4,9 @@ import type {
   CollectionOwnershipState,
   CollectionStatus,
 } from '../collectionCards';
+import { areCardDetailActionsBlocked } from './cardDetailMutationState';
 
-export type CardDetailMutationOperation = 'add' | 'increase' | 'decrease' | 'delete';
+export type CardDetailMutationOperation = 'add' | 'add-wishlist' | 'remove-wishlist' | 'increase' | 'decrease' | 'delete';
 
 export type CardDetailMutationState =
   | { status: 'idle' }
@@ -25,6 +26,8 @@ export type CardDetailCard = {
 
 export type CardDetailCapabilities = {
   canAdd: boolean;
+  canAddWishlist?: boolean;
+  canRemoveWishlist?: boolean;
   canIncrease: boolean;
   canDecrease: boolean;
   unavailableReason?: string;
@@ -46,6 +49,9 @@ export type CardDetailDialogProps = {
   onClose(): void;
   onRetryOwnership?(): void;
   onAdd?(): void;
+  onAddWishlist?(): void;
+  onRemoveWishlist?(): void;
+  onRetryMutation?(): void;
   onIncrease?(): void;
   onDecrease?(): void;
 };
@@ -96,13 +102,16 @@ export function CardDetailDialog({
   onClose,
   onRetryOwnership,
   onAdd,
+  onAddWishlist,
+  onRemoveWishlist,
+  onRetryMutation,
   onIncrease,
   onDecrease,
 }: CardDetailDialogProps) {
   const dialogRef = useRef<HTMLElement | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const detailImageUrl = card.images.large ?? card.images.small;
-  const areActionsBlocked = mutation.status === 'pending' || mutation.status === 'conflict';
+  const areActionsBlocked = areCardDetailActionsBlocked(mutation);
   const isMutating = mutation.status === 'pending';
   const ownershipPresentation = useMemo(() => {
     if (isMutating) return { label: 'Bijwerken…', className: 'is-pending' };
@@ -202,6 +211,31 @@ export function CardDetailDialog({
             )}
             {copy.statusItems.length > 0 ? <ul className="card-detail-status-list" aria-label="Collectiestatussen">{copy.statusItems.map((item) => <li key={item.status}>{item.label}</li>)}</ul> : null}
             {ownership.status === 'error' && onRetryOwnership ? <button className="card-detail-retry-button" type="button" onClick={onRetryOwnership}>Collectiestatus opnieuw laden</button> : null}
+            {capabilities.canAddWishlist ? (
+              <button
+                className="card-detail-wishlist-button"
+                type="button"
+                disabled={areActionsBlocked}
+                onClick={onAddWishlist}
+              >
+                Aan wishlist toevoegen
+              </button>
+            ) : null}
+            {capabilities.canRemoveWishlist ? (
+              <button
+                className="card-detail-wishlist-button"
+                type="button"
+                disabled={areActionsBlocked}
+                onClick={onRemoveWishlist}
+              >
+                Van wishlist verwijderen
+              </button>
+            ) : null}
+            {mutation.status === 'error' && mutation.retryable && onRetryMutation ? (
+              <button className="card-detail-retry-button" type="button" onClick={onRetryMutation} disabled={isMutating}>
+                Opnieuw proberen
+              </button>
+            ) : null}
             {managementMessages.map((message) => <span key={message} className="card-detail-management-message">{message}</span>)}
             {feedbackMessage ? <span className={`card-detail-feedback-message${feedbackRole === 'alert' ? ' is-error' : ' is-success'}`} role={feedbackRole}>{feedbackMessage}</span> : null}
           </div>
