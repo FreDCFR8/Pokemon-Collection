@@ -103,7 +103,12 @@ async function readExistingWishlist(
   }
 
   const row = wishlistRows[0];
-  if (row.quantity !== 1 || row.condition !== null) {
+  if (
+    typeof row.collectionCardId !== 'string' || !row.collectionCardId.trim() ||
+    row.collectionId !== params.collectionId ||
+    row.cardCatalogId !== params.cardCatalogId ||
+    row.quantity !== 1 || row.condition !== null || row.status !== 'wishlist'
+  ) {
     throw new WishlistMutationError('De bestaande wishliststatus heeft onverwachte gegevens.', 'invalid-result');
   }
 

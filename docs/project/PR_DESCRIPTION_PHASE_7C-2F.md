@@ -1,5 +1,7 @@
 # Phase 7C-2F — Wishlist toevoegen vanuit Sets Card Detail
 
+Status: PR116 open; deze fase is pas afgerond nadat PR116 is gemerged.
+
 ## Doel
 
 Voeg vanuit `Sets → set 151 → kaartdetail` één kaart toe aan de wishlist van de actieve collectie.
@@ -12,6 +14,7 @@ Voeg vanuit `Sets → set 151 → kaartdetail` één kaart toe aan de wishlist v
 - pending, success, error en retry in Card Detail, met inert/onscrollbaar Sets op de achtergrond;
 - gerichte RLS/index migration voor `wishlist`, `quantity = 1`, `condition = null` en één wishlist-rij per kaart per collectie;
 - tests voor servicegedrag, duplicate-afhandeling, responsevalidatie en Sets Card Detail-contracten.
+- regressietests voor bestaande wishlist-rijen met afwijkende collectie-, kaart-, status- of rij-identiteit.
 
 ## Buiten scope
 
