@@ -6,3 +6,9 @@ export type {
   CardDetailMutationState,
   CardDetailProductCopy,
 } from './CardDetailDialog';
+export {
+  createCardDetailOwnershipPresentation,
+  hasConfirmedAbsence,
+  hasConfirmedPhysicalPresence,
+} from './cardDetailOwnershipPresentation';
+export type { CardDetailOwnershipPresentation } from './cardDetailOwnershipPresentation';

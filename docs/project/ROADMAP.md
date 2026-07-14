@@ -54,8 +54,8 @@ This document shows product direction and phase status. It intentionally avoids 
 - ✅ Phase 7C-2D1 — shared Card Detail analysis and design
 - ✅ Phase 7C-2D2A — shared ownership contracts, projector and read service
 - ✅ Phase 7C-2D2B — shared collection-card mutation service
-- 🚧 Phase 7C-2D2C — shared presentational Card Detail and Sets adapter
-- ⏳ reuse in Collection
+- ✅ Phase 7C-2D2C — shared presentational Card Detail and Sets adapter
+- 🚧 Phase 7C-2D2D — read-only reuse in Collection
 - ⏳ reuse in Wishlist, Trade and Search
 - ⏳ extended characteristics and metadata
 - ⏳ previous/next card navigation
@@ -64,7 +64,7 @@ This document shows product direction and phase status. It intentionally avoids 
 
 - ✅ collection overview, search, filters and pagination
 - 🔎 Collection V2 product and architecture design
-- ⏳ shared card detail integration
+- 🚧 read-only shared card detail integration
 - ⏳ improved collection browsing and management
 - ⏳ multi-collection improvements
 

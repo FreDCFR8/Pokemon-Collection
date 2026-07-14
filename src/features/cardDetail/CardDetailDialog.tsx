@@ -109,9 +109,21 @@ export function CardDetailDialog({
   const feedbackMessage = mutation.status === 'success' || mutation.status === 'error' || mutation.status === 'conflict'
     ? mutation.message
     : undefined;
+  const managementMessages = [copy.managementMessage, capabilities.unavailableReason]
+    .filter((message): message is string => Boolean(message))
+    .filter((message, index, messages) => messages.indexOf(message) === index);
 
   useEffect(() => {
     window.setTimeout(() => closeButtonRef.current?.focus(), 0);
+  }, []);
+
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
   }, []);
 
   useEffect(() => {
@@ -180,7 +192,7 @@ export function CardDetailDialog({
             </span>
             {copy.statusItems.length > 0 ? <ul className="card-detail-status-list" aria-label="Collectiestatussen">{copy.statusItems.map((item) => <li key={item.status}>{item.label}</li>)}</ul> : null}
             {ownership.status === 'error' && onRetryOwnership ? <button className="card-detail-retry-button" type="button" onClick={onRetryOwnership}>Collectiestatus opnieuw laden</button> : null}
-            {copy.managementMessage || capabilities.unavailableReason ? <span className="card-detail-management-message">{copy.managementMessage ?? capabilities.unavailableReason}</span> : null}
+            {managementMessages.map((message) => <span key={message} className="card-detail-management-message">{message}</span>)}
             {feedbackMessage ? <span className={`card-detail-feedback-message${feedbackRole === 'alert' ? ' is-error' : ' is-success'}`} role={feedbackRole}>{feedbackMessage}</span> : null}
           </div>
         </div>

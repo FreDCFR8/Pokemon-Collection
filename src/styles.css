@@ -734,14 +734,37 @@ button {
 }
 
 .collection-page-grid li {
+  position: relative;
   display: grid;
   grid-template-columns: 78px minmax(0, 1fr);
   gap: 12px;
+  min-width: 0;
   border: 1px solid #e2e8f0;
   border-radius: 20px;
   background: #ffffff;
   box-shadow: 0 10px 30px rgb(15 23 42 / 0.06);
   padding: 12px;
+}
+
+.collection-page-card-button {
+  position: absolute;
+  z-index: 1;
+  inset: -1px;
+  border: 1px solid transparent;
+  border-radius: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
+.collection-page-card-button:hover {
+  border-color: #bfdbfe;
+  box-shadow: 0 12px 32px rgb(37 99 235 / 0.1);
+}
+
+.collection-page-card-button:focus-visible {
+  border-color: #2563eb;
+  outline: 3px solid rgb(37 99 235 / 0.2);
+  outline-offset: 3px;
 }
 
 .collection-page-grid img,
@@ -1478,6 +1501,7 @@ button {
   justify-items: center;
   min-width: 0;
   background: rgb(15 23 42 / 0.58);
+  overscroll-behavior: none;
   padding: max(4px, env(safe-area-inset-top)) 0 0;
 }
 

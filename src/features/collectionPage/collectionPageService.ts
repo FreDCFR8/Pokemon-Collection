@@ -1,8 +1,8 @@
 import { createBrowserSupabaseClient } from '../../lib/supabase';
 import { checkCollectionReadiness } from '../collections';
+import { toCollectionPageCard, type CardsCatalogPageRow } from './collectionPageCardMapper';
 import {
   COLLECTION_PAGE_SIZE,
-  type CollectionPageCard,
   type CollectionFilterOptions,
   type CollectionPageFilters,
   type CollectionPageLoadOptions,
@@ -15,27 +15,6 @@ type SanitizedCollectionPageFilters = {
   setCode: string | null;
 };
 
-type CardsCatalogPageRow = {
-  pokemon: string | null;
-  set_name: string | null;
-  set_code: string | null;
-  number: string | null;
-  rarity: string | null;
-  image_small: string | null;
-  collection_cards:
-    | {
-        quantity: number | null;
-        condition: string | null;
-        status: string | null;
-      }
-    | {
-        quantity: number | null;
-        condition: string | null;
-        status: string | null;
-      }[]
-    | null;
-};
-
 function toSafeErrorMessage(message: string | undefined): string {
   if (!message) {
     return 'Onbekende collectiepaginafout.';
@@ -45,29 +24,6 @@ function toSafeErrorMessage(message: string | undefined): string {
     .replace(/https?:\/\/\S+/g, '[url verborgen]')
     .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/gi, '[id verborgen]')
     .slice(0, 240);
-}
-
-function firstOwnershipRow(row: CardsCatalogPageRow['collection_cards']) {
-  if (Array.isArray(row)) {
-    return row[0] ?? null;
-  }
-
-  return row;
-}
-
-function toCollectionPageCard(row: CardsCatalogPageRow): CollectionPageCard {
-  const ownership = firstOwnershipRow(row.collection_cards);
-
-  return {
-    pokemon: row.pokemon ?? null,
-    setName: row.set_name ?? null,
-    number: row.number ?? null,
-    rarity: row.rarity ?? null,
-    imageSmall: row.image_small ?? null,
-    quantity: ownership?.quantity ?? null,
-    condition: ownership?.condition ?? null,
-    status: ownership?.status ?? null,
-  };
 }
 
 function normalizePage(page: number): number {
@@ -233,6 +189,7 @@ export async function loadCollectionPage(
       page,
       pageSize: COLLECTION_PAGE_SIZE,
       cards: [],
+      collectionId: null,
       errorMessage:
         collectionReadiness.status === 'error' ? toSafeErrorMessage(collectionReadiness.errorMessage) : undefined,
     };
@@ -248,6 +205,7 @@ export async function loadCollectionPage(
       page,
       pageSize: COLLECTION_PAGE_SIZE,
       cards: [],
+      collectionId: null,
     };
   }
 
@@ -261,6 +219,7 @@ export async function loadCollectionPage(
       page,
       pageSize: COLLECTION_PAGE_SIZE,
       cards: [],
+      collectionId: null,
     };
   }
 
@@ -287,6 +246,7 @@ export async function loadCollectionPage(
       page,
       pageSize: COLLECTION_PAGE_SIZE,
       cards: [],
+      collectionId: mainCollectionId,
       errorMessage: toSafeErrorMessage(countError.message),
     };
   }
@@ -301,12 +261,14 @@ export async function loadCollectionPage(
     .from('cards_catalog')
     .select(
       `
+        id,
         pokemon,
         set_name,
         set_code,
         number,
         rarity,
         image_small,
+        image_large,
         collection_cards!inner (
           quantity,
           condition,
@@ -330,6 +292,7 @@ export async function loadCollectionPage(
       page: safePage,
       pageSize: COLLECTION_PAGE_SIZE,
       cards: [],
+      collectionId: mainCollectionId,
       errorMessage: toSafeErrorMessage(error.message),
     };
   }
@@ -340,6 +303,10 @@ export async function loadCollectionPage(
     totalCount,
     page: safePage,
     pageSize: COLLECTION_PAGE_SIZE,
-    cards: ((data ?? []) as CardsCatalogPageRow[]).map(toCollectionPageCard),
+    cards: ((data ?? []) as CardsCatalogPageRow[]).flatMap((row) => {
+      const card = toCollectionPageCard(row);
+      return card ? [card] : [];
+    }),
+    collectionId: mainCollectionId,
   };
 }

@@ -6,16 +6,17 @@ This document contains current operational state only. Historical direction belo
 
 ## Current phase
 
-**Phase 7C-2D2C — shared Card Detail presentation and Sets adapter**
+**Phase 7C-2D2D — Collection read-only shared Card Detail**
 
-PR 111 merged Phase 7C-2D2B and introduced the shared `collectionCards` mutation service. Phase 7C-2D2C is now extracting the Sets Card Detail flow into a controlled shared presentation component with a thin Sets adapter.
+PR 112 merged Phase 7C-2D2C and introduced the shared presentational Card Detail with a thin Sets adapter. Phase 7C-2D2D now reuses that detail from Collection without activating mutations.
 
 ## Latest merged product milestone
 
-**PR 106 — Phase 7C-2C2: manage card quantity from opened set**
+**PR 112 — Phase 7C-2D2C: shared Card Detail presentation and Sets adapter**
 
 Available behavior:
 
+- Sets uses the shared controlled Card Detail presentation through a thin Sets adapter;
 - opened sets load catalog cards in server-side batches of 30;
 - binder grid shows card images with a subtle collection marker;
 - card metadata and management controls are shown in card detail;
@@ -27,13 +28,13 @@ Available behavior:
 
 ## Active work
 
-Phase 7C-2D2C is limited to shared Card Detail presentation and the Sets adapter:
+Phase 7C-2D2D is limited to Collection read-only Card Detail integration:
 
-- `src/features/cardDetail/` owns the controlled presentational dialog contract;
-- the shared component receives card, ownership, mutation, capabilities, copy and callbacks through typed props;
-- the Sets page remains responsible for Sets context, visible-card ownership refresh, progress refresh, stale-response guards and focus restoration;
-- the shared detail component contains no Supabase client, query, mutation or Sets page state;
-- Collection, Wishlist, Trade and Search integration remain outside this phase.
+- Collection cards receive stable catalog identity, set code and large-image data while the existing server-side search, filters, sorting, count and 24-card pagination remain unchanged;
+- selecting one card opens the shared Card Detail immediately and loads ownership only for that selected catalog card through the shared read service;
+- stale ownership responses after close, card, collection or page changes are ignored;
+- Collection capabilities remain read-only and failed reads remain unknown with retry;
+- Wishlist, Trade, Search and Collection mutations remain outside this phase.
 
 ## Current architecture baseline
 
@@ -73,11 +74,10 @@ Expansion to other catalog sets requires separately scoped validation and approv
 
 ## Next phase scope
 
-After Phase 7C-2D2C is reviewed and merged, continue with the next approved small implementation phase from the shared Card Detail design. Collection integration remains outside the current Sets-adapter phase.
+After Phase 7C-2D2D is reviewed and merged, continue with the next separately approved small implementation phase from the shared Card Detail design. Collection mutations remain outside the current read-only phase.
 
 ## Known attention points
 
-- desktop behavior of the current card detail should be reviewed during the shared-detail phase;
 - global full-catalog search and add flow are not yet available;
 - wishlist, trade and missing workflows are not yet available;
 - full external catalog synchronization remains future work;
