@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createSetCardDetailProductCopy } from '../../src/features/setsPage/setCardDetailAdapter.ts';
+import { createSetCardDetailProductCopy, getSetWishlistCapabilities } from '../../src/features/setsPage/setCardDetailAdapter.ts';
 import type { ConfirmedOwnership, OwnershipRecord } from '../../src/features/collectionCards/index.ts';
 
 const ownedRecord: OwnershipRecord<'owned'> = {
@@ -61,4 +61,35 @@ test('Sets adapter keeps manage-elsewhere copy ahead of conflict copy', () => {
     }).managementMessage,
     'Beheer via collectie',
   );
+});
+
+test('Sets wishlist capability transitions from add to remove to collection-add-ready absence', () => {
+  const wishlistRecord: OwnershipRecord<'wishlist'> = {
+    collectionCardId: 'wishlist-1',
+    collectionId: 'collection-1',
+    cardCatalogId: 'card-1',
+    quantity: 1,
+    condition: null,
+    status: 'wishlist',
+  };
+  const wishlistOwnership: ConfirmedOwnership = {
+    kind: 'snapshot',
+    value: { byStatus: { owned: [], wishlist: [wishlistRecord], trade: [], missing: [] }, physicalPresence: 'absent' },
+  };
+
+  assert.deepEqual(getSetWishlistCapabilities({ ownership: { kind: 'absent' }, hasConflictingRows: false }), { canAddWishlist: true, canRemoveWishlist: false });
+  assert.deepEqual(getSetWishlistCapabilities({ ownership: wishlistOwnership, hasConflictingRows: false }), { canAddWishlist: false, canRemoveWishlist: true });
+  assert.deepEqual(getSetWishlistCapabilities({ ownership: { kind: 'absent' }, hasConflictingRows: false }), { canAddWishlist: true, canRemoveWishlist: false });
+});
+
+test('Sets wishlist capabilities fail closed for conflicts and duplicate wishlist rows', () => {
+  const wishlistRecord: OwnershipRecord<'wishlist'> = {
+    collectionCardId: 'wishlist-1', collectionId: 'collection-1', cardCatalogId: 'card-1', quantity: 1, condition: null, status: 'wishlist',
+  };
+  const duplicateWishlistOwnership: ConfirmedOwnership = {
+    kind: 'snapshot',
+    value: { byStatus: { owned: [], wishlist: [wishlistRecord, { ...wishlistRecord, collectionCardId: 'wishlist-2' }], trade: [], missing: [] }, physicalPresence: 'absent' },
+  };
+  assert.deepEqual(getSetWishlistCapabilities({ ownership: duplicateWishlistOwnership, hasConflictingRows: false }), { canAddWishlist: false, canRemoveWishlist: false });
+  assert.deepEqual(getSetWishlistCapabilities({ ownership: { kind: 'conflict', reason: 'conflict' }, hasConflictingRows: true }), { canAddWishlist: false, canRemoveWishlist: false });
 });

@@ -8,6 +8,13 @@ export function getWishlistPageRange(page: number, pageSize = WISHLIST_PAGE_SIZE
   return { from: (safePage - 1) * safePageSize, to: safePage * safePageSize - 1 };
 }
 
+export function getSafeWishlistPageAfterRemoval(currentPage: number, remainingCount: number, pageSize = WISHLIST_PAGE_SIZE): number {
+  const safePage = Number.isFinite(currentPage) && currentPage >= 1 ? Math.floor(currentPage) : 1;
+  const safeCount = Number.isFinite(remainingCount) && remainingCount >= 0 ? Math.floor(remainingCount) : 0;
+  const safePageSize = Number.isFinite(pageSize) && pageSize > 0 ? Math.floor(pageSize) : WISHLIST_PAGE_SIZE;
+  return Math.min(safePage, Math.max(1, Math.ceil(safeCount / safePageSize)));
+}
+
 export type WishlistPageCard = {
   cardCatalogId: string;
   pokemon: string | null;

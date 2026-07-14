@@ -5,6 +5,7 @@ export {
   createWishlistPageErrorState,
   createWishlistPageLoadingState,
   getWishlistPageRange,
+  getSafeWishlistPageAfterRemoval,
   WISHLIST_PAGE_SIZE,
 } from './wishlistPageTypes';
 export type { WishlistPageCard, WishlistPageState } from './wishlistPageTypes';

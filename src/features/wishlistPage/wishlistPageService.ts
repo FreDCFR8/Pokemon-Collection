@@ -1,6 +1,6 @@
 import { createBrowserSupabaseClient } from '../../lib/supabase';
 import { checkCollectionReadiness } from '../collections';
-import { getWishlistPageRange, WISHLIST_PAGE_SIZE, type WishlistPageCard, type WishlistPageState } from './wishlistPageTypes';
+import { getSafeWishlistPageAfterRemoval, getWishlistPageRange, WISHLIST_PAGE_SIZE, type WishlistPageCard, type WishlistPageState } from './wishlistPageTypes';
 
 type WishlistCatalogRow = {
   id: unknown;
@@ -67,7 +67,7 @@ export async function loadWishlistPage(requestedPage = 1): Promise<WishlistPageS
 
   const totalCount = countResult.count ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalCount / WISHLIST_PAGE_SIZE));
-  const safePage = Math.min(page, totalPages);
+  const safePage = getSafeWishlistPageAfterRemoval(page, totalCount);
   const range = getWishlistPageRange(safePage);
 
   const { data, error } = await supabase

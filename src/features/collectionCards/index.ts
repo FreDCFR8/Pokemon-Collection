@@ -32,6 +32,7 @@ export {
 export {
   WishlistMutationError,
   addCardToWishlist,
+  removeCardFromWishlist,
 } from './wishlistMutationService';
 export type {
   AddCardToWishlistParams,

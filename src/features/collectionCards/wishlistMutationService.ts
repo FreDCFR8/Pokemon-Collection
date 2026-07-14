@@ -1,6 +1,6 @@
 import { createBrowserSupabaseClient } from '../../lib/supabase/supabaseClient.ts';
 import { getCollectionCardOwnershipForCatalogCards } from './collectionCardReadService.ts';
-import type { ConfirmedOwnership } from './collectionCardOwnershipTypes';
+import type { ConfirmedOwnership, OwnershipRecord } from './collectionCardOwnershipTypes';
 
 export type AddCardToWishlistParams = {
   collectionId: string;
@@ -16,7 +16,7 @@ export type WishlistMutationRecord = {
   status: 'wishlist';
 };
 
-export type WishlistMutationErrorReason = 'duplicate' | 'invalid-result' | 'not-ready';
+export type WishlistMutationErrorReason = 'duplicate' | 'invalid-result' | 'not-ready' | 'stale';
 
 export class WishlistMutationError extends Error {
   readonly reason: WishlistMutationErrorReason;
@@ -39,9 +39,12 @@ type WishlistDatabaseRow = {
 
 type WishlistMutationQuery = {
   insert(values: unknown): WishlistMutationQuery;
+  delete(): WishlistMutationQuery;
   select(columns: string): WishlistMutationQuery;
   eq(column: string, value: unknown): WishlistMutationQuery;
+  is(column: string, value: unknown): WishlistMutationQuery;
   single(): { returns<U>(): Promise<{ data: U | null; error: unknown }> };
+  maybeSingle<U>(): Promise<{ data: U | null; error: unknown }>;
 };
 
 type WishlistMutationClient = {
@@ -62,9 +65,11 @@ function normalizeId(value: string, message: string): string {
 function mapAndValidateWishlistRow(
   row: WishlistDatabaseRow,
   expected: AddCardToWishlistParams,
+  expectedCollectionCardId?: string,
 ): WishlistMutationRecord {
   if (
     typeof row.id !== 'string' || !row.id.trim() ||
+    (expectedCollectionCardId !== undefined && row.id !== expectedCollectionCardId) ||
     row.collection_id !== expected.collectionId ||
     row.card_catalog_id !== expected.cardCatalogId ||
     row.quantity !== 1 || row.condition !== null || row.status !== 'wishlist'
@@ -86,23 +91,10 @@ function isDuplicateError(error: unknown): boolean {
   return typeof error === 'object' && error !== null && 'code' in error && (error as { code?: unknown }).code === '23505';
 }
 
-async function readExistingWishlist(
+function createWishlistRecordFromOwnershipRow(
+  row: OwnershipRecord<'wishlist'>,
   params: AddCardToWishlistParams,
-  readOwnership: WishlistOwnershipReader,
-): Promise<WishlistMutationRecord | null> {
-  const ownership = await readOwnership(params);
-
-  if (!ownership || ownership.kind === 'conflict') {
-    throw new WishlistMutationError('Wishliststatus kon niet veilig worden bevestigd.', 'not-ready');
-  }
-
-  const wishlistRows = ownership.kind === 'snapshot' ? ownership.value.byStatus.wishlist : [];
-  if (wishlistRows.length === 0) return null;
-  if (wishlistRows.length > 1) {
-    throw new WishlistMutationError('Meerdere wishlist-rijen voor deze kaart konden niet veilig worden samengevoegd.', 'duplicate');
-  }
-
-  const row = wishlistRows[0];
+): WishlistMutationRecord {
   if (
     typeof row.collectionCardId !== 'string' || !row.collectionCardId.trim() ||
     row.collectionId !== params.collectionId ||
@@ -120,6 +112,64 @@ async function readExistingWishlist(
     condition: null,
     status: 'wishlist',
   };
+}
+
+async function readExistingWishlist(
+  params: AddCardToWishlistParams,
+  readOwnership: WishlistOwnershipReader,
+): Promise<WishlistMutationRecord | null> {
+  const ownership = await readOwnership(params);
+
+  if (!ownership || ownership.kind === 'conflict') {
+    throw new WishlistMutationError('Wishliststatus kon niet veilig worden bevestigd.', 'not-ready');
+  }
+
+  const wishlistRows = ownership.kind === 'snapshot' ? ownership.value.byStatus.wishlist : [];
+  if (wishlistRows.length === 0) return null;
+  if (wishlistRows.length > 1) {
+    throw new WishlistMutationError('Meerdere wishlist-rijen voor deze kaart konden niet veilig worden samengevoegd.', 'duplicate');
+  }
+
+  return createWishlistRecordFromOwnershipRow(wishlistRows[0], params);
+}
+
+export async function removeCardFromWishlist(
+  rawParams: AddCardToWishlistParams,
+  createClient: WishlistMutationClientFactory = () => createBrowserSupabaseClient() as unknown as WishlistMutationClient | null,
+  readOwnership: WishlistOwnershipReader = async ({ collectionId, cardCatalogId }) => {
+    const ownershipByCard = await getCollectionCardOwnershipForCatalogCards({ collectionId, cardCatalogIds: [cardCatalogId] });
+    return ownershipByCard.get(cardCatalogId) ?? { kind: 'conflict', reason: 'Geen bevestigde ownershiprespons.' };
+  },
+): Promise<WishlistMutationRecord> {
+  const params = {
+    collectionId: normalizeId(rawParams.collectionId, 'Geen actieve collectie beschikbaar.'),
+    cardCatalogId: normalizeId(rawParams.cardCatalogId, 'Geen geldige cataloguskaart gekozen.'),
+  };
+  const existing = await readExistingWishlist(params, readOwnership);
+  if (!existing) {
+    throw new WishlistMutationError('De wishlistrij bestaat niet meer.', 'stale');
+  }
+
+  const supabase = createClient();
+  if (!supabase) {
+    throw new WishlistMutationError('Wishlist bijwerken is niet beschikbaar omdat de publieke Supabase configuratie ontbreekt.', 'not-ready');
+  }
+
+  const { data, error } = await supabase
+    .from('collection_cards')
+    .delete()
+    .eq('id', existing.collectionCardId)
+    .eq('collection_id', params.collectionId)
+    .eq('card_catalog_id', params.cardCatalogId)
+    .eq('status', 'wishlist')
+    .eq('quantity', 1)
+    .is('condition', null)
+    .select(WISHLIST_MUTATION_SELECT)
+    .maybeSingle<WishlistDatabaseRow>();
+
+  if (error) throw error;
+  if (!data) throw new WishlistMutationError('De wishlistrij is intussen gewijzigd.', 'stale');
+  return mapAndValidateWishlistRow(data, params, existing.collectionCardId);
 }
 
 export async function addCardToWishlist(
@@ -168,4 +218,5 @@ export const __wishlistMutationServiceTestUtils = {
   mapAndValidateWishlistRow,
   isDuplicateError,
   readExistingWishlist,
+  createWishlistRecordFromOwnershipRow,
 };

@@ -4,8 +4,9 @@ import type {
   CollectionOwnershipState,
   CollectionStatus,
 } from '../collectionCards';
+import { areCardDetailActionsBlocked } from './cardDetailMutationState';
 
-export type CardDetailMutationOperation = 'add' | 'add-wishlist' | 'increase' | 'decrease' | 'delete';
+export type CardDetailMutationOperation = 'add' | 'add-wishlist' | 'remove-wishlist' | 'increase' | 'decrease' | 'delete';
 
 export type CardDetailMutationState =
   | { status: 'idle' }
@@ -26,6 +27,7 @@ export type CardDetailCard = {
 export type CardDetailCapabilities = {
   canAdd: boolean;
   canAddWishlist?: boolean;
+  canRemoveWishlist?: boolean;
   canIncrease: boolean;
   canDecrease: boolean;
   unavailableReason?: string;
@@ -48,6 +50,7 @@ export type CardDetailDialogProps = {
   onRetryOwnership?(): void;
   onAdd?(): void;
   onAddWishlist?(): void;
+  onRemoveWishlist?(): void;
   onRetryMutation?(): void;
   onIncrease?(): void;
   onDecrease?(): void;
@@ -100,6 +103,7 @@ export function CardDetailDialog({
   onRetryOwnership,
   onAdd,
   onAddWishlist,
+  onRemoveWishlist,
   onRetryMutation,
   onIncrease,
   onDecrease,
@@ -107,7 +111,7 @@ export function CardDetailDialog({
   const dialogRef = useRef<HTMLElement | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const detailImageUrl = card.images.large ?? card.images.small;
-  const areActionsBlocked = mutation.status === 'pending' || mutation.status === 'conflict';
+  const areActionsBlocked = areCardDetailActionsBlocked(mutation);
   const isMutating = mutation.status === 'pending';
   const ownershipPresentation = useMemo(() => {
     if (isMutating) return { label: 'Bijwerken…', className: 'is-pending' };
@@ -215,6 +219,16 @@ export function CardDetailDialog({
                 onClick={onAddWishlist}
               >
                 Aan wishlist toevoegen
+              </button>
+            ) : null}
+            {capabilities.canRemoveWishlist ? (
+              <button
+                className="card-detail-wishlist-button"
+                type="button"
+                disabled={areActionsBlocked}
+                onClick={onRemoveWishlist}
+              >
+                Van wishlist verwijderen
               </button>
             ) : null}
             {mutation.status === 'error' && mutation.retryable && onRetryMutation ? (

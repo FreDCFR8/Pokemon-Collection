@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createWishlistCardDetailProductCopy, toWishlistCardDetailCard } from '../../src/features/wishlistPage/wishlistCardDetailAdapter.ts';
 import type { CollectionOwnershipState, OwnershipRecord } from '../../src/features/collectionCards/index.ts';
-import { createWishlistPageErrorState, createWishlistPageLoadingState, getWishlistPageRange, type WishlistPageCard } from '../../src/features/wishlistPage/wishlistPageTypes.ts';
+import { createWishlistPageErrorState, createWishlistPageLoadingState, getSafeWishlistPageAfterRemoval, getWishlistPageRange, type WishlistPageCard } from '../../src/features/wishlistPage/wishlistPageTypes.ts';
 
 const wishlistCard: WishlistPageCard = {
   cardCatalogId: 'catalog-42',
@@ -85,4 +85,10 @@ test('Wishlist page retry preserves the requested page and resets only Wishlist 
   assert.equal(retryState.status, 'loading');
   assert.equal(retryState.page, 2);
   assert.deepEqual(retryState.cards, []);
+});
+
+test('Wishlist removal safely moves an emptied last page to the previous valid page', () => {
+  assert.equal(getSafeWishlistPageAfterRemoval(2, 24), 1);
+  assert.equal(getSafeWishlistPageAfterRemoval(2, 25), 2);
+  assert.equal(getSafeWishlistPageAfterRemoval(1, 0), 1);
 });

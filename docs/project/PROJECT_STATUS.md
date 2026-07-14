@@ -29,18 +29,19 @@ Available behavior:
 
 ## Active work
 
-Phase 7C-2F adds one focused write flow from Sets:
+Phase 7C-2F adds one reversible wishlist flow from shared Card Detail:
 
 - Wishlist cards are read from the active collection's wishlist rows with stable catalog identity and catalog image metadata;
 - Wishlist uses the same bounded server-side 24-card pagination and previous/next UX as Collection; it never loads the full catalog in the browser;
 - Wishlist page-level failures expose a retry that reloads only the Wishlist page;
 - selecting one wishlist card opens the shared Card Detail and loads ownership only for that selected catalog card through the existing read service;
-- Sets card detail offers `Aan wishlist toevoegen`; binder/grid and Collection expose no new wishlist action;
+- Sets card detail offers `Aan wishlist toevoegen` and, for one valid wishlist row, `Van wishlist verwijderen`; binder/grid and Collection expose no new wishlist action;
 - the mutation service performs a read-only active-collection ownership/readiness check before insert;
 - wishlist writes use stable `collectionId` and `cardCatalogId`, `quantity = 1`, `condition = null` and `status = wishlist`;
 - the server response is fully validated, duplicate writes are idempotently resolved, and the visible Sets ownership state reloads after success;
+- wishlist removal uses exact row/collection/card/status/quantity/condition filters, validates the delete response, and reloads the bounded Wishlist page after closing detail;
 - pending, success, error and retry states are controlled by the shared detail; late responses cannot update a closed or changed Sets context;
-- one focused RLS/index migration extends the existing ownership boundary to wishlist rows; Collection quantity management and Wishlist pagination remain unchanged.
+- focused RLS migrations extend the existing ownership boundary to wishlist rows; Collection quantity management and Wishlist pagination remain otherwise unchanged.
 
 ## Current architecture baseline
 
