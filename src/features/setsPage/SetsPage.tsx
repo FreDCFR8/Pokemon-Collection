@@ -70,7 +70,7 @@ type SetCardCollectionState = {
 };
 
 type SetCardMutationState = {
-  status: 'idle' | 'adding' | 'adding-wishlist' | 'removing-wishlist' | 'increasing' | 'decreasing' | 'deleting' | 'success' | 'error';
+  status: 'idle' | 'adding' | 'adding-wishlist' | 'removing-wishlist' | 'promoting-wishlist' | 'increasing' | 'decreasing' | 'deleting' | 'success' | 'error';
   message?: string;
   requestId?: number;
   operation?: SetCardMutationOperation;
@@ -696,7 +696,7 @@ export function SetsPage() {
       setSetCardMutationStates((currentStates) => ({ ...currentStates, [card.id]: { status: 'error', operation: 'promote-wishlist', message: 'Wishliststatus is niet veilig te promoten.' } }));
       return;
     }
-    const requestId = beginCardMutation(card.id, 'adding', 'promote-wishlist');
+    const requestId = beginCardMutation(card.id, 'promoting-wishlist', 'promote-wishlist');
     if (requestId === null) return;
     const collectionIdForRequest = activeCollectionId;
     const setIdForRequest = openSet.id;
@@ -1465,6 +1465,8 @@ export function SetsPage() {
                   ? { status: 'pending', operation: 'add-wishlist' }
                 : mutationState?.status === 'removing-wishlist'
                   ? { status: 'pending', operation: 'remove-wishlist' }
+                : mutationState?.status === 'promoting-wishlist'
+                  ? { status: 'pending', operation: 'promote-wishlist' }
                 : mutationState?.status === 'increasing'
                   ? { status: 'pending', operation: 'increase' }
                   : mutationState?.status === 'decreasing'

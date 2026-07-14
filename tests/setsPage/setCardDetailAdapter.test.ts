@@ -139,6 +139,7 @@ test('Sets retry dispatch preserves each original operation and omits unknown op
     add: () => calls.push('add'),
     'add-wishlist': () => calls.push('add-wishlist'),
     'remove-wishlist': () => calls.push('remove-wishlist'),
+    'promote-wishlist': () => calls.push('promote-wishlist'),
     increase: () => calls.push('increase'),
     decrease: () => calls.push('decrease'),
     delete: () => calls.push('delete'),
@@ -147,7 +148,7 @@ test('Sets retry dispatch preserves each original operation and omits unknown op
   for (const operation of ['add', 'add-wishlist', 'remove-wishlist', 'promote-wishlist', 'increase', 'decrease', 'delete'] as const) {
     getSetCardMutationRetryHandler(operation, handlers)?.();
   }
-  assert.deepEqual(calls, ['add', 'add-wishlist', 'remove-wishlist', 'increase', 'decrease', 'delete']);
+  assert.deepEqual(calls, ['add', 'add-wishlist', 'remove-wishlist', 'promote-wishlist', 'increase', 'decrease', 'delete']);
   assert.equal(getSetCardMutationRetryHandler(undefined, handlers), undefined);
   assert.equal(getSetCardMutationRetryHandler('unknown' as never, handlers), undefined);
 });
