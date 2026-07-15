@@ -725,6 +725,27 @@ button {
   font-weight: 800;
 }
 
+.wishlist-page-summary {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.wishlist-page-empty h3 {
+  margin: 0;
+  color: #172033;
+  font-size: 1.05rem;
+}
+
+.wishlist-page-empty p {
+  margin: 6px 0 0;
+  font-weight: 500;
+}
+
+@media (max-width: 480px) {
+  .wishlist-page-summary {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (min-width: 720px) {
   .collection-page-filters {
     grid-template-columns: repeat(3, minmax(0, 1fr));

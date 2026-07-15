@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createWishlistCardDetailProductCopy, toWishlistCardDetailCard } from '../../src/features/wishlistPage/wishlistCardDetailAdapter.ts';
 import type { CollectionOwnershipState, OwnershipRecord } from '../../src/features/collectionCards/index.ts';
-import { createWishlistPageErrorState, createWishlistPageLoadingState, getSafeWishlistPageAfterRemoval, getWishlistPageRange, resolveWishlistRemovalRecovery, shouldApplyWishlistDetailResponse, type WishlistPageCard } from '../../src/features/wishlistPage/wishlistPageTypes.ts';
+import { createWishlistPageErrorState, createWishlistPageLoadingState, getSafeWishlistPageAfterRemoval, getWishlistPageRange, getWishlistVisibleRange, resolveWishlistRemovalRecovery, shouldApplyWishlistDetailResponse, type WishlistPageCard } from '../../src/features/wishlistPage/wishlistPageTypes.ts';
 
 const wishlistCard: WishlistPageCard = {
   cardCatalogId: 'catalog-42',
@@ -91,6 +91,12 @@ test('Wishlist removal safely moves an emptied last page to the previous valid p
   assert.equal(getSafeWishlistPageAfterRemoval(2, 24), 1);
   assert.equal(getSafeWishlistPageAfterRemoval(2, 25), 2);
   assert.equal(getSafeWishlistPageAfterRemoval(1, 0), 1);
+});
+
+test('Wishlist summary reports the visible range without exceeding the total', () => {
+  assert.deepEqual(getWishlistVisibleRange(0, 1), { first: 0, last: 0 });
+  assert.deepEqual(getWishlistVisibleRange(25, 1), { first: 1, last: 24 });
+  assert.deepEqual(getWishlistVisibleRange(25, 2), { first: 25, last: 25 });
 });
 
 test('Wishlist promotion reuses bounded refresh clamping when the promoted card was the last row', () => {
