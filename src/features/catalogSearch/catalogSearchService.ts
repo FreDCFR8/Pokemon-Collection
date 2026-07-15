@@ -40,7 +40,7 @@ function mapCatalogSearchCard(row: CatalogSearchDatabaseRow): CatalogSearchCard 
 export async function searchCatalog(searchTerm: string, page: number): Promise<CatalogSearchResult> {
   const normalizedTerm = normalizeCatalogSearchTerm(searchTerm);
   if (!isCatalogSearchTermValid(normalizedTerm)) {
-    throw new Error('Gebruik minimaal twee tekens om te zoeken.');
+    throw new Error('Gebruik minimaal drie tekens om te zoeken.');
   }
 
   const supabase = createBrowserSupabaseClient();

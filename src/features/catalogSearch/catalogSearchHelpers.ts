@@ -13,7 +13,3 @@ export function getCatalogSearchRange(page: number): { page: number; from: numbe
   const from = (safePage - 1) * CATALOG_SEARCH_PAGE_SIZE;
   return { page: safePage, from, to: from + CATALOG_SEARCH_PAGE_SIZE - 1 };
 }
-
-export function shouldApplyCatalogSearchResponse(activeRequestId: number, responseRequestId: number): boolean {
-  return activeRequestId === responseRequestId;
-}

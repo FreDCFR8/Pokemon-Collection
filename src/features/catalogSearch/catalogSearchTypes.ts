@@ -1,5 +1,5 @@
 export const CATALOG_SEARCH_PAGE_SIZE = 24;
-export const CATALOG_SEARCH_MIN_LENGTH = 2;
+export const CATALOG_SEARCH_MIN_LENGTH = 3;
 export const CATALOG_SEARCH_MAX_LENGTH = 80;
 
 export type CatalogSearchCard = {
