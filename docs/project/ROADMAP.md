@@ -60,8 +60,9 @@ This document shows product direction and phase status. It intentionally avoids 
 - ✅ Phase 7C-2F — Wishlist add/remove vanuit shared Card Detail (PR116 afgerond)
 - ✅ Phase 7C-2G — Wishlist naar collectie (PR118 afgerond)
 - ✅ Phase 7C-2H — Wishlist en Collection binder-look
-- 🚧 Phase 7C-2L — Uniforme kaartgalerij voor Collection, Sets en Wishlist
-- ⏳ reuse in Trade and Search
+- ✅ Phase 7C-2L — Uniforme kaartgalerij voor Collection, Sets en Wishlist (PR123 afgerond)
+- 🚧 reuse in Search (Phase 7D-1A)
+- ⏳ reuse in Trade
 - ⏳ extended characteristics and metadata
 - ✅ previous/next card navigation (PR122 afgerond)
 
@@ -76,8 +77,8 @@ This document shows product direction and phase status. It intentionally avoids 
 
 ## Catalog discovery
 
-- ⏳ global full-catalog search
-- ⏳ add card from global search
+- 🚧 Phase 7D-1A — global full-catalog search (read-only)
+- ⏳ Phase 7D-1B — add card from global search
 - ⏳ advanced catalog filters
 
 ## Collection states
