@@ -76,13 +76,13 @@ function CollectionPagination({
   return (
     <nav className="collection-page-pagination" aria-label={label}>
       <button type="button" onClick={onPreviousPage} disabled={isLoading || currentPage <= 1}>
-        Previous
+        Vorige
       </button>
       <span>
         Pagina {currentPage} van {totalPages}
       </span>
       <button type="button" onClick={onNextPage} disabled={isLoading || currentPage >= totalPages}>
-        Next
+        Volgende
       </button>
     </nav>
   );
@@ -93,6 +93,7 @@ export function CollectionPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeSearchTerm, setActiveSearchTerm] = useState('');
   const [filters, setFilters] = useState<CollectionPageFilters>(emptyCollectionPageFilters);
+  const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [filterOptions, setFilterOptions] = useState<CollectionFilterOptions>(emptyCollectionFilterOptions);
   const [filterOptionsError, setFilterOptionsError] = useState<string | null>(null);
   const [areFilterOptionsLoading, setAreFilterOptionsLoading] = useState(true);
@@ -124,9 +125,6 @@ export function CollectionPage() {
   const activeFilterEntries = Object.entries(filters).filter((entry): entry is [keyof CollectionPageFilters, string] => entry[1] !== undefined && entry[1].trim().length > 0);
   const hasActiveFilters = activeFilterEntries.length > 0;
   const hasActiveCriteria = hasActiveSearch || hasActiveFilters;
-  const firstVisibleCard = collectionPageState.totalCount === 0 ? 0 : (collectionPageState.page - 1) * collectionPageState.pageSize + 1;
-  const lastVisibleCard = Math.min(collectionPageState.page * collectionPageState.pageSize, collectionPageState.totalCount);
-
   collectionContextRef.current = {
     collectionId: collectionPageState.collectionId,
     page,
@@ -427,42 +425,18 @@ export function CollectionPage() {
     >
       <div className="collection-page-header">
         <div>
-          <p className="eyebrow">Collectie</p>
           <h2 id="collection-page-title">Collection</h2>
-          <p>{collectionPageState.message}</p>
+          {collectionPageState.status !== 'ready' ? <p className="collection-page-status">{collectionPageState.message}</p> : null}
           {collectionPageState.errorMessage ? <p className="status-note">Foutmelding: {collectionPageState.errorMessage}</p> : null}
         </div>
       </div>
 
-      <dl className="collection-page-summary" aria-label="Collectie samenvatting">
-        <div>
-          <dt>Totaal kaarten</dt>
-          <dd>{collectionPageState.totalCount}</dd>
-        </div>
-        <div>
-          <dt>Zichtbaar</dt>
-          <dd>
-            {firstVisibleCard}–{lastVisibleCard}
-          </dd>
-        </div>
-        <div>
-          <dt>Pagina</dt>
-          <dd>
-            {collectionPageState.page} / {totalPages}
-          </dd>
-        </div>
-        <div>
-          <dt>Per pagina</dt>
-          <dd>{collectionPageState.pageSize}</dd>
-        </div>
-      </dl>
-
       <div className="collection-page-search">
-        <label htmlFor="collection-page-search-input">Collectie zoeken</label>
         <div className="collection-page-search-control">
           <input
             id="collection-page-search-input"
             type="search"
+            aria-label="Collectie zoeken"
             value={searchTerm}
             placeholder="Zoek op Pokémon, set of nummer"
             onChange={(event) => setSearchTerm(event.target.value)}
@@ -479,49 +453,52 @@ export function CollectionPage() {
             </button>
           ) : null}
         </div>
-        <div className="collection-page-filters" aria-label="Collectiefilters">
-          <label>
-            Rarity
-            <select value={filters.rarity ?? ''} onChange={(event) => updateFilter('rarity', event.target.value)} disabled={areFilterOptionsLoading && filterOptions.rarities.length === 0}>
-              <option value="">Alle rarities</option>
-              {filterOptions.rarities.map((option) => (
-                <option key={option} value={option}>{option}</option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Set
-            <select value={filters.setCode ?? ''} onChange={(event) => updateFilter('setCode', event.target.value)} disabled={areFilterOptionsLoading && filterOptions.sets.length === 0}>
-              <option value="">Alle sets</option>
-              {filterOptions.sets.map((set) => (
-                <option key={set.setCode} value={set.setCode}>{set.name}</option>
-              ))}
-            </select>
-          </label>
-        </div>
-        {filterOptionsError ? <p className="status-note">Slimme filters laden is mislukt: {filterOptionsError}</p> : null}
+        <button
+          type="button"
+          className="collection-page-filter-toggle"
+          aria-expanded={isFilterPanelOpen}
+          aria-controls="collection-page-filter-panel"
+          onClick={() => setIsFilterPanelOpen((isOpen) => !isOpen)}
+        >
+          Filters
+        </button>
+        {isFilterPanelOpen ? (
+          <div id="collection-page-filter-panel" className="collection-page-filter-panel" aria-label="Collectiefilters">
+            <div className="collection-page-filters">
+              <label>
+                Rarity
+                <select value={filters.rarity ?? ''} onChange={(event) => updateFilter('rarity', event.target.value)} disabled={areFilterOptionsLoading && filterOptions.rarities.length === 0}>
+                  <option value="">Alle rarities</option>
+                  {filterOptions.rarities.map((option) => (
+                    <option key={option} value={option}>{option}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Set
+                <select value={filters.setCode ?? ''} onChange={(event) => updateFilter('setCode', event.target.value)} disabled={areFilterOptionsLoading && filterOptions.sets.length === 0}>
+                  <option value="">Alle sets</option>
+                  {filterOptions.sets.map((set) => (
+                    <option key={set.setCode} value={set.setCode}>{set.name}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            {filterOptionsError ? <p className="status-note">Slimme filters laden is mislukt: {filterOptionsError}</p> : null}
+          </div>
+        ) : null}
         <div className="collection-page-filter-actions">
-          <button type="button" onClick={clearFilters} disabled={!hasActiveFilters}>Reset filters</button>
+          {hasActiveFilters ? <button type="button" onClick={clearFilters}>Reset filters</button> : null}
           {hasActiveCriteria ? <button type="button" onClick={clearAllCriteria}>Alles wissen</button> : null}
         </div>
         {hasActiveCriteria ? (
           <p className="collection-page-search-summary">
-            Resultaten gefilterd op:{' '}
-            {[hasActiveSearch ? `search = ${activeSearchTerm}` : null, ...activeFilterEntries.map(([name, value]) => `${filterLabels[name]} = ${name === 'setCode' ? setNameByCode.get(value) ?? 'Onbekende set' : value}`)]
+            Actief: {[hasActiveSearch ? `zoekterm “${activeSearchTerm}”` : null, ...activeFilterEntries.map(([name, value]) => `${filterLabels[name]} “${name === 'setCode' ? setNameByCode.get(value) ?? 'Onbekende set' : value}”`)]
               .filter(Boolean)
-              .join(', ')}
+              .join(' · ')}
           </p>
         ) : null}
       </div>
-
-      <CollectionPagination
-        currentPage={collectionPageState.page}
-        isLoading={isLoading}
-        label="Collectiepaginatie boven"
-        onNextPage={goToNextPage}
-        onPreviousPage={goToPreviousPage}
-        totalPages={totalPages}
-      />
 
       {collectionPageState.status === 'ready' && collectionPageState.cards.length === 0 ? (
         <div className="collection-page-empty">

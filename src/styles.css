@@ -521,6 +521,10 @@ button {
   padding: 22px;
 }
 
+.collection-page:not(.wishlist-page) {
+  padding: 8px 8px 14px;
+}
+
 .collection-page h2 {
   margin: 0;
   font-size: clamp(1.4rem, 6vw, 2rem);
@@ -577,13 +581,13 @@ button {
 
 .collection-page-search {
   display: grid;
-  gap: 8px;
-  margin-top: 16px;
+  gap: 4px;
+  margin-top: 8px;
 }
 
 .collection-page-search label {
   color: #334155;
-  font-size: 0.86rem;
+  font-size: 0.8rem;
   font-weight: 900;
 }
 
@@ -594,7 +598,7 @@ button {
   border: 1px solid #cbd5e1;
   border-radius: 999px;
   background: #ffffff;
-  padding: 4px 6px 4px 14px;
+  padding: 2px 4px 2px 10px;
 }
 
 .collection-page-search-control:focus-within {
@@ -644,6 +648,33 @@ button {
   opacity: 0.55;
 }
 
+.collection-page-filter-toggle {
+  min-height: 40px;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  background: #f8fafc;
+  color: #334155;
+  cursor: pointer;
+  padding: 0 14px;
+  font-weight: 900;
+  text-align: left;
+}
+
+.collection-page-filter-toggle[aria-expanded="true"] {
+  border-color: #2563eb;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.collection-page-filter-panel {
+  display: grid;
+  gap: 8px;
+  border: 1px solid #dbe3ef;
+  border-radius: 14px;
+  background: #f8fafc;
+  padding: 8px;
+}
+
 .collection-page-empty button {
   margin-top: 8px;
 }
@@ -651,7 +682,7 @@ button {
 .collection-page-filters {
   display: grid;
   gap: 10px;
-  margin-top: 4px;
+  margin-top: 0;
 }
 
 .collection-page-filters label {
@@ -679,6 +710,7 @@ button {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  margin-top: 4px;
 }
 
 .collection-page-search-summary {
@@ -702,6 +734,17 @@ button {
   color: #ffffff;
   cursor: pointer;
   font-weight: 900;
+}
+
+.collection-page:not(.wishlist-page) .collection-page-pagination button {
+  background: #eff6ff;
+  color: #1d4ed8;
+  padding: 0 12px;
+}
+
+.collection-page:not(.wishlist-page) .collection-page-pagination {
+  gap: 8px;
+  margin-top: 12px;
 }
 
 .collection-page-pagination button:disabled {
@@ -748,7 +791,11 @@ button {
 
 @media (min-width: 720px) {
   .collection-page-filters {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .collection-page:not(.wishlist-page) {
+    padding: 14px;
   }
 
   .collection-page-summary {
@@ -1822,8 +1869,30 @@ button {
   line-height: 1;
 }
 
+.collection-page:not(.wishlist-page) .binder-card-grid {
+  gap: 5px;
+  margin-top: 10px;
+}
+
 @media (min-width: 820px) {
   .binder-card-grid {
     gap: 4px;
+  }
+
+  .collection-page:not(.wishlist-page) .binder-card-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .app-shell:has(> .collection-page:not(.wishlist-page)) {
+    width: min(100%, 1280px);
+  }
+
+  .collection-page:not(.wishlist-page) {
+    width: 100%;
+    max-width: 1280px;
+    margin-inline: auto;
+    padding: 12px;
   }
 }
