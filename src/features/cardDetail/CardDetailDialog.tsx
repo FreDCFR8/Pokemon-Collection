@@ -139,6 +139,12 @@ export function CardDetailDialog({
     if (isMutating) return { label: 'Bijwerken…', className: 'is-pending' };
     return getOwnershipLabel(ownership, copy);
   }, [copy, mutation.status, ownership]);
+  const isWishlistOnly = ownership.status === 'ready'
+    && ownership.value.kind === 'snapshot'
+    && ownership.value.value.byStatus.wishlist.length > 0
+    && ownership.value.value.byStatus.owned.length === 0
+    && ownership.value.value.byStatus.trade.length === 0;
+  const showQuantityControl = !readOnly && !isWishlistOnly;
   const feedbackRole = mutation.status === 'error' || mutation.status === 'conflict' ? 'alert' : 'status';
   const feedbackMessage = mutation.status === 'success' || mutation.status === 'error' || mutation.status === 'conflict'
     ? mutation.message
@@ -219,14 +225,15 @@ export function CardDetailDialog({
           </div>
           <div className="card-detail-body">
             <p className="card-detail-set">
+              <span>Pokémon</span>
+              <span aria-hidden="true">|</span>
               <strong>{card.set.name ?? 'Onbekende set'}</strong>
-              {card.set.setCode ? <span>{card.set.setCode}</span> : null}
             </p>
             <h4 id="card-detail-title">{card.name}</h4>
             <p className="card-detail-subtitle">
               {card.set.name ?? 'Onbekende set'}{card.number ? ` · #${card.number}` : ''}
             </p>
-            {readOnly ? (
+            {!showQuantityControl ? (
               <span id="card-detail-status" className={`card-detail-quantity-status card-detail-read-only-status ${ownershipPresentation.className}`} aria-live="polite">
                 {ownershipPresentation.className === 'is-present' ? <span className="card-detail-quantity-status-mark" aria-hidden="true">✓</span> : null}
                 {ownershipPresentation.label}

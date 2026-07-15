@@ -984,6 +984,13 @@ export function SetsPage() {
     setSelectedSetCardId(cardCatalogId);
   }
 
+  function navigateSetCard(direction: -1 | 1) {
+    if (!selectedSetCardId) return;
+    const currentIndex = setCardsOverlayState.cards.findIndex((card) => card.id === selectedSetCardId);
+    const nextCard = setCardsOverlayState.cards[currentIndex + direction];
+    if (nextCard) setSelectedSetCardId(nextCard.id);
+  }
+
   function closeSetCardDetail() {
     const closingCardId = selectedSetCardId;
     setSelectedSetCardId(null);
@@ -1530,6 +1537,12 @@ export function SetsPage() {
                   onRetryMutation={retryMutation}
                   onIncrease={() => void handleCollectionCardQuantityChange(selectedSetCard, 'increase')}
                   onDecrease={() => void handleCollectionCardQuantityChange(selectedSetCard, 'decrease')}
+                  navigation={{
+                    currentIndex: setCardsOverlayState.cards.findIndex((card) => card.id === selectedSetCard.id),
+                    total: setCardsOverlayState.cards.length,
+                    onPrevious: () => navigateSetCard(-1),
+                    onNext: () => navigateSetCard(1),
+                  }}
                 />
               );
             })() : null}

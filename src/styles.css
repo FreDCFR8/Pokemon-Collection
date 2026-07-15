@@ -1900,7 +1900,7 @@ button {
    image-led, and scoped to the dialog so list pages keep their card treatment. */
 .card-detail-backdrop {
   align-items: center;
-  background: rgb(15 23 42 / 0.42);
+  background: rgb(15 23 42 / 0.5);
   padding: 0;
   backdrop-filter: blur(8px);
 }
@@ -1910,7 +1910,7 @@ button {
   height: 100dvh;
   max-height: 100dvh;
   border-radius: 0;
-  background: #edf3f9;
+  background: linear-gradient(135deg, #dce9f5 0%, #edf3f9 48%, #d5e2f0 100%);
   box-shadow: 0 20px 70px rgb(15 23 42 / 0.24);
 }
 
@@ -1920,6 +1920,11 @@ button {
   left: auto;
   grid-template-columns: auto auto;
   gap: 4px;
+  padding: 4px;
+  border: 1px solid rgb(148 163 184 / 0.3);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.78);
+  box-shadow: 0 5px 18px rgb(15 23 42 / 0.12);
 }
 
 .card-detail-navigation {
@@ -1931,9 +1936,9 @@ button {
   width: 42px;
   min-width: 42px;
   min-height: 42px;
-  border: 1px solid rgb(148 163 184 / 0.35);
-  background: rgb(255 255 255 / 0.72);
-  box-shadow: 0 2px 12px rgb(15 23 42 / 0.12);
+  border: 0;
+  background: transparent;
+  box-shadow: none;
   color: #334155;
   padding: 0;
 }
@@ -1986,6 +1991,10 @@ button {
 
 .card-detail-body h4 {
   font-size: clamp(1.8rem, 7vw, 2.8rem);
+}
+
+.card-detail-subtitle {
+  display: none;
 }
 
 .card-detail-subtitle {
@@ -2079,17 +2088,22 @@ button {
   }
 
   .card-detail-content {
-    grid-template-columns: minmax(0, 0.82fr) minmax(0, 1fr);
-    gap: clamp(24px, 4vw, 54px);
+    grid-template-columns: minmax(0, 1.08fr) minmax(0, 0.92fr);
+    gap: clamp(24px, 3vw, 42px);
     align-items: center;
     height: 100%;
     box-sizing: border-box;
-    padding: 44px clamp(24px, 5vw, 64px);
+    padding: 34px clamp(24px, 4vw, 48px);
+  }
+
+  .card-detail-image {
+    align-self: center;
+    justify-items: start;
   }
 
   .card-detail-image img,
   .card-detail-image > span {
-    width: min(100%, 430px);
+    width: min(100%, 510px);
     max-height: calc(92dvh - 88px);
   }
 
