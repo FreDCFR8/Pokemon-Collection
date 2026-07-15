@@ -7,12 +7,14 @@ import { EnvConfigStatusCard } from './features/config';
 import { ProfileReadinessCard, ProfileStatusCard } from './features/profiles';
 import { SetsPage } from './features/setsPage';
 import { WishlistPage } from './features/wishlistPage';
+import { CatalogSearchPage } from './features/catalogSearch';
 
 const navigationItems = [
   { label: 'Dashboard', slug: 'dashboard' },
   { label: 'Collection', slug: 'collection' },
   { label: 'Sets', slug: 'sets' },
   { label: 'Wishlist', slug: 'wishlist' },
+  { label: 'Zoeken', slug: 'search' },
   { label: 'Pokédex', slug: 'pokedex' },
 ] as const;
 
@@ -90,6 +92,8 @@ function MainContent({ activeNavigationItem }: { activeNavigationItem: Navigatio
       return <SetsPage />;
     case 'Wishlist':
       return <WishlistPage />;
+    case 'Zoeken':
+      return <CatalogSearchPage />;
     case 'Pokédex':
       return (
         <section className="placeholder-grid" aria-label="Pokédex scherm">
