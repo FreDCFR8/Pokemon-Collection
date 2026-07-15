@@ -1501,7 +1501,7 @@ export function SetsPage() {
                     cardCatalogId: selectedSetCard.id,
                     name: selectedSetCard.pokemon,
                     number: selectedSetCard.number,
-                    set: { setCode: openSet.set_code, name: openSet.name },
+                    set: { setCode: openSet.set_code, name: openSet.name, releaseDate: openSet.release_date },
                     rarity: selectedSetCard.rarity,
                     images: { small: selectedSetCard.image_small, large: selectedSetCard.image_large },
                   }}
