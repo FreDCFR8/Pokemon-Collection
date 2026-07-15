@@ -1,12 +1,12 @@
 # Pokémon Collection V3 — Project Status
 
-_Last updated: 2026-07-14_
+_Last updated: 2026-07-15_
 
 This document contains current operational state only. Historical direction belongs in `ROADMAP.md`; lasting reasons belong in `DECISION_LOG.md`.
 
 ## Current phase
 
-**Phase 7C-2H — Wishlist en Collection binder-look**
+**Phase 7C-2L — Uniforme kaartgalerij voor Collection, Sets en Wishlist**
 
 ## Latest merged product milestone
 
@@ -29,11 +29,12 @@ Available behavior:
 
 ## Active work
 
-Phase 7C-2H aligns Wishlist and Collection with the Sets binder presentation:
+Phase 7C-2L aligns the gallery layout across Collection, Sets and Wishlist:
 
-- Wishlist and Collection receive image-first, bounded binder overviews;
+- all three pages use the same image-first, bounded, responsive gallery layout;
+- desktop galleries use at most six large cards per row and remain centred;
 - existing server-side pagination, search, filters, Card Detail and mutations remain unchanged;
-- Wishlist promotion/removal and Collection quantity management remain available in Card Detail;
+- Wishlist promotion/removal, Collection quantity management and Sets actions remain available in Card Detail;
 - no database changes, Supabase migrations or database push are part of this phase.
 
 ## Current architecture baseline
