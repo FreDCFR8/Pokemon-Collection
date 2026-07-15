@@ -6,6 +6,8 @@ export type {
   CardDetailMutationState,
   CardDetailProductCopy,
 } from './CardDetailDialog';
+export { getCardDetailMetadata, getCardDetailNavigationState } from './cardDetailGallery';
+export type { CardDetailMetadataItem } from './cardDetailGallery';
 export {
   createCardDetailOwnershipPresentation,
   hasConfirmedAbsence,

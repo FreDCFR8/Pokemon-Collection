@@ -261,7 +261,7 @@ export function CollectionPage() {
   const goToPreviousPage = () => setPage((currentPage) => Math.max(1, currentPage - 1));
   const goToNextPage = () => setPage((currentPage) => Math.min(totalPages, currentPage + 1));
 
-  const loadSelectedCardOwnership = (card: CardDetailCard, collectionId: string) => {
+  const loadSelectedCardOwnership = (card: CardDetailCard, collectionId: string, preservePrevious = true) => {
     const request: CollectionCardDetailRequest = {
       requestId: detailRequestIdRef.current + 1,
       collectionId,
@@ -271,7 +271,7 @@ export function CollectionPage() {
     detailRequestIdRef.current = request.requestId;
     activeDetailRequestRef.current = request;
     const refreshMutationRequestId = mutationRequestIdRef.current;
-    const previousOwnership = getConfirmedOwnership(detailOwnership);
+    const previousOwnership = preservePrevious ? getConfirmedOwnership(detailOwnership) : undefined;
     setDetailOwnership((previous) => ({
       status: 'loading',
       previous: previousOwnership ?? getConfirmedOwnership(previous),
@@ -397,7 +397,17 @@ export function CollectionPage() {
     }
 
     setSelectedDetailCard(detailCard);
-    loadSelectedCardOwnership(detailCard, collectionId);
+    setDetailOwnership({ status: 'idle' });
+    setDetailMutation({ status: 'idle' });
+    loadSelectedCardOwnership(detailCard, collectionId, false);
+  };
+
+  const navigateCollectionCard = (direction: -1 | 1) => {
+    if (!selectedDetailCard) return;
+
+    const currentIndex = collectionPageState.cards.findIndex((card) => card.cardCatalogId === selectedDetailCard.cardCatalogId);
+    const nextCard = collectionPageState.cards[currentIndex + direction];
+    if (nextCard) openCollectionCardDetail(nextCard);
   };
 
   const closeCollectionCardDetail = () => {
@@ -414,6 +424,10 @@ export function CollectionPage() {
       }
     }, 0);
   };
+
+  const selectedCollectionCardIndex = selectedDetailCard
+    ? collectionPageState.cards.findIndex((card) => card.cardCatalogId === selectedDetailCard.cardCatalogId)
+    : -1;
 
   return (
     <>
@@ -549,6 +563,12 @@ export function CollectionPage() {
         mutation={detailMutation}
         capabilities={createCollectionCardDetailCapabilities(detailOwnership, detailMutation.status)}
         copy={createCollectionCardDetailProductCopy(detailOwnership)}
+        navigation={selectedCollectionCardIndex >= 0 ? {
+          currentIndex: selectedCollectionCardIndex,
+          total: collectionPageState.cards.length,
+          onPrevious: () => navigateCollectionCard(-1),
+          onNext: () => navigateCollectionCard(1),
+        } : undefined}
         onClose={closeCollectionCardDetail}
         onRetryOwnership={() => {
           if (collectionPageState.collectionId) {

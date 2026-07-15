@@ -104,7 +104,15 @@ export function WishlistPage() {
     selectedCollectionIdRef.current = pageState.collectionId;
     mutationRequestIdRef.current += 1;
     setSelectedCard(detailCard);
+    setDetailMutation({ status: 'idle' });
     loadSelectedOwnership(detailCard, pageState.collectionId);
+  };
+
+  const navigateWishlistCard = (direction: -1 | 1) => {
+    if (!selectedCard) return;
+    const currentIndex = pageState.cards.findIndex((card) => card.cardCatalogId === selectedCard.cardCatalogId);
+    const nextCard = pageState.cards[currentIndex + direction];
+    if (nextCard) openDetail(nextCard);
   };
 
   const closeDetail = () => {
@@ -314,6 +322,12 @@ export function WishlistPage() {
           onRemoveWishlist={() => void removeSelectedWishlistCard()}
           onPromoteWishlist={() => void promoteSelectedWishlistCard()}
           onRetryMutation={() => void (detailMutation.status === 'error' && detailMutation.operation === 'promote-wishlist' ? promoteSelectedWishlistCard() : removeSelectedWishlistCard())}
+          navigation={{
+            currentIndex: pageState.cards.findIndex((card) => card.cardCatalogId === selectedCard.cardCatalogId),
+            total: pageState.cards.length,
+            onPrevious: () => navigateWishlistCard(-1),
+            onNext: () => navigateWishlistCard(1),
+          }}
         />
       ) : null}
     </>

@@ -5,6 +5,7 @@ import type {
   CollectionStatus,
 } from '../collectionCards';
 import { areCardDetailActionsBlocked } from './cardDetailMutationState';
+import { getCardDetailMetadata, getCardDetailNavigationState } from './cardDetailGallery';
 
 export type CardDetailMutationOperation = 'add' | 'add-wishlist' | 'remove-wishlist' | 'promote-wishlist' | 'increase' | 'decrease' | 'delete';
 
@@ -19,8 +20,9 @@ export type CardDetailCard = {
   cardCatalogId: string;
   name: string;
   number: string | null;
-  set: { setCode: string | null; name: string | null };
+  set: { setCode: string | null; name: string | null; releaseDate?: string | null };
   rarity: string | null;
+  energyType?: string | null;
   images: { small: string | null; large: string | null };
 };
 
@@ -56,6 +58,12 @@ export type CardDetailDialogProps = {
   onRetryMutation?(): void;
   onIncrease?(): void;
   onDecrease?(): void;
+  navigation?: {
+    currentIndex: number;
+    total: number;
+    onPrevious(): void;
+    onNext(): void;
+  };
 };
 
 const FOCUSABLE_SELECTOR = [
@@ -79,6 +87,12 @@ function getOwnershipLabel(ownership: CollectionOwnershipState, copy: CardDetail
   if (ownership.status !== 'ready') return { label: 'Status onbekend', className: 'is-unknown' };
   if (ownership.value.kind === 'absent') return { label: 'Niet in collectie', className: 'is-absent' };
   if (ownership.value.kind === 'conflict') return { label: 'Status onbekend', className: 'is-unknown' };
+
+  if (ownership.value.value.byStatus.wishlist.length > 0 &&
+      ownership.value.value.byStatus.owned.length === 0 &&
+      ownership.value.value.byStatus.trade.length === 0) {
+    return { label: 'Wishlist', className: 'is-absent' };
+  }
 
   const manageable = ownership.value.value.manageableOwnedNearMintRecord;
   if (manageable) {
@@ -110,16 +124,27 @@ export function CardDetailDialog({
   onRetryMutation,
   onIncrease,
   onDecrease,
+  navigation,
 }: CardDetailDialogProps) {
   const dialogRef = useRef<HTMLElement | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const detailImageUrl = card.images.large ?? card.images.small;
+  const metadata = useMemo(() => getCardDetailMetadata(card), [card]);
+  const navigationState = navigation
+    ? getCardDetailNavigationState(navigation.currentIndex, navigation.total)
+    : null;
   const areActionsBlocked = areCardDetailActionsBlocked(mutation);
   const isMutating = mutation.status === 'pending';
   const ownershipPresentation = useMemo(() => {
     if (isMutating) return { label: 'Bijwerken…', className: 'is-pending' };
     return getOwnershipLabel(ownership, copy);
   }, [copy, mutation.status, ownership]);
+  const isWishlistOnly = ownership.status === 'ready'
+    && ownership.value.kind === 'snapshot'
+    && ownership.value.value.byStatus.wishlist.length > 0
+    && ownership.value.value.byStatus.owned.length === 0
+    && ownership.value.value.byStatus.trade.length === 0;
+  const showQuantityControl = !readOnly && !isWishlistOnly;
   const feedbackRole = mutation.status === 'error' || mutation.status === 'conflict' ? 'alert' : 'status';
   const feedbackMessage = mutation.status === 'success' || mutation.status === 'error' || mutation.status === 'conflict'
     ? mutation.message
@@ -186,6 +211,12 @@ export function CardDetailDialog({
         aria-describedby="card-detail-status"
       >
         <header className="card-detail-header">
+          {navigation && navigationState && navigation.total > 1 ? (
+            <nav className="card-detail-navigation" aria-label="Kaartnavigatie">
+              <button type="button" aria-label="Vorige kaart" onClick={navigation.onPrevious} disabled={!navigationState.canPrevious}>‹</button>
+              <button type="button" aria-label="Volgende kaart" onClick={navigation.onNext} disabled={!navigationState.canNext}>›</button>
+            </nav>
+          ) : <span aria-hidden="true" />}
           <button ref={closeButtonRef} type="button" aria-label="Kaartdetails sluiten" onClick={onClose}>×</button>
         </header>
         <div className="card-detail-content">
@@ -193,11 +224,16 @@ export function CardDetailDialog({
             {detailImageUrl ? <img src={detailImageUrl} alt={`${card.name} kaart ${card.number ?? ''}`.trim()} width="240" height="336" decoding="async" /> : <span aria-label="Geen afbeelding beschikbaar" />}
           </div>
           <div className="card-detail-body">
+            <p className="card-detail-set">
+              <span>Pokémon</span>
+              <span aria-hidden="true">|</span>
+              <strong>{card.set.name ?? 'Onbekende set'}</strong>
+            </p>
             <h4 id="card-detail-title">{card.name}</h4>
             <p className="card-detail-subtitle">
               {card.set.name ?? 'Onbekende set'}{card.number ? ` · #${card.number}` : ''}
             </p>
-            {readOnly ? (
+            {!showQuantityControl ? (
               <span id="card-detail-status" className={`card-detail-quantity-status card-detail-read-only-status ${ownershipPresentation.className}`} aria-live="polite">
                 {ownershipPresentation.className === 'is-present' ? <span className="card-detail-quantity-status-mark" aria-hidden="true">✓</span> : null}
                 {ownershipPresentation.label}
@@ -212,6 +248,16 @@ export function CardDetailDialog({
                 <button type="button" aria-label={capabilities.canAdd ? 'Kaart aan collectie toevoegen' : 'Eén exemplaar toevoegen'} disabled={(!capabilities.canAdd && !capabilities.canIncrease) || areActionsBlocked} onClick={() => capabilities.canAdd ? onAdd?.() : onIncrease?.()}>+</button>
               </span>
             )}
+            {metadata.length > 0 ? (
+              <dl className="card-detail-metadata" aria-label="Kaartmetadata">
+                {metadata.map((item) => (
+                  <div key={item.label}>
+                    <dt>{item.label}</dt>
+                    <dd>{item.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            ) : null}
             {copy.statusItems.length > 0 ? <ul className="card-detail-status-list" aria-label="Collectiestatussen">{copy.statusItems.map((item) => <li key={item.status}>{item.label}</li>)}</ul> : null}
             {ownership.status === 'error' && onRetryOwnership ? <button className="card-detail-retry-button" type="button" onClick={onRetryOwnership}>Collectiestatus opnieuw laden</button> : null}
             {capabilities.canAddWishlist ? (
