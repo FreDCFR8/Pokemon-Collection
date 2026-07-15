@@ -1271,8 +1271,8 @@ button {
   gap: 4px;
   min-width: 0;
   width: 100%;
-  max-width: 100%;
-  margin: 8px 0 0;
+  max-width: 1280px;
+  margin: 10px auto 0;
   padding: 0;
   list-style: none;
 }
@@ -1702,7 +1702,6 @@ button {
     grid-column: 2;
   }
 
-  .sets-page-set-card-skeleton-grid,
   .sets-page-set-overlay-count,
   .sets-page-set-overlay-empty,
   .sets-page-set-overlay-message,
@@ -2063,12 +2062,11 @@ button {
 .binder-card-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  gap: 4px;
   min-width: 0;
   width: 100%;
-  max-width: 960px;
-  margin: 16px 0 0;
-  margin-inline: auto;
+  max-width: 1280px;
+  margin: 10px auto 0;
   padding: 0;
   list-style: none;
 }
@@ -2096,11 +2094,6 @@ button {
 .binder-card-grid-button:focus-visible {
   outline: 3px solid rgb(37 99 235 / 0.28);
   outline-offset: 2px;
-}
-
-.binder-card-grid-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 20px rgb(15 23 42 / 0.12);
 }
 
 .binder-card-grid-button:active {
@@ -2135,32 +2128,31 @@ button {
   line-height: 1;
 }
 
-@media (min-width: 520px) {
-  .binder-card-grid,
-  .sets-page-set-card-skeleton-grid {
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 12px;
-  }
-}
-
 @media (min-width: 820px) {
   .binder-card-grid,
   .sets-page-set-card-skeleton-grid {
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 14px;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 8px;
   }
 
   .app-shell:has(> .collection-page) {
-    width: min(100%, 1120px);
+    width: min(100%, 1280px);
   }
 
   .collection-page {
     width: 100%;
-    max-width: 1120px;
+    max-width: 1280px;
     margin-inline: auto;
   }
 
   .collection-page:not(.wishlist-page) {
-    padding: 22px;
+    padding: 12px;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .binder-card-grid-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgb(15 23 42 / 0.12);
   }
 }

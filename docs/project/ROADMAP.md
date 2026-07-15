@@ -61,9 +61,9 @@ This document shows product direction and phase status. It intentionally avoids 
 - ✅ Phase 7C-2G — Wishlist naar collectie (PR118 afgerond)
 - ✅ Phase 7C-2H — Wishlist en Collection binder-look
 - 🚧 Phase 7C-2L — Uniforme kaartgalerij voor Collection, Sets en Wishlist
-- ⏳ reuse in Wishlist, Trade and Search
+- ⏳ reuse in Trade and Search
 - ⏳ extended characteristics and metadata
-- ⏳ previous/next card navigation
+- ✅ previous/next card navigation (PR122 afgerond)
 
 ## Collection experience
 
