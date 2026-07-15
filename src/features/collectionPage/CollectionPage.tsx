@@ -432,11 +432,11 @@ export function CollectionPage() {
       </div>
 
       <div className="collection-page-search">
-        <label htmlFor="collection-page-search-input">Collectie zoeken</label>
         <div className="collection-page-search-control">
           <input
             id="collection-page-search-input"
             type="search"
+            aria-label="Collectie zoeken"
             value={searchTerm}
             placeholder="Zoek op Pokémon, set of nummer"
             onChange={(event) => setSearchTerm(event.target.value)}

@@ -1884,4 +1884,11 @@ button {
     gap: 6px;
     margin-top: 10px;
   }
+
+  .collection-page:not(.wishlist-page) {
+    width: calc(100vw - 32px);
+    max-width: none;
+    margin-left: calc((min(960px, 100vw) - 100vw) / 2);
+    padding: 12px;
+  }
 }
