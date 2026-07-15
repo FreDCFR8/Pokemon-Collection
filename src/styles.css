@@ -1128,7 +1128,7 @@ button {
 .sets-page-set-overlay-controls input:focus,
 .sets-page-set-overlay-controls select:focus,
 .sets-page-set-card-search-control button:focus-visible,
-.sets-page-set-overlay-card-button:focus-visible,
+.binder-card-grid-button:focus-visible,
 .card-detail-header button:focus-visible,
 .card-detail-navigation button:focus-visible,
 .card-detail-quantity-control button:focus-visible,
@@ -1265,8 +1265,7 @@ button {
   line-height: 1;
 }
 
-.sets-page-set-card-skeleton-grid,
-.sets-page-set-overlay-grid {
+.sets-page-set-card-skeleton-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 4px;
@@ -1278,16 +1277,11 @@ button {
   list-style: none;
 }
 
-.sets-page-set-card-skeleton,
-.sets-page-set-overlay-card {
+.sets-page-set-card-skeleton {
   min-width: 0;
   border-radius: 8px;
   background: transparent;
   overflow: hidden;
-}
-
-.sets-page-set-overlay-card {
-  overflow: visible;
 }
 
 .sets-page-set-card-skeleton {
@@ -1305,53 +1299,6 @@ button {
   100% {
     background-position: -120% 0;
   }
-}
-
-.sets-page-set-overlay-card-button {
-  position: relative;
-  display: block;
-  width: 100%;
-  min-width: 0;
-  aspect-ratio: 120 / 168;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  cursor: pointer;
-  overflow: hidden;
-  padding: 0;
-  touch-action: manipulation;
-}
-
-.sets-page-set-overlay-card-button img,
-.sets-page-set-overlay-card-placeholder {
-  display: block;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(135deg, #eef2ff 0%, #e2e8f0 100%);
-  object-fit: contain;
-}
-
-.sets-page-set-overlay-card-placeholder {
-  min-height: 100%;
-}
-
-.sets-page-set-overlay-card-present-marker {
-  position: absolute;
-  top: 4px;
-  right: 4px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  border: 1px solid rgb(255 255 255 / 0.9);
-  border-radius: 999px;
-  background: rgb(22 163 74 / 0.9);
-  box-shadow: 0 1px 4px rgb(15 23 42 / 0.2);
-  color: #ffffff;
-  font-size: 0.68rem;
-  font-weight: 900;
-  line-height: 1;
 }
 
 .card-detail-quantity-control {
@@ -1756,7 +1703,6 @@ button {
   }
 
   .sets-page-set-card-skeleton-grid,
-  .sets-page-set-overlay-grid,
   .sets-page-set-overlay-count,
   .sets-page-set-overlay-empty,
   .sets-page-set-overlay-message,
@@ -2117,11 +2063,12 @@ button {
 .binder-card-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 4px;
+  gap: 8px;
   min-width: 0;
   width: 100%;
-  max-width: 100%;
+  max-width: 960px;
   margin: 16px 0 0;
+  margin-inline: auto;
   padding: 0;
   list-style: none;
 }
@@ -2149,6 +2096,15 @@ button {
 .binder-card-grid-button:focus-visible {
   outline: 3px solid rgb(37 99 235 / 0.28);
   outline-offset: 2px;
+}
+
+.binder-card-grid-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgb(15 23 42 / 0.12);
+}
+
+.binder-card-grid-button:active {
+  transform: translateY(0);
 }
 
 .binder-card-grid-button img,
@@ -2179,30 +2135,32 @@ button {
   line-height: 1;
 }
 
-.collection-page:not(.wishlist-page) .binder-card-grid {
-  gap: 5px;
-  margin-top: 10px;
+@media (min-width: 520px) {
+  .binder-card-grid,
+  .sets-page-set-card-skeleton-grid {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+  }
 }
 
 @media (min-width: 820px) {
-  .binder-card-grid {
-    gap: 4px;
+  .binder-card-grid,
+  .sets-page-set-card-skeleton-grid {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 14px;
   }
 
-  .collection-page:not(.wishlist-page) .binder-card-grid {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-    gap: 8px;
-    margin-top: 10px;
+  .app-shell:has(> .collection-page) {
+    width: min(100%, 1120px);
   }
 
-  .app-shell:has(> .collection-page:not(.wishlist-page)) {
-    width: min(100%, 1280px);
+  .collection-page {
+    width: 100%;
+    max-width: 1120px;
+    margin-inline: auto;
   }
 
   .collection-page:not(.wishlist-page) {
-    width: 100%;
-    max-width: 1280px;
-    margin-inline: auto;
-    padding: 12px;
+    padding: 22px;
   }
 }

@@ -1378,7 +1378,7 @@ export function SetsPage() {
                   <p className="sets-page-set-overlay-count">
                     {setCardsOverlayState.cards.length} van {setCardsOverlayState.totalCount} cataloguskaarten getoond
                   </p>
-                  <ul className="sets-page-set-overlay-grid" aria-label={`Cataloguskaarten voor ${openSet.name}`}>
+                  <ul className="binder-card-grid" aria-label={`Cataloguskaarten voor ${openSet.name}`}>
                     {setCardsOverlayState.cards.map((card) => {
                       const isCollectionStateLoaded = setCardCollectionState.status === 'success';
                       const collectionInfo = setCardCollectionState.infoByCardCatalogId.get(card.id);
@@ -1389,7 +1389,7 @@ export function SetsPage() {
                       }${isInCollection ? ', in collectie' : ''}`;
 
                       return (
-                        <li key={card.id} className="sets-page-set-overlay-card">
+                        <li key={card.id} className="binder-card-grid-item">
                           <button
                             ref={(buttonElement) => {
                               if (buttonElement) {
@@ -1397,7 +1397,7 @@ export function SetsPage() {
                               }
                             }}
                             type="button"
-                            className="sets-page-set-overlay-card-button"
+                            className="binder-card-grid-button"
                             aria-label={cardButtonLabel}
                             onClick={() => openSetCardDetail(card.id)}
                           >
@@ -1411,10 +1411,10 @@ export function SetsPage() {
                                 decoding="async"
                               />
                             ) : (
-                              <span className="sets-page-set-overlay-card-placeholder" aria-hidden="true" />
+                              <span className="binder-card-grid-placeholder" aria-hidden="true" />
                             )}
                             {isInCollection ? (
-                              <span className="sets-page-set-overlay-card-present-marker" aria-hidden="true">
+                              <span className="binder-card-grid-present-marker" aria-hidden="true">
                                 ✓
                               </span>
                             ) : null}
