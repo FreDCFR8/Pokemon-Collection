@@ -1881,14 +1881,18 @@ button {
 
   .collection-page:not(.wishlist-page) .binder-card-grid {
     grid-template-columns: repeat(6, minmax(0, 1fr));
-    gap: 6px;
+    gap: 8px;
     margin-top: 10px;
   }
 
+  .app-shell:has(> .collection-page:not(.wishlist-page)) {
+    width: min(100%, 1280px);
+  }
+
   .collection-page:not(.wishlist-page) {
-    width: calc(100vw - 32px);
-    max-width: none;
-    margin-left: calc((min(960px, 100vw) - 100vw) / 2);
+    width: 100%;
+    max-width: 1280px;
+    margin-inline: auto;
     padding: 12px;
   }
 }
