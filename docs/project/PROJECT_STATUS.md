@@ -6,13 +6,13 @@ This document contains current operational state only. Historical direction belo
 
 ## Current phase
 
-**Phase 7C-2L — Uniforme kaartgalerij voor Collection, Sets en Wishlist**
+**Phase 7D-1A — Globale cataloguszoekfunctie read-only**
 
 ## Latest merged product milestone
 
-**PR118 — Phase 7C-2G: Wishlist naar collectie**
+**PR123 — Phase 7C-2L: Uniforme kaartgalerij voor Collection, Sets en Wishlist**
 
-PR118 is gemerged en vormt de directe basis voor de actieve binder-overviewfase.
+PR123 is gemerged en vormt de visuele en technische basis voor de actieve globale zoekfase.
 
 Available behavior:
 
@@ -29,13 +29,14 @@ Available behavior:
 
 ## Active work
 
-Phase 7C-2L aligns the gallery layout across Collection, Sets and Wishlist:
+Phase 7D-1A adds bounded read-only discovery across the internal card catalog:
 
-- all three pages use the same image-first, bounded, responsive gallery layout;
-- desktop galleries use at most six large cards per row and remain centred;
-- existing server-side pagination, search, filters, Card Detail and mutations remain unchanged;
-- Wishlist promotion/removal, Collection quantity management and Sets actions remain available in Card Detail;
-- no database changes, Supabase migrations or database push are part of this phase.
+- search runs server-side against `cards_catalog` with exact count and pages of 24 cards;
+- search results reuse the shared image-only binder grid and Card Detail;
+- collection presence is read in one bounded ownership batch for the visible result page;
+- input normalization, request-context guards and safe retry behavior prevent stale or unsafe UI state;
+- one not-yet-applied migration adds direct trigram indexes matching the runtime `ILIKE` query;
+- Collection and Wishlist mutations from global Search remain outside this phase.
 
 ## Current architecture baseline
 
@@ -75,11 +76,11 @@ Expansion to other catalog sets requires separately scoped validation and approv
 
 ## Next phase scope
 
-The next phase remains separately approved and scoped from the shared Card Detail design. Trade, Search and condition/status editing remain outside the current phase.
+Phase 7D-1A is limited to read-only global catalog search. Phase 7D-1B may add existing Collection and Wishlist actions from Search after this read path, migration and UX have been verified. Trade and condition/status editing remain separate future phases.
 
 ## Known attention points
 
-- global full-catalog search and add flow are not yet available;
+- global catalog search is active in PR124; adding cards from Search is not yet available;
 - wishlist pagination remains bounded; wishlist actions from binder/grid and Collection are not available;
 - trade and missing workflows are not yet available;
 - full external catalog synchronization remains future work;
