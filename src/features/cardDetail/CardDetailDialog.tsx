@@ -207,8 +207,8 @@ export function CardDetailDialog({
         <header className="card-detail-header">
           {navigation && navigationState && navigation.total > 1 ? (
             <nav className="card-detail-navigation" aria-label="Kaartnavigatie">
-              <button type="button" onClick={navigation.onPrevious} disabled={!navigationState.canPrevious}>Vorige kaart</button>
-              <button type="button" onClick={navigation.onNext} disabled={!navigationState.canNext}>Volgende kaart</button>
+              <button type="button" aria-label="Vorige kaart" onClick={navigation.onPrevious} disabled={!navigationState.canPrevious}>‹</button>
+              <button type="button" aria-label="Volgende kaart" onClick={navigation.onNext} disabled={!navigationState.canNext}>›</button>
             </nav>
           ) : <span aria-hidden="true" />}
           <button ref={closeButtonRef} type="button" aria-label="Kaartdetails sluiten" onClick={onClose}>×</button>

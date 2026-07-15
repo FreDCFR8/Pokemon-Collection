@@ -1896,6 +1896,208 @@ button {
   }
 }
 
+/* Card Detail Gallery View: the shared detail surface is intentionally quiet,
+   image-led, and scoped to the dialog so list pages keep their card treatment. */
+.card-detail-backdrop {
+  align-items: center;
+  background: rgb(15 23 42 / 0.42);
+  padding: 0;
+  backdrop-filter: blur(8px);
+}
+
+.card-detail-dialog {
+  width: 100%;
+  height: 100dvh;
+  max-height: 100dvh;
+  border-radius: 0;
+  background: #edf3f9;
+  box-shadow: 0 20px 70px rgb(15 23 42 / 0.24);
+}
+
+.card-detail-header {
+  top: max(12px, env(safe-area-inset-top));
+  right: 14px;
+  left: auto;
+  grid-template-columns: auto auto;
+  gap: 4px;
+}
+
+.card-detail-navigation {
+  gap: 4px;
+}
+
+.card-detail-navigation button,
+.card-detail-header > button {
+  width: 42px;
+  min-width: 42px;
+  min-height: 42px;
+  border: 1px solid rgb(148 163 184 / 0.35);
+  background: rgb(255 255 255 / 0.72);
+  box-shadow: 0 2px 12px rgb(15 23 42 / 0.12);
+  color: #334155;
+  padding: 0;
+}
+
+.card-detail-navigation button {
+  font-size: 1.8rem;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.card-detail-header > button {
+  font-size: 1.65rem;
+  font-weight: 400;
+}
+
+.card-detail-content {
+  gap: 22px;
+  padding: 76px 18px calc(28px + env(safe-area-inset-bottom));
+}
+
+.card-detail-image img,
+.card-detail-image > span {
+  width: min(calc(100vw - 36px), 480px);
+  border-radius: 18px;
+}
+
+.card-detail-image img {
+  filter: drop-shadow(0 18px 24px rgb(15 23 42 / 0.18));
+}
+
+.card-detail-image > span {
+  background: #e4edf6;
+}
+
+.card-detail-body {
+  justify-items: start;
+  gap: 3px;
+  text-align: left;
+}
+
+.card-detail-set {
+  justify-content: flex-start;
+  color: #64748b;
+}
+
+.card-detail-set strong {
+  color: #475569;
+  font-size: 0.82rem;
+}
+
+.card-detail-body h4 {
+  font-size: clamp(1.8rem, 7vw, 2.8rem);
+}
+
+.card-detail-subtitle {
+  margin-top: 4px;
+}
+
+.card-detail-quantity-control {
+  grid-template-columns: 42px minmax(0, 1fr) 42px;
+  width: min(100%, 360px);
+  max-width: 100%;
+  margin: 14px 0 0;
+  gap: 5px;
+}
+
+.card-detail-quantity-control button {
+  min-width: 42px;
+  min-height: 42px;
+  border: 1px solid #d3deeb;
+  border-radius: 12px;
+  background: #ffffff;
+  font-size: 0.95rem;
+}
+
+.card-detail-quantity-control > span {
+  min-height: 42px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+}
+
+.card-detail-read-only-status {
+  width: fit-content;
+  max-width: 100%;
+  min-height: 38px;
+  margin: 12px 0 0;
+}
+
+.card-detail-metadata {
+  grid-template-columns: 1fr;
+  max-width: 100%;
+  margin-top: 16px;
+  gap: 8px;
+}
+
+.card-detail-metadata div {
+  border: 1px solid rgb(255 255 255 / 0.75);
+  border-radius: 14px;
+  background: rgb(255 255 255 / 0.82);
+  padding: 10px 14px;
+  box-shadow: 0 4px 12px rgb(100 116 139 / 0.06);
+}
+
+.card-detail-metadata dt {
+  font-size: 0.62rem;
+}
+
+.card-detail-metadata dd {
+  margin-top: 3px;
+  font-size: 0.9rem;
+}
+
+.card-detail-management-message,
+.card-detail-feedback-message {
+  text-align: left;
+}
+
+.card-detail-wishlist-button,
+.card-detail-primary-action {
+  width: min(100%, 360px);
+  min-height: 42px;
+  margin-top: 10px;
+  border-radius: 12px;
+  opacity: 0.88;
+}
+
+@media (min-width: 520px) {
+  .card-detail-backdrop {
+    padding: 16px;
+  }
+
+  .card-detail-dialog {
+    width: min(100%, 1180px);
+    height: min(92dvh, 820px);
+    max-height: calc(100dvh - 32px);
+    border-radius: 28px;
+  }
+}
+
+@media (min-width: 820px) {
+  .card-detail-dialog {
+    width: min(100%, 1180px);
+  }
+
+  .card-detail-content {
+    grid-template-columns: minmax(0, 0.82fr) minmax(0, 1fr);
+    gap: clamp(24px, 4vw, 54px);
+    align-items: center;
+    height: 100%;
+    box-sizing: border-box;
+    padding: 44px clamp(24px, 5vw, 64px);
+  }
+
+  .card-detail-image img,
+  .card-detail-image > span {
+    width: min(100%, 430px);
+    max-height: calc(92dvh - 88px);
+  }
+
+  .card-detail-body h4 {
+    font-size: clamp(2.2rem, 4vw, 3.35rem);
+  }
+}
+
 .binder-card-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
