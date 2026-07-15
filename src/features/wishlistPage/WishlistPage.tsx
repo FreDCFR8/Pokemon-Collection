@@ -4,7 +4,7 @@ import { getCollectionCardOwnershipForCatalogCards, promoteWishlistToOwned, remo
 import { createWishlistCardDetailProductCopy, toWishlistCardDetailCard } from './wishlistCardDetailAdapter';
 import { loadWishlistPage } from './wishlistPageService';
 import { BinderCardGrid } from '../../components/BinderCardGrid';
-import { createWishlistPageErrorState, createWishlistPageLoadingState, resolveWishlistRemovalRecovery, shouldApplyWishlistDetailResponse, WISHLIST_PAGE_SIZE, type WishlistPageCard, type WishlistPageState } from './wishlistPageTypes';
+import { createWishlistPageErrorState, createWishlistPageLoadingState, getWishlistVisibleRange, resolveWishlistRemovalRecovery, shouldApplyWishlistDetailResponse, WISHLIST_PAGE_SIZE, type WishlistPageCard, type WishlistPageState } from './wishlistPageTypes';
 
 const initialState: WishlistPageState = {
   status: 'loading',
@@ -15,6 +15,25 @@ const initialState: WishlistPageState = {
   cards: [],
   collectionId: null,
 };
+
+type WishlistPaginationProps = {
+  currentPage: number;
+  isLoading: boolean;
+  label: string;
+  onNextPage: () => void;
+  onPreviousPage: () => void;
+  totalPages: number;
+};
+
+function WishlistPagination({ currentPage, isLoading, label, onNextPage, onPreviousPage, totalPages }: WishlistPaginationProps) {
+  return (
+    <nav className="collection-page-pagination" aria-label={label}>
+      <button type="button" onClick={onPreviousPage} disabled={isLoading || currentPage <= 1}>Vorige</button>
+      <span aria-live="polite">Pagina {currentPage} van {totalPages}</span>
+      <button type="button" onClick={onNextPage} disabled={isLoading || currentPage >= totalPages}>Volgende</button>
+    </nav>
+  );
+}
 
 export function WishlistPage() {
   const [pageState, setPageState] = useState(initialState);
@@ -54,6 +73,7 @@ export function WishlistPage() {
 
   const totalPages = Math.max(1, Math.ceil(pageState.totalCount / pageState.pageSize));
   const isLoading = pageState.status === 'loading';
+  const visibleRange = getWishlistVisibleRange(pageState.totalCount, pageState.page, pageState.pageSize);
 
   const retryWishlist = () => setRetryNonce((current) => current + 1);
   const goToPreviousPage = () => setPage((current) => Math.max(1, current - 1));
@@ -203,21 +223,45 @@ export function WishlistPage() {
           <div>
             <p className="eyebrow">Wishlist</p>
             <h2 id="wishlist-page-title">Wishlist</h2>
-            <p>{pageState.message}</p>
+            <p>{pageState.status === 'ready' ? 'Bewaar kaarten die je later wilt verzamelen.' : pageState.message}</p>
             {pageState.errorMessage ? <p className="status-note">Foutmelding: {pageState.errorMessage}</p> : null}
             {pageState.status === 'error' ? <button type="button" onClick={retryWishlist}>Wishlist opnieuw laden</button> : null}
           </div>
         </div>
 
         {pageState.status === 'ready' ? (
-          <nav className="collection-page-pagination" aria-label="Wishlistpaginatie boven">
-            <button type="button" onClick={goToPreviousPage} disabled={isLoading || pageState.page <= 1}>Previous</button>
-            <span>Pagina {pageState.page} van {totalPages}</span>
-            <button type="button" onClick={goToNextPage} disabled={isLoading || pageState.page >= totalPages}>Next</button>
-          </nav>
+          <>
+            <dl className="collection-page-summary wishlist-page-summary" aria-label="Wishlist samenvatting">
+              <div>
+                <dt>Totaal kaarten</dt>
+                <dd>{pageState.totalCount}</dd>
+              </div>
+              <div>
+                <dt>Zichtbaar</dt>
+                <dd>{visibleRange.first}–{visibleRange.last}</dd>
+              </div>
+              <div>
+                <dt>Pagina</dt>
+                <dd>{pageState.page} / {totalPages}</dd>
+              </div>
+            </dl>
+            <WishlistPagination
+              currentPage={pageState.page}
+              isLoading={isLoading}
+              label="Wishlistpaginatie boven"
+              onNextPage={goToNextPage}
+              onPreviousPage={goToPreviousPage}
+              totalPages={totalPages}
+            />
+          </>
         ) : null}
 
-        {pageState.status === 'ready' && pageState.cards.length === 0 ? <div className="collection-page-empty"><p>Je wishlist bevat nog geen kaarten.</p></div> : null}
+        {pageState.status === 'ready' && pageState.cards.length === 0 ? (
+          <div className="collection-page-empty wishlist-page-empty">
+            <h3>Je wishlist is nog leeg</h3>
+            <p>Open een kaart in Sets en kies ‘Aan wishlist toevoegen’.</p>
+          </div>
+        ) : null}
 
         {pageState.cards.length > 0 ? (
           <>
@@ -237,11 +281,14 @@ export function WishlistPage() {
               if (card) openDetail(card);
             }}
           />
-          <nav className="collection-page-pagination" aria-label="Wishlistpaginatie onder">
-            <button type="button" onClick={goToPreviousPage} disabled={isLoading || pageState.page <= 1}>Previous</button>
-            <span>Pagina {pageState.page} van {totalPages}</span>
-            <button type="button" onClick={goToNextPage} disabled={isLoading || pageState.page >= totalPages}>Next</button>
-          </nav>
+          <WishlistPagination
+            currentPage={pageState.page}
+            isLoading={isLoading}
+            label="Wishlistpaginatie onder"
+            onNextPage={goToNextPage}
+            onPreviousPage={goToPreviousPage}
+            totalPages={totalPages}
+          />
           </>
         ) : null}
       </section>

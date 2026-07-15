@@ -5,6 +5,7 @@ export {
   createWishlistPageErrorState,
   createWishlistPageLoadingState,
   getWishlistPageRange,
+  getWishlistVisibleRange,
   getSafeWishlistPageAfterRemoval,
   resolveWishlistRemovalRecovery,
   shouldApplyWishlistDetailResponse,

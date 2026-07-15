@@ -3,6 +3,18 @@ import type { ConfirmedOwnership } from '../collectionCards/collectionCardOwners
 
 export const WISHLIST_PAGE_SIZE = 24;
 
+export function getWishlistVisibleRange(totalCount: number, page: number, pageSize = WISHLIST_PAGE_SIZE): { first: number; last: number } {
+  const safeCount = Number.isFinite(totalCount) && totalCount > 0 ? Math.floor(totalCount) : 0;
+  const safePage = Number.isFinite(page) && page >= 1 ? Math.floor(page) : 1;
+  const safePageSize = Number.isFinite(pageSize) && pageSize > 0 ? Math.floor(pageSize) : WISHLIST_PAGE_SIZE;
+  if (safeCount === 0) return { first: 0, last: 0 };
+
+  return {
+    first: (safePage - 1) * safePageSize + 1,
+    last: Math.min(safePage * safePageSize, safeCount),
+  };
+}
+
 export function getWishlistPageRange(page: number, pageSize = WISHLIST_PAGE_SIZE): { from: number; to: number } {
   const safePage = Number.isFinite(page) && page >= 1 ? Math.floor(page) : 1;
   const safePageSize = Number.isFinite(pageSize) && pageSize > 0 ? Math.floor(pageSize) : WISHLIST_PAGE_SIZE;
