@@ -521,6 +521,10 @@ button {
   padding: 22px;
 }
 
+.collection-page:not(.wishlist-page) {
+  padding: 18px;
+}
+
 .collection-page h2 {
   margin: 0;
   font-size: clamp(1.4rem, 6vw, 2rem);
@@ -564,6 +568,20 @@ button {
   font-weight: 900;
 }
 
+.collection-page-summary-compact {
+  display: block;
+  margin: 10px 0 0;
+  color: #64748b;
+  font-size: 0.82rem;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+.collection-page-summary-compact strong {
+  color: #172033;
+  font-weight: 900;
+}
+
 .collection-page-legacy-note {
   border: 1px solid #e2e8f0;
   border-radius: 16px;
@@ -577,8 +595,8 @@ button {
 
 .collection-page-search {
   display: grid;
-  gap: 8px;
-  margin-top: 16px;
+  gap: 7px;
+  margin-top: 14px;
 }
 
 .collection-page-search label {
@@ -651,7 +669,7 @@ button {
 .collection-page-filters {
   display: grid;
   gap: 10px;
-  margin-top: 4px;
+  margin-top: 2px;
 }
 
 .collection-page-filters label {
@@ -682,7 +700,7 @@ button {
 }
 
 .collection-page-search-summary {
-  margin: 0;
+  margin: 1px 0 0;
   font-size: 0.86rem;
 }
 
@@ -702,6 +720,17 @@ button {
   color: #ffffff;
   cursor: pointer;
   font-weight: 900;
+}
+
+.collection-page:not(.wishlist-page) .collection-page-pagination button {
+  background: #eff6ff;
+  color: #1d4ed8;
+  padding: 0 12px;
+}
+
+.collection-page:not(.wishlist-page) .collection-page-pagination {
+  gap: 8px;
+  margin-top: 12px;
 }
 
 .collection-page-pagination button:disabled {
@@ -748,7 +777,7 @@ button {
 
 @media (min-width: 720px) {
   .collection-page-filters {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .collection-page-summary {
@@ -1825,5 +1854,11 @@ button {
 @media (min-width: 820px) {
   .binder-card-grid {
     gap: 4px;
+  }
+
+  .collection-page:not(.wishlist-page) .binder-card-grid {
+    grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+    gap: 8px;
+    margin-top: 12px;
   }
 }

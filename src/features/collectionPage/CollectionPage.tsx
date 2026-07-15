@@ -76,13 +76,13 @@ function CollectionPagination({
   return (
     <nav className="collection-page-pagination" aria-label={label}>
       <button type="button" onClick={onPreviousPage} disabled={isLoading || currentPage <= 1}>
-        Previous
+        Vorige
       </button>
       <span>
         Pagina {currentPage} van {totalPages}
       </span>
       <button type="button" onClick={onNextPage} disabled={isLoading || currentPage >= totalPages}>
-        Next
+        Volgende
       </button>
     </nav>
   );
@@ -429,33 +429,16 @@ export function CollectionPage() {
         <div>
           <p className="eyebrow">Collectie</p>
           <h2 id="collection-page-title">Collection</h2>
-          <p>{collectionPageState.message}</p>
+          {collectionPageState.status !== 'ready' ? <p className="collection-page-status">{collectionPageState.message}</p> : null}
           {collectionPageState.errorMessage ? <p className="status-note">Foutmelding: {collectionPageState.errorMessage}</p> : null}
         </div>
       </div>
 
-      <dl className="collection-page-summary" aria-label="Collectie samenvatting">
-        <div>
-          <dt>Totaal kaarten</dt>
-          <dd>{collectionPageState.totalCount}</dd>
-        </div>
-        <div>
-          <dt>Zichtbaar</dt>
-          <dd>
-            {firstVisibleCard}–{lastVisibleCard}
-          </dd>
-        </div>
-        <div>
-          <dt>Pagina</dt>
-          <dd>
-            {collectionPageState.page} / {totalPages}
-          </dd>
-        </div>
-        <div>
-          <dt>Per pagina</dt>
-          <dd>{collectionPageState.pageSize}</dd>
-        </div>
-      </dl>
+      <p className="collection-page-summary collection-page-summary-compact" aria-label="Collectie samenvatting">
+        <strong>{collectionPageState.totalCount}</strong> kaarten <span aria-hidden="true">·</span>{' '}
+        <strong>{firstVisibleCard === 0 ? '0' : `${firstVisibleCard}–${lastVisibleCard}`}</strong> zichtbaar <span aria-hidden="true">·</span>{' '}
+        pagina <strong>{collectionPageState.page}</strong> van <strong>{totalPages}</strong>
+      </p>
 
       <div className="collection-page-search">
         <label htmlFor="collection-page-search-input">Collectie zoeken</label>
@@ -501,15 +484,14 @@ export function CollectionPage() {
         </div>
         {filterOptionsError ? <p className="status-note">Slimme filters laden is mislukt: {filterOptionsError}</p> : null}
         <div className="collection-page-filter-actions">
-          <button type="button" onClick={clearFilters} disabled={!hasActiveFilters}>Reset filters</button>
+          {hasActiveFilters ? <button type="button" onClick={clearFilters}>Reset filters</button> : null}
           {hasActiveCriteria ? <button type="button" onClick={clearAllCriteria}>Alles wissen</button> : null}
         </div>
         {hasActiveCriteria ? (
           <p className="collection-page-search-summary">
-            Resultaten gefilterd op:{' '}
-            {[hasActiveSearch ? `search = ${activeSearchTerm}` : null, ...activeFilterEntries.map(([name, value]) => `${filterLabels[name]} = ${name === 'setCode' ? setNameByCode.get(value) ?? 'Onbekende set' : value}`)]
+            Actief: {[hasActiveSearch ? `zoekterm “${activeSearchTerm}”` : null, ...activeFilterEntries.map(([name, value]) => `${filterLabels[name]} “${name === 'setCode' ? setNameByCode.get(value) ?? 'Onbekende set' : value}”`)]
               .filter(Boolean)
-              .join(', ')}
+              .join(' · ')}
           </p>
         ) : null}
       </div>
