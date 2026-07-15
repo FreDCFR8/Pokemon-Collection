@@ -5,7 +5,7 @@ import type {
   CollectionStatus,
 } from '../collectionCards';
 import { areCardDetailActionsBlocked } from './cardDetailMutationState';
-import { getCardDetailMetadata, getCardDetailNavigationState, type CardDetailMetadataItem } from './cardDetailGallery';
+import { getCardDetailMetadata, getCardDetailNavigationState } from './cardDetailGallery';
 
 export type CardDetailMutationOperation = 'add' | 'add-wishlist' | 'remove-wishlist' | 'promote-wishlist' | 'increase' | 'decrease' | 'delete';
 

@@ -23,7 +23,7 @@ export function getCardDetailNavigationState(currentIndex: number, total: number
 export function getCardDetailMetadata(card: CardDetailMetadataSource): CardDetailMetadataItem[] {
   return [
     card.rarity ? { label: 'Rarity', value: card.rarity } : null,
-    card.number ? { label: 'Pokédexnummer', value: `#${card.number}` } : null,
+    card.number ? { label: 'Kaartnummer', value: `#${card.number}` } : null,
     card.energyType ? { label: 'Energy type', value: card.energyType } : null,
     card.set.releaseDate ? { label: 'Release datum', value: card.set.releaseDate } : null,
   ].filter((item): item is CardDetailMetadataItem => item !== null);

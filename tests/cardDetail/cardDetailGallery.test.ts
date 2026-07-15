@@ -15,7 +15,7 @@ const card = {
 test('Card Detail metadata includes available fields and hides missing values', () => {
   assert.deepEqual(getCardDetailMetadata(card), [
     { label: 'Rarity', value: 'Rare' },
-    { label: 'Pokédexnummer', value: '#25' },
+    { label: 'Kaartnummer', value: '#25' },
     { label: 'Energy type', value: 'Lightning' },
     { label: 'Release datum', value: '1999-01-09' },
   ]);
