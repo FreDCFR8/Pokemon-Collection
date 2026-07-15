@@ -2135,7 +2135,7 @@ button {
     gap: 8px;
   }
 
-  .app-shell:has(> .collection-page) {
+  .app-shell {
     width: min(100%, 1280px);
   }
 
