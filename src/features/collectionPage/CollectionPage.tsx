@@ -23,6 +23,7 @@ import {
   type CollectionCardDetailRequest,
 } from './collectionCardDetailAdapter';
 import { getCollectionFilterOptions, loadCollectionPage } from './collectionPageService';
+import { BinderCardGrid } from '../../components/BinderCardGrid';
 import {
   COLLECTION_PAGE_SIZE,
   type CollectionFilterOptions,
@@ -54,14 +55,6 @@ const initialCollectionPageState: CollectionPageState = {
   cards: [],
   collectionId: null,
 };
-
-function formatValue(value: string | number | null): string {
-  if (value === null || value === '') {
-    return '—';
-  }
-
-  return String(value);
-}
 
 type CollectionPaginationProps = {
   currentPage: number;
@@ -434,7 +427,7 @@ export function CollectionPage() {
     >
       <div className="collection-page-header">
         <div>
-          <p className="eyebrow">Read-only main collection</p>
+          <p className="eyebrow">Collectie</p>
           <h2 id="collection-page-title">Collection</h2>
           <p>{collectionPageState.message}</p>
           {collectionPageState.errorMessage ? <p className="status-note">Foutmelding: {collectionPageState.errorMessage}</p> : null}
@@ -463,8 +456,6 @@ export function CollectionPage() {
           <dd>{collectionPageState.pageSize}</dd>
         </div>
       </dl>
-
-      <p className="collection-page-legacy-note">Legacy collectiegegevens worden hier rustig read-only getoond; bewerken en importeren blijven buiten deze fase.</p>
 
       <div className="collection-page-search">
         <label htmlFor="collection-page-search-input">Collectie zoeken</label>
@@ -545,46 +536,23 @@ export function CollectionPage() {
 
       {collectionPageState.cards.length > 0 ? (
         <>
-          <ul className="collection-page-grid" aria-label="Collectiekaarten">
-            {collectionPageState.cards.map((card) => {
-              const titleId = `collection-card-${card.cardCatalogId}-title`;
-              const subtitleId = `collection-card-${card.cardCatalogId}-subtitle`;
-              const metadataId = `collection-card-${card.cardCatalogId}-metadata`;
-
-              return (
-                <li key={card.cardCatalogId}>
-                  {card.imageSmall ? (
-                    <img src={card.imageSmall} alt={card.pokemon ? `${card.pokemon} kaart` : 'Collectiekaart'} loading="lazy" />
-                  ) : (
-                    <div className="card-image-placeholder" aria-label="Geen afbeelding beschikbaar">
-                      Geen afbeelding
-                    </div>
-                  )}
-                  <div className="collection-page-card-body">
-                    <h3 id={titleId}>{formatValue(card.pokemon)}</h3>
-                    <p id={subtitleId}>{formatValue(card.setName)} · #{formatValue(card.number)}</p>
-                    <dl id={metadataId} className="collection-page-card-meta">
-                      <div><dt>Rarity</dt><dd>{formatValue(card.rarity)}</dd></div>
-                      <div><dt>Aantal</dt><dd>{formatValue(card.quantity)}</dd></div>
-                      <div><dt>Conditie</dt><dd>{formatValue(card.condition)}</dd></div>
-                      <div><dt>Status</dt><dd>{formatValue(card.status)}</dd></div>
-                    </dl>
-                  </div>
-                  <button
-                    ref={(element) => {
-                      if (element) cardButtonRefs.current.set(card.cardCatalogId, element);
-                      else cardButtonRefs.current.delete(card.cardCatalogId);
-                    }}
-                    className="collection-page-card-button"
-                    type="button"
-                    aria-labelledby={`${titleId} ${subtitleId}`}
-                    aria-describedby={metadataId}
-                    onClick={() => openCollectionCardDetail(card)}
-                  />
-                </li>
-              );
-            })}
-          </ul>
+          <BinderCardGrid
+            ariaLabel="Collectiekaarten"
+            items={collectionPageState.cards.map((card) => ({
+              id: card.cardCatalogId,
+              imageSmall: card.imageSmall,
+              label: `Open ${card.pokemon ?? 'collectiekaart'}${card.number ? `, kaart ${card.number}` : ''}, in collectie`,
+              isPresent: true,
+            }))}
+            getButtonRef={(id, element) => {
+              if (element) cardButtonRefs.current.set(id, element);
+              else cardButtonRefs.current.delete(id);
+            }}
+            onSelect={(id) => {
+              const card = collectionPageState.cards.find((pageCard) => pageCard.cardCatalogId === id);
+              if (card) openCollectionCardDetail(card);
+            }}
+          />
 
           <CollectionPagination
             currentPage={collectionPageState.page}

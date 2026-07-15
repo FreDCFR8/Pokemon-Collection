@@ -3,6 +3,7 @@ import { CardDetailDialog, type CardDetailCard, type CardDetailMutationState } f
 import { getCollectionCardOwnershipForCatalogCards, promoteWishlistToOwned, removeCardFromWishlist, WishlistMutationError, WishlistPromotionError, type CollectionOwnershipState } from '../collectionCards';
 import { createWishlistCardDetailProductCopy, toWishlistCardDetailCard } from './wishlistCardDetailAdapter';
 import { loadWishlistPage } from './wishlistPageService';
+import { BinderCardGrid } from '../../components/BinderCardGrid';
 import { createWishlistPageErrorState, createWishlistPageLoadingState, resolveWishlistRemovalRecovery, shouldApplyWishlistDetailResponse, WISHLIST_PAGE_SIZE, type WishlistPageCard, type WishlistPageState } from './wishlistPageTypes';
 
 const initialState: WishlistPageState = {
@@ -220,27 +221,22 @@ export function WishlistPage() {
 
         {pageState.cards.length > 0 ? (
           <>
-          <ul className="collection-page-grid wishlist-page-grid" aria-label="Wishlistkaarten">
-            {pageState.cards.map((card) => {
-              const titleId = `wishlist-card-${card.cardCatalogId}-title`;
-              return (
-                <li key={card.cardCatalogId}>
-                  {card.imageSmall ? <img src={card.imageSmall} alt={card.pokemon ? `${card.pokemon} kaart` : 'Wishlistkaart'} loading="lazy" /> : <div className="card-image-placeholder" aria-label="Geen afbeelding beschikbaar">Geen afbeelding</div>}
-                  <h3 id={titleId} className="wishlist-page-card-title">{card.pokemon || 'Onbekende kaart'}</h3>
-                  <button
-                    ref={(element) => {
-                      if (element) cardButtonRefs.current.set(card.cardCatalogId, element);
-                      else cardButtonRefs.current.delete(card.cardCatalogId);
-                    }}
-                    className="collection-page-card-button"
-                    type="button"
-                    aria-labelledby={titleId}
-                    onClick={() => openDetail(card)}
-                  />
-                </li>
-              );
-            })}
-          </ul>
+          <BinderCardGrid
+            ariaLabel="Wishlistkaarten"
+            items={pageState.cards.map((card) => ({
+              id: card.cardCatalogId,
+              imageSmall: card.imageSmall,
+              label: `Open ${card.pokemon ?? 'wishlistkaart'}${card.number ? `, kaart ${card.number}` : ''}`,
+            }))}
+            getButtonRef={(id, element) => {
+              if (element) cardButtonRefs.current.set(id, element);
+              else cardButtonRefs.current.delete(id);
+            }}
+            onSelect={(id) => {
+              const card = pageState.cards.find((pageCard) => pageCard.cardCatalogId === id);
+              if (card) openDetail(card);
+            }}
+          />
           <nav className="collection-page-pagination" aria-label="Wishlistpaginatie onder">
             <button type="button" onClick={goToPreviousPage} disabled={isLoading || pageState.page <= 1}>Previous</button>
             <span>Pagina {pageState.page} van {totalPages}</span>
