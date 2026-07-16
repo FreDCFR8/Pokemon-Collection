@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef } from 'react';
 
 import type {
+  ConfirmedOwnership,
   CollectionOwnershipState,
   CollectionStatus,
 } from '../collectionCards';
-import { areCardDetailActionsBlocked } from './cardDetailMutationState';
+import { areCardDetailActionsBlocked, getCardDetailActionMode } from './cardDetailMutationState';
 import { getCardDetailMetadata, getCardDetailNavigationState } from './cardDetailGallery';
 
 export type CardDetailMutationOperation = 'add' | 'add-wishlist' | 'remove-wishlist' | 'promote-wishlist' | 'increase' | 'decrease' | 'delete';
@@ -139,12 +140,10 @@ export function CardDetailDialog({
     if (isMutating) return { label: 'Bijwerken…', className: 'is-pending' };
     return getOwnershipLabel(ownership, copy);
   }, [copy, mutation.status, ownership]);
-  const isWishlistOnly = ownership.status === 'ready'
-    && ownership.value.kind === 'snapshot'
-    && ownership.value.value.byStatus.wishlist.length > 0
-    && ownership.value.value.byStatus.owned.length === 0
-    && ownership.value.value.byStatus.trade.length === 0;
-  const showQuantityControl = !readOnly && !isWishlistOnly;
+  const confirmedOwnership: ConfirmedOwnership | undefined = ownership.status === 'ready' ? ownership.value : undefined;
+  const actionMode = getCardDetailActionMode({ readOnly, ownership: confirmedOwnership });
+  const showQuantityControl = actionMode === 'quantity';
+  const showCollectionAddAction = actionMode === 'add';
   const feedbackRole = mutation.status === 'error' || mutation.status === 'conflict' ? 'alert' : 'status';
   const feedbackMessage = mutation.status === 'success' || mutation.status === 'error' || mutation.status === 'conflict'
     ? mutation.message
@@ -233,7 +232,11 @@ export function CardDetailDialog({
             <p className="card-detail-subtitle">
               {card.set.name ?? 'Onbekende set'}{card.number ? ` · #${card.number}` : ''}
             </p>
-            {!showQuantityControl ? (
+            {showCollectionAddAction ? (
+              <button className="card-detail-primary-action" type="button" disabled={areActionsBlocked} onClick={onAdd}>
+                Aan collectie toevoegen
+              </button>
+            ) : !showQuantityControl ? (
               <span id="card-detail-status" className={`card-detail-quantity-status card-detail-read-only-status ${ownershipPresentation.className}`} aria-live="polite">
                 {ownershipPresentation.className === 'is-present' ? <span className="card-detail-quantity-status-mark" aria-hidden="true">✓</span> : null}
                 {ownershipPresentation.label}
