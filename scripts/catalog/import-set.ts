@@ -1,6 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { randomUUID } from 'node:crypto';
-import { assertWriteAuthorized, parseCatalogImportArgs, type CatalogImportOptions } from './import-args.ts';
+import { assertWriteAuthorized, getWritePlanTitle, parseCatalogImportArgs, type CatalogImportOptions } from './import-args.ts';
 
 const SOURCE = 'pokemon_tcg_api';
 const API_BASE_URL = 'https://api.pokemontcg.io/v2';
@@ -1036,8 +1036,8 @@ function printReport(params: {
   }
 }
 
-function printWritePlan(plan: WritePlan): void {
-  console.log('Theoretisch writeplan (read-only analyse)');
+function printWritePlan(plan: WritePlan, write: boolean): void {
+  console.log(getWritePlanTitle(write));
   console.log(`Bestaande matches ongewijzigd: ${plan.existingMatches}`);
   console.log(`Nieuwe cards_catalog-records: ${plan.newCatalogRows.length}`);
   console.log(`Nieuwe card_external_references: ${plan.referencesForNewCards.length}`);
@@ -1111,7 +1111,7 @@ async function main(): Promise<number> {
       durationMs: Date.now() - start,
       matching,
     });
-    printWritePlan(writePlan);
+    printWritePlan(writePlan, options.write);
 
     if (!passed) {
       for (const error of allErrors) console.error(`Fout: ${error}`);

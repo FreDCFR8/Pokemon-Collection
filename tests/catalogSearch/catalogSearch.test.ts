@@ -3,8 +3,9 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { CATALOG_SEARCH_PAGE_SIZE } from '../../src/features/catalogSearch/catalogSearchTypes.ts';
 import { getCatalogSearchRange, isCatalogSearchTermValid, normalizeCatalogSearchTerm } from '../../src/features/catalogSearch/catalogSearchHelpers.ts';
-import { toCatalogSearchCardDetailCard } from '../../src/features/catalogSearch/catalogSearchCardDetailAdapter.ts';
+import { createCatalogSearchCardDetailCapabilities, doesCatalogSearchOwnershipConfirmMutation, getCatalogSearchConfirmationReadiness, getCatalogSearchMutationRetryHandler, toCatalogSearchCardDetailCard } from '../../src/features/catalogSearch/catalogSearchCardDetailAdapter.ts';
 import { getSafeCatalogSearchErrorMessage, shouldApplyCatalogSearchContext, shouldApplyCatalogSearchDetailContext, toCatalogSearchDetailOwnershipState } from '../../src/features/catalogSearch/catalogSearchStateHelpers.ts';
+import type { ConfirmedOwnership } from '../../src/features/collectionCards/index.ts';
 
 test('normalizes search input and strips PostgREST filter controls', () => {
   assert.equal(normalizeCatalogSearchTerm('  Pikachu, set.name % _ (x)  '), 'Pikachu set name x');
@@ -60,4 +61,132 @@ test('maps catalog metadata to the shared Card Detail contract', () => {
   assert.deepEqual(toCatalogSearchCardDetailCard({ id: '1', pokemon: 'Pikachu', setName: 'Base Set', setCode: 'base1', number: '25', rarity: 'Rare', imageSmall: 's', imageLarge: 'l' }), {
     cardCatalogId: '1', name: 'Pikachu', number: '25', set: { setCode: 'base1', name: 'Base Set' }, rarity: 'Rare', images: { small: 's', large: 'l' },
   });
+});
+
+
+const absentOwnership: ConfirmedOwnership = { kind: 'absent' };
+const ownedOwnership: ConfirmedOwnership = {
+  kind: 'snapshot',
+  value: {
+    physicalPresence: 'present',
+    manageableOwnedNearMintRecord: { collectionCardId: 'owned-1', collectionId: 'collection-1', cardCatalogId: 'card-1', quantity: 2, condition: 'Near Mint', status: 'owned' },
+    byStatus: { owned: [{ collectionCardId: 'owned-1', collectionId: 'collection-1', cardCatalogId: 'card-1', quantity: 2, condition: 'Near Mint', status: 'owned' }], wishlist: [], trade: [], missing: [] },
+  },
+};
+const wishlistOwnership: ConfirmedOwnership = {
+  kind: 'snapshot',
+  value: {
+    physicalPresence: 'absent',
+    manageableOwnedNearMintRecord: null,
+    byStatus: { owned: [], wishlist: [{ collectionCardId: 'wish-1', collectionId: 'collection-1', cardCatalogId: 'card-1', quantity: 1, condition: null, status: 'wishlist' }], trade: [], missing: [] },
+  },
+};
+const conflictingSnapshot: ConfirmedOwnership = {
+  kind: 'snapshot',
+  value: {
+    physicalPresence: 'present',
+    manageableOwnedNearMintRecord: null,
+    byStatus: { owned: [{ collectionCardId: 'owned-2', collectionId: 'collection-1', cardCatalogId: 'card-1', quantity: 1, condition: 'Played', status: 'owned' }], wishlist: [], trade: [], missing: [] },
+  },
+};
+
+test('catalog search detail capabilities allow add actions for absent cards', () => {
+  assert.deepEqual(createCatalogSearchCardDetailCapabilities({ ownership: absentOwnership }), {
+    canAdd: true,
+    canAddWishlist: true,
+    canRemoveWishlist: false,
+    canPromoteWishlist: false,
+    canIncrease: false,
+    canDecrease: false,
+  });
+});
+
+test('catalog search detail capabilities allow quantity actions for manageable owned cards', () => {
+  const capabilities = createCatalogSearchCardDetailCapabilities({ ownership: ownedOwnership });
+  assert.equal(capabilities.canIncrease, true);
+  assert.equal(capabilities.canDecrease, true);
+  assert.equal(capabilities.canAdd, false);
+  assert.equal(capabilities.canAddWishlist, false);
+});
+
+test('catalog search detail capabilities allow wishlist promotion and removal without quantity actions', () => {
+  const capabilities = createCatalogSearchCardDetailCapabilities({ ownership: wishlistOwnership });
+  assert.equal(capabilities.canPromoteWishlist, true);
+  assert.equal(capabilities.canRemoveWishlist, true);
+  assert.equal(capabilities.canIncrease, false);
+  assert.equal(capabilities.canDecrease, false);
+});
+
+test('catalog search detail capabilities fail closed for conflicting or unmanageable state', () => {
+  const unmanageable = createCatalogSearchCardDetailCapabilities({ ownership: conflictingSnapshot });
+  assert.equal(unmanageable.canAdd, false);
+  assert.equal(unmanageable.canIncrease, false);
+  assert.equal(unmanageable.unavailableReason, 'Beheer via collectie');
+  const unknown = createCatalogSearchCardDetailCapabilities({ ownership: { kind: 'conflict', reason: 'duplicate rows' } });
+  assert.equal(unknown.canAddWishlist, false);
+  assert.match(unknown.unavailableReason ?? '', /Status onbekend/);
+});
+
+test('catalog search detail capabilities block duplicate taps while pending', () => {
+  const capabilities = createCatalogSearchCardDetailCapabilities({ ownership: absentOwnership, isPending: true });
+  assert.equal(capabilities.canAdd, false);
+  assert.equal(capabilities.canAddWishlist, false);
+});
+
+test('catalog search mutation retry resolves only the failed operation handler', () => {
+  let retried = '';
+  const retry = getCatalogSearchMutationRetryHandler({ kind: 'write', operation: 'remove-wishlist' }, {
+    add: () => { retried = 'add'; },
+    'remove-wishlist': () => { retried = 'remove-wishlist'; },
+  });
+  retry?.();
+  assert.equal(retried, 'remove-wishlist');
+  assert.equal(getCatalogSearchMutationRetryHandler(undefined, {}), undefined);
+});
+
+test('catalog search mutation confirmation requires the expected server truth', () => {
+  const cases = [
+    [{ operation: 'add', before: absentOwnership, confirmed: ownedOwnership }, true],
+    [{ operation: 'add', before: absentOwnership, confirmed: wishlistOwnership }, false],
+    [{ operation: 'add-wishlist', before: absentOwnership, confirmed: wishlistOwnership }, true],
+    [{ operation: 'add-wishlist', before: absentOwnership, confirmed: ownedOwnership }, false],
+    [{ operation: 'remove-wishlist', before: wishlistOwnership, confirmed: { kind: 'absent' } }, true],
+    [{ operation: 'promote-wishlist', before: wishlistOwnership, confirmed: { ...ownedOwnership, value: { ...ownedOwnership.value, manageableOwnedNearMintRecord: { ...ownedOwnership.value.manageableOwnedNearMintRecord!, quantity: 1 }, byStatus: { ...ownedOwnership.value.byStatus, owned: [{ ...ownedOwnership.value.byStatus.owned[0], quantity: 1 }] } } } }, true],
+    [{ operation: 'increase', before: ownedOwnership, confirmed: ownedOwnership, collectionCardId: 'owned-1', previousQuantity: 2 }, false],
+    [{ operation: 'increase', before: ownedOwnership, confirmed: { ...ownedOwnership, value: { ...ownedOwnership.value, manageableOwnedNearMintRecord: { ...ownedOwnership.value.manageableOwnedNearMintRecord!, quantity: 3 }, byStatus: { ...ownedOwnership.value.byStatus, owned: [{ ...ownedOwnership.value.byStatus.owned[0], quantity: 3 }] } } }, collectionCardId: 'owned-1', previousQuantity: 2 }, true],
+    [{ operation: 'decrease', before: ownedOwnership, confirmed: { ...ownedOwnership, value: { ...ownedOwnership.value, manageableOwnedNearMintRecord: { ...ownedOwnership.value.manageableOwnedNearMintRecord!, quantity: 1 }, byStatus: { ...ownedOwnership.value.byStatus, owned: [{ ...ownedOwnership.value.byStatus.owned[0], quantity: 1 }] } } }, collectionCardId: 'owned-1', previousQuantity: 2 }, true],
+    [{ operation: 'delete', before: ownedOwnership, confirmed: { kind: 'absent' } }, true],
+    [{ operation: 'delete', before: ownedOwnership, confirmed: ownedOwnership }, false],
+  ] as const;
+
+  for (const [confirmation, expected] of cases) assert.equal(doesCatalogSearchOwnershipConfirmMutation(confirmation), expected);
+});
+
+test('confirmation retry is a read-only retry and never selects the write handler', () => {
+  let retried = '';
+  const retry = getCatalogSearchMutationRetryHandler({ kind: 'confirmation', confirmation: { operation: 'increase', before: ownedOwnership, confirmed: undefined, collectionCardId: 'owned-1', previousQuantity: 2 } }, {
+    increase: () => { retried = 'write'; },
+    confirmation: () => { retried = 'confirmation-read'; },
+  });
+  retry?.();
+  assert.equal(retried, 'confirmation-read');
+});
+
+test('confirmation retry readiness turns missing collection into an active confirmation error and stale context into a no-op', () => {
+  assert.equal(getCatalogSearchConfirmationReadiness({ collectionId: undefined, contextIsCurrent: true }), 'missing-collection');
+  assert.equal(getCatalogSearchConfirmationReadiness({ collectionId: 'collection-1', contextIsCurrent: false }), 'stale');
+
+  let mutationCalls = 0;
+  const retry = getCatalogSearchMutationRetryHandler({ kind: 'confirmation', confirmation: { operation: 'delete', before: ownedOwnership, confirmed: undefined } }, {
+    delete: () => { mutationCalls += 1; },
+    confirmation: () => { /* confirmation read is dispatched by the active page only */ },
+  });
+  retry?.();
+  assert.equal(mutationCalls, 0);
+});
+
+test('conflicting, missing, unchanged, or mismatched confirmations fail closed', () => {
+  assert.equal(doesCatalogSearchOwnershipConfirmMutation({ operation: 'add', before: absentOwnership, confirmed: conflictingSnapshot }), false);
+  assert.equal(doesCatalogSearchOwnershipConfirmMutation({ operation: 'increase', before: ownedOwnership, confirmed: ownedOwnership, collectionCardId: 'owned-1', previousQuantity: 2 }), false);
+  assert.equal(doesCatalogSearchOwnershipConfirmMutation({ operation: 'increase', before: ownedOwnership, confirmed: { ...ownedOwnership, value: { ...ownedOwnership.value, manageableOwnedNearMintRecord: { ...ownedOwnership.value.manageableOwnedNearMintRecord!, quantity: 3 }, byStatus: { ...ownedOwnership.value.byStatus, owned: [{ ...ownedOwnership.value.byStatus.owned[0], quantity: 3, collectionCardId: 'other-id' }] } } }, collectionCardId: 'owned-1', previousQuantity: 2 }), false);
 });

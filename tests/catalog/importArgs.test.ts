@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { assertWriteAuthorized, parseCatalogImportArgs } from '../../scripts/catalog/import-args.ts';
+import { assertWriteAuthorized, getWritePlanTitle, parseCatalogImportArgs } from '../../scripts/catalog/import-args.ts';
 
 const parses = (args: string[]) => parseCatalogImportArgs(args);
 const rejects = (args: string[]) => assert.throws(() => parses(args));
@@ -16,6 +16,12 @@ test('dry-run is never write-authorized', () => {
   const options = parses(['--set', 'sv4']);
   assert.equal(options.write, false);
   assert.doesNotThrow(() => assertWriteAuthorized(options));
+});
+
+test('writeplan title distinguishes dry-run from write mode', () => {
+  assert.equal(getWritePlanTitle(false), 'Theoretisch writeplan (read-only analyse)');
+  assert.equal(getWritePlanTitle(true), 'Goedgekeurd writeplan (WRITE)');
+  assert.doesNotMatch(getWritePlanTitle(true), /read-only analyse/i);
 });
 
 test('only exact sv3pt5 --write is authorized', () => {

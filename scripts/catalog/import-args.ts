@@ -1,9 +1,13 @@
-export const WRITE_ALLOWED_SET_IDS = ['sv3pt5'] as const;
+const WRITE_ALLOWED_SET_IDS = new Set(['sv3pt5']);
 export const MAX_SET_ID_LENGTH = 32;
 
 export type CatalogImportOptions = { setId: string; write: boolean };
 
 export class CatalogImportArgumentError extends Error {}
+
+export function getWritePlanTitle(write: boolean): string {
+  return write ? 'Goedgekeurd writeplan (WRITE)' : 'Theoretisch writeplan (read-only analyse)';
+}
 
 export function isValidSetId(value: string): boolean {
   return value.length > 0 && value.length <= MAX_SET_ID_LENGTH && /^[a-z0-9]+$/.test(value);
@@ -58,7 +62,7 @@ export function parseCatalogImportArgs(argv: readonly string[]): CatalogImportOp
 
 export function assertWriteAuthorized(options: CatalogImportOptions): void {
   if (!options.write) return;
-  if (!(WRITE_ALLOWED_SET_IDS as readonly string[]).includes(options.setId)) {
+  if (!WRITE_ALLOWED_SET_IDS.has(options.setId)) {
     throw new CatalogImportArgumentError(`Write geblokkeerd: set ${options.setId} staat niet op de expliciete write-allowlist. Alleen sv3pt5 is geautoriseerd.`);
   }
 }
