@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { CATALOG_SEARCH_PAGE_SIZE } from '../../src/features/catalogSearch/catalogSearchTypes.ts';
 import { getCatalogSearchRange, isCatalogSearchTermValid, normalizeCatalogSearchTerm } from '../../src/features/catalogSearch/catalogSearchHelpers.ts';
-import { createCatalogSearchCardDetailCapabilities, doesCatalogSearchOwnershipConfirmMutation, getCatalogSearchMutationRetryHandler, toCatalogSearchCardDetailCard } from '../../src/features/catalogSearch/catalogSearchCardDetailAdapter.ts';
+import { createCatalogSearchCardDetailCapabilities, doesCatalogSearchOwnershipConfirmMutation, getCatalogSearchConfirmationReadiness, getCatalogSearchMutationRetryHandler, toCatalogSearchCardDetailCard } from '../../src/features/catalogSearch/catalogSearchCardDetailAdapter.ts';
 import { getSafeCatalogSearchErrorMessage, shouldApplyCatalogSearchContext, shouldApplyCatalogSearchDetailContext, toCatalogSearchDetailOwnershipState } from '../../src/features/catalogSearch/catalogSearchStateHelpers.ts';
 import type { ConfirmedOwnership } from '../../src/features/collectionCards/index.ts';
 
@@ -170,6 +170,19 @@ test('confirmation retry is a read-only retry and never selects the write handle
   });
   retry?.();
   assert.equal(retried, 'confirmation-read');
+});
+
+test('confirmation retry readiness turns missing collection into an active confirmation error and stale context into a no-op', () => {
+  assert.equal(getCatalogSearchConfirmationReadiness({ collectionId: undefined, contextIsCurrent: true }), 'missing-collection');
+  assert.equal(getCatalogSearchConfirmationReadiness({ collectionId: 'collection-1', contextIsCurrent: false }), 'stale');
+
+  let mutationCalls = 0;
+  const retry = getCatalogSearchMutationRetryHandler({ kind: 'confirmation', confirmation: { operation: 'delete', before: ownedOwnership, confirmed: undefined } }, {
+    delete: () => { mutationCalls += 1; },
+    confirmation: () => { /* confirmation read is dispatched by the active page only */ },
+  });
+  retry?.();
+  assert.equal(mutationCalls, 0);
 });
 
 test('conflicting, missing, unchanged, or mismatched confirmations fail closed', () => {

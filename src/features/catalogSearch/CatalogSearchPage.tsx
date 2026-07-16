@@ -17,7 +17,7 @@ import { checkCollectionReadiness } from '../collections';
 import { createCardDetailOwnershipPresentation } from '../cardDetail/cardDetailOwnershipPresentation';
 import { searchCatalog } from './catalogSearchService';
 import { isCatalogSearchTermValid, normalizeCatalogSearchTerm } from './catalogSearchHelpers';
-import { createCatalogSearchCardDetailCapabilities, doesCatalogSearchOwnershipConfirmMutation, getCatalogSearchMutationRetryHandler, toCatalogSearchCardDetailCard, type CatalogSearchMutationConfirmation, type CatalogSearchMutationRetry } from './catalogSearchCardDetailAdapter';
+import { createCatalogSearchCardDetailCapabilities, doesCatalogSearchOwnershipConfirmMutation, getCatalogSearchConfirmationReadiness, getCatalogSearchMutationRetryHandler, toCatalogSearchCardDetailCard, type CatalogSearchMutationConfirmation, type CatalogSearchMutationRetry } from './catalogSearchCardDetailAdapter';
 import {
   getSafeCatalogSearchErrorMessage,
   shouldApplyCatalogSearchContext,
@@ -309,7 +309,13 @@ export function CatalogSearchPage() {
     try {
       const readiness = await checkCollectionReadiness();
       const nextCollectionId = readiness.mainCollection?.id;
-      if (!nextCollectionId || !shouldApplyCatalogSearchDetailContext(activeDetailContextRef.current, detailContext)) return;
+      const readinessState = getCatalogSearchConfirmationReadiness({
+        collectionId: nextCollectionId,
+        contextIsCurrent: shouldApplyCatalogSearchDetailContext(activeDetailContextRef.current, detailContext),
+      });
+      if (readinessState === 'stale') return;
+      if (readinessState === 'missing-collection') throw new Error('collection-unavailable');
+      if (!nextCollectionId) throw new Error('collection-unavailable');
       const refreshed = await refreshSelectedOwnership(detailContext, selectedCardId, nextCollectionId);
       if (!shouldApplyCatalogSearchDetailContext(activeDetailContextRef.current, detailContext)) return;
       const nextConfirmation = { ...retry.confirmation, confirmed: refreshed ?? undefined };

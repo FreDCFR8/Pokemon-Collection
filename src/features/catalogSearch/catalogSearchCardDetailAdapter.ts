@@ -16,6 +16,13 @@ export type CatalogSearchMutationRetry =
   | { kind: 'write'; operation: CatalogSearchMutationOperation }
   | { kind: 'confirmation'; confirmation: CatalogSearchMutationConfirmation };
 
+export type CatalogSearchConfirmationReadiness = 'ready' | 'missing-collection' | 'stale';
+
+export function getCatalogSearchConfirmationReadiness(params: { collectionId: string | undefined; contextIsCurrent: boolean }): CatalogSearchConfirmationReadiness {
+  if (!params.contextIsCurrent) return 'stale';
+  return params.collectionId ? 'ready' : 'missing-collection';
+}
+
 export function toCatalogSearchCardDetailCard(card: CatalogSearchCard): CardDetailCard {
   return {
     cardCatalogId: card.id,
