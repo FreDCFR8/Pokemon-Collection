@@ -3,8 +3,9 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { CATALOG_SEARCH_PAGE_SIZE } from '../../src/features/catalogSearch/catalogSearchTypes.ts';
 import { getCatalogSearchRange, isCatalogSearchTermValid, normalizeCatalogSearchTerm } from '../../src/features/catalogSearch/catalogSearchHelpers.ts';
-import { toCatalogSearchCardDetailCard } from '../../src/features/catalogSearch/catalogSearchCardDetailAdapter.ts';
+import { createCatalogSearchCardDetailCapabilities, getCatalogSearchMutationRetryHandler, toCatalogSearchCardDetailCard } from '../../src/features/catalogSearch/catalogSearchCardDetailAdapter.ts';
 import { getSafeCatalogSearchErrorMessage, shouldApplyCatalogSearchContext, shouldApplyCatalogSearchDetailContext, toCatalogSearchDetailOwnershipState } from '../../src/features/catalogSearch/catalogSearchStateHelpers.ts';
+import type { ConfirmedOwnership } from '../../src/features/collectionCards/index.ts';
 
 test('normalizes search input and strips PostgREST filter controls', () => {
   assert.equal(normalizeCatalogSearchTerm('  Pikachu, set.name % _ (x)  '), 'Pikachu set name x');
@@ -60,4 +61,85 @@ test('maps catalog metadata to the shared Card Detail contract', () => {
   assert.deepEqual(toCatalogSearchCardDetailCard({ id: '1', pokemon: 'Pikachu', setName: 'Base Set', setCode: 'base1', number: '25', rarity: 'Rare', imageSmall: 's', imageLarge: 'l' }), {
     cardCatalogId: '1', name: 'Pikachu', number: '25', set: { setCode: 'base1', name: 'Base Set' }, rarity: 'Rare', images: { small: 's', large: 'l' },
   });
+});
+
+
+const absentOwnership: ConfirmedOwnership = { kind: 'absent' };
+const ownedOwnership: ConfirmedOwnership = {
+  kind: 'snapshot',
+  value: {
+    physicalPresence: 'present',
+    manageableOwnedNearMintRecord: { collectionCardId: 'owned-1', collectionId: 'collection-1', cardCatalogId: 'card-1', quantity: 2, condition: 'Near Mint', status: 'owned' },
+    byStatus: { owned: [{ collectionCardId: 'owned-1', collectionId: 'collection-1', cardCatalogId: 'card-1', quantity: 2, condition: 'Near Mint', status: 'owned' }], wishlist: [], trade: [], missing: [] },
+  },
+};
+const wishlistOwnership: ConfirmedOwnership = {
+  kind: 'snapshot',
+  value: {
+    physicalPresence: 'absent',
+    manageableOwnedNearMintRecord: null,
+    byStatus: { owned: [], wishlist: [{ collectionCardId: 'wish-1', collectionId: 'collection-1', cardCatalogId: 'card-1', quantity: 1, condition: null, status: 'wishlist' }], trade: [], missing: [] },
+  },
+};
+const conflictingSnapshot: ConfirmedOwnership = {
+  kind: 'snapshot',
+  value: {
+    physicalPresence: 'present',
+    manageableOwnedNearMintRecord: null,
+    byStatus: { owned: [{ collectionCardId: 'owned-2', collectionId: 'collection-1', cardCatalogId: 'card-1', quantity: 1, condition: 'Played', status: 'owned' }], wishlist: [], trade: [], missing: [] },
+  },
+};
+
+test('catalog search detail capabilities allow add actions for absent cards', () => {
+  assert.deepEqual(createCatalogSearchCardDetailCapabilities({ ownership: absentOwnership }), {
+    canAdd: true,
+    canAddWishlist: true,
+    canRemoveWishlist: false,
+    canPromoteWishlist: false,
+    canIncrease: false,
+    canDecrease: false,
+  });
+});
+
+test('catalog search detail capabilities allow quantity actions for manageable owned cards', () => {
+  const capabilities = createCatalogSearchCardDetailCapabilities({ ownership: ownedOwnership });
+  assert.equal(capabilities.canIncrease, true);
+  assert.equal(capabilities.canDecrease, true);
+  assert.equal(capabilities.canAdd, false);
+  assert.equal(capabilities.canAddWishlist, false);
+});
+
+test('catalog search detail capabilities allow wishlist promotion and removal without quantity actions', () => {
+  const capabilities = createCatalogSearchCardDetailCapabilities({ ownership: wishlistOwnership });
+  assert.equal(capabilities.canPromoteWishlist, true);
+  assert.equal(capabilities.canRemoveWishlist, true);
+  assert.equal(capabilities.canIncrease, false);
+  assert.equal(capabilities.canDecrease, false);
+});
+
+test('catalog search detail capabilities fail closed for conflicting or unmanageable state', () => {
+  const unmanageable = createCatalogSearchCardDetailCapabilities({ ownership: conflictingSnapshot });
+  assert.equal(unmanageable.canAdd, false);
+  assert.equal(unmanageable.canIncrease, false);
+  assert.equal(unmanageable.unavailableReason, 'Beheer via collectie');
+  const unknown = createCatalogSearchCardDetailCapabilities({ ownership: { kind: 'conflict', reason: 'duplicate rows' } });
+  assert.equal(unknown.canAddWishlist, false);
+  assert.match(unknown.unavailableReason ?? '', /Status onbekend/);
+});
+
+test('catalog search detail capabilities block duplicate taps while pending', () => {
+  const capabilities = createCatalogSearchCardDetailCapabilities({ ownership: absentOwnership, isPending: true });
+  assert.equal(capabilities.canAdd, false);
+  assert.equal(capabilities.canAddWishlist, false);
+});
+
+test('catalog search mutation retry resolves only the failed operation handler', () => {
+  let retried = '';
+  const retry = getCatalogSearchMutationRetryHandler('remove-wishlist', {
+    add: () => { retried = 'add'; },
+    'remove-wishlist': () => { retried = 'remove-wishlist'; },
+  });
+  retry?.();
+  assert.equal(retried, 'remove-wishlist');
+  assert.equal(getCatalogSearchMutationRetryHandler(undefined, {}), undefined);
 });
