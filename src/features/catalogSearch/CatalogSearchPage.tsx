@@ -17,7 +17,7 @@ import { checkCollectionReadiness } from '../collections';
 import { createCardDetailOwnershipPresentation } from '../cardDetail/cardDetailOwnershipPresentation';
 import { searchCatalog } from './catalogSearchService';
 import { isCatalogSearchTermValid, normalizeCatalogSearchTerm } from './catalogSearchHelpers';
-import { createCatalogSearchCardDetailCapabilities, getCatalogSearchMutationRetryHandler, toCatalogSearchCardDetailCard } from './catalogSearchCardDetailAdapter';
+import { createCatalogSearchCardDetailCapabilities, doesCatalogSearchOwnershipConfirmMutation, getCatalogSearchMutationRetryHandler, toCatalogSearchCardDetailCard, type CatalogSearchMutationConfirmation, type CatalogSearchMutationRetry } from './catalogSearchCardDetailAdapter';
 import {
   getSafeCatalogSearchErrorMessage,
   shouldApplyCatalogSearchContext,
@@ -56,7 +56,7 @@ export function CatalogSearchPage() {
   const selectedIndex = selected ? currentCards.findIndex((card) => card.id === selected.cardCatalogId) : -1;
   const [mutation, setMutation] = useState<CardDetailMutationState>({ status: 'idle' });
   const mutationInFlightRef = useRef(false);
-  const lastFailedOperationRef = useRef<CardDetailMutationOperation | undefined>(undefined);
+  const lastRetryRef = useRef<CatalogSearchMutationRetry | undefined>(undefined);
   const copy = useMemo(
     () => createCardDetailOwnershipPresentation({ ownership: detailOwnership.status === 'ready' ? detailOwnership.value : undefined }),
     [detailOwnership],
@@ -69,7 +69,7 @@ export function CatalogSearchPage() {
     setDetailOwnership({ status: 'idle' });
     mutationInFlightRef.current = false;
     setMutation({ status: 'idle' });
-    lastFailedOperationRef.current = undefined;
+    lastRetryRef.current = undefined;
   };
 
   const invalidateSearchContext = () => {
@@ -175,7 +175,7 @@ export function CatalogSearchPage() {
     const detailCard = toCatalogSearchCardDetailCard(card);
     mutationInFlightRef.current = false;
     setMutation({ status: 'idle' });
-    lastFailedOperationRef.current = undefined;
+    lastRetryRef.current = undefined;
     setSelected(detailCard);
     setDetailOwnership(toCatalogSearchDetailOwnershipState(ownershipById.get(card.id), ownershipStatus === 'loading' ? 'loading' : ownershipStatus === 'ready' ? 'ready' : 'error'));
   };
@@ -241,14 +241,20 @@ export function CatalogSearchPage() {
     activeDetailContextRef.current = detailContext;
     mutationInFlightRef.current = true;
     setMutation({ status: 'pending', operation });
-    lastFailedOperationRef.current = undefined;
+    lastRetryRef.current = undefined;
 
+    let confirmation: CatalogSearchMutationConfirmation;
+    let collectionId: string;
     try {
       const readiness = await checkCollectionReadiness();
-      const collectionId = readiness.mainCollection?.id;
+      collectionId = readiness.mainCollection?.id ?? '';
       if (!collectionId) throw new Error('collection-unavailable');
       const ownership = detailOwnership.status === 'ready' ? detailOwnership.value : undefined;
       const manageable = ownership?.kind === 'snapshot' ? ownership.value.manageableOwnedNearMintRecord : null;
+      const previousQuantity = manageable?.quantity;
+      const collectionCardId = manageable?.collectionCardId;
+
+      if (!shouldApplyCatalogSearchDetailContext(activeDetailContextRef.current, detailContext)) return;
 
       if (operation === 'add') await addOwnedNearMintCollectionCard({ collectionId, cardCatalogId: selectedCardId });
       else if (operation === 'add-wishlist') await addCardToWishlist({ collectionId, cardCatalogId: selectedCardId });
@@ -261,20 +267,69 @@ export function CatalogSearchPage() {
         if (!manageable) throw new Error('unmanageable-card');
         await decreaseCollectionCardQuantity({ collectionId, collectionCardId: manageable.collectionCardId, currentQuantity: manageable.quantity });
       }
-
-      const refreshed = await refreshSelectedOwnership(detailContext, selectedCardId, collectionId);
-      if (!shouldApplyCatalogSearchDetailContext(activeDetailContextRef.current, detailContext)) return;
-      mutationInFlightRef.current = false;
-      setMutation(refreshed ? { status: 'success', message: 'Collectiestatus bijgewerkt.' } : { status: 'error', operation, retryable: true, message: 'De collectiestatus kon niet veilig worden bevestigd. Probeer opnieuw.' });
+      confirmation = { operation, before: ownership, confirmed: undefined, collectionCardId, previousQuantity };
     } catch {
       if (!shouldApplyCatalogSearchDetailContext(activeDetailContextRef.current, detailContext)) return;
       mutationInFlightRef.current = false;
-      lastFailedOperationRef.current = operation;
+      lastRetryRef.current = { kind: 'write', operation };
       setMutation({ status: 'error', operation, retryable: true, message: 'Bijwerken is mislukt. Probeer opnieuw.' });
+      return;
+    }
+
+    try {
+      const refreshed = await refreshSelectedOwnership(detailContext, selectedCardId, collectionId);
+      confirmation.confirmed = refreshed ?? undefined;
+      if (!shouldApplyCatalogSearchDetailContext(activeDetailContextRef.current, detailContext)) return;
+      mutationInFlightRef.current = false;
+      if (!doesCatalogSearchOwnershipConfirmMutation(confirmation)) {
+        lastRetryRef.current = { kind: 'confirmation', confirmation };
+        setMutation({ status: 'error', operation, retryable: true, message: 'De collectiestatus kon niet veilig worden bevestigd. Probeer opnieuw.' });
+        return;
+      }
+      lastRetryRef.current = undefined;
+      setMutation({ status: 'success', message: 'Collectiestatus bijgewerkt.' });
+    } catch {
+      if (!shouldApplyCatalogSearchDetailContext(activeDetailContextRef.current, detailContext)) return;
+      mutationInFlightRef.current = false;
+      lastRetryRef.current = { kind: 'confirmation', confirmation };
+      setMutation({ status: 'error', operation, retryable: true, message: 'De collectiestatus kon niet veilig worden bevestigd. Probeer opnieuw.' });
     }
   };
 
-  const retryMutation = getCatalogSearchMutationRetryHandler(lastFailedOperationRef.current, {
+  const retryConfirmation = async (retry: Extract<CatalogSearchMutationRetry, { kind: 'confirmation' }>) => {
+    if (mutationInFlightRef.current) return;
+    const selectedContext = activeDetailContextRef.current;
+    const selectedCardId = selected?.cardCatalogId;
+    const searchContext = activeSearchContextRef.current;
+    if (!selectedContext || !selectedCardId || !searchContext || selectedContext.searchRequestId !== searchContext.requestId) return;
+    const detailContext: CatalogSearchDetailContext = { ...selectedContext, requestId: ++detailRequestIdRef.current };
+    activeDetailContextRef.current = detailContext;
+    mutationInFlightRef.current = true;
+    setMutation({ status: 'pending', operation: retry.confirmation.operation });
+    try {
+      const readiness = await checkCollectionReadiness();
+      const nextCollectionId = readiness.mainCollection?.id;
+      if (!nextCollectionId || !shouldApplyCatalogSearchDetailContext(activeDetailContextRef.current, detailContext)) return;
+      const refreshed = await refreshSelectedOwnership(detailContext, selectedCardId, nextCollectionId);
+      if (!shouldApplyCatalogSearchDetailContext(activeDetailContextRef.current, detailContext)) return;
+      const nextConfirmation = { ...retry.confirmation, confirmed: refreshed ?? undefined };
+      mutationInFlightRef.current = false;
+      if (!doesCatalogSearchOwnershipConfirmMutation(nextConfirmation)) {
+        lastRetryRef.current = { kind: 'confirmation', confirmation: nextConfirmation };
+        setMutation({ status: 'error', operation: retry.confirmation.operation, retryable: true, message: 'De collectiestatus kon niet veilig worden bevestigd. Probeer opnieuw.' });
+      } else {
+        lastRetryRef.current = undefined;
+        setMutation({ status: 'success', message: 'Collectiestatus bijgewerkt.' });
+      }
+    } catch {
+      if (!shouldApplyCatalogSearchDetailContext(activeDetailContextRef.current, detailContext)) return;
+      mutationInFlightRef.current = false;
+      lastRetryRef.current = { kind: 'confirmation', confirmation: retry.confirmation };
+      setMutation({ status: 'error', operation: retry.confirmation.operation, retryable: true, message: 'De collectiestatus kon niet veilig worden bevestigd. Probeer opnieuw.' });
+    }
+  };
+
+  const retryMutation = getCatalogSearchMutationRetryHandler(lastRetryRef.current, {
     add: () => void runSelectedMutation('add'),
     'add-wishlist': () => void runSelectedMutation('add-wishlist'),
     'remove-wishlist': () => void runSelectedMutation('remove-wishlist'),
@@ -282,6 +337,7 @@ export function CatalogSearchPage() {
     increase: () => void runSelectedMutation('increase'),
     decrease: () => void runSelectedMutation('decrease'),
     delete: () => void runSelectedMutation('delete'),
+    confirmation: () => { const retry = lastRetryRef.current; if (retry?.kind === 'confirmation') void retryConfirmation(retry); },
   });
 
   useEffect(() => () => {
