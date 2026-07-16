@@ -1,18 +1,18 @@
 # Pokémon Collection V3 — Project Status
 
-_Last updated: 2026-07-15_
+_Last updated: 2026-07-16_
 
 This document contains current operational state only. Historical direction belongs in `ROADMAP.md`; lasting reasons belong in `DECISION_LOG.md`.
 
 ## Current phase
 
-**Phase 7D-1A — Globale cataloguszoekfunctie read-only**
+**Phase 7D-1B — Collection- en Wishlistacties vanuit Zoeken**
 
 ## Latest merged product milestone
 
-**PR123 — Phase 7C-2L: Uniforme kaartgalerij voor Collection, Sets en Wishlist**
+**PR124 — Phase 7D-1A: Globale cataloguszoekfunctie read-only**
 
-PR123 is gemerged en vormt de visuele en technische basis voor de actieve globale zoekfase.
+PR124 is gemerged. De globale cataloguszoekfunctie gebruikt bounded server-side search, pagina’s van 24 kaarten, gedeelde image-only grids en read-only Card Detail.
 
 Available behavior:
 
@@ -29,14 +29,16 @@ Available behavior:
 
 ## Active work
 
-Phase 7D-1A adds bounded read-only discovery across the internal card catalog:
+Phase 7D-1B adds existing Collection and Wishlist management to global Search:
 
-- search runs server-side against `cards_catalog` with exact count and pages of 24 cards;
-- search results reuse the shared image-only binder grid and Card Detail;
-- collection presence is read in one bounded ownership batch for the visible result page;
-- input normalization, request-context guards and safe retry behavior prevent stale or unsafe UI state;
-- one not-yet-applied migration adds direct trigram indexes matching the runtime `ILIKE` query;
-- Collection and Wishlist mutations from global Search remain outside this phase.
+- absent cards can be added as one owned Near Mint copy or one wishlist entry;
+- wishlist-only cards can be removed or atomically promoted to owned;
+- manageable owned Near Mint cards support secured exact-step quantity changes and last-copy deletion;
+- every write is followed by a bounded ownership read for the selected card;
+- success is shown only when the returned server truth matches the expected state transition;
+- a failed confirmation retry repeats only the ownership read and never repeats a completed write;
+- request-context guards prevent stale responses from changing another card, page or search;
+- PR125 has passed technical review and awaits manual iPhone and desktop validation.
 
 ## Current architecture baseline
 
@@ -76,12 +78,13 @@ Expansion to other catalog sets requires separately scoped validation and approv
 
 ## Next phase scope
 
-Phase 7D-1A is limited to read-only global catalog search. Phase 7D-1B may add existing Collection and Wishlist actions from Search after this read path, migration and UX have been verified. Trade and condition/status editing remain separate future phases.
+Complete Phase 7D-1B through manual iPhone and desktop validation, documentation verification and merge of PR125. Advanced search filters, Trade, missing and condition/status editing remain separate future phases.
 
 ## Known attention points
 
-- global catalog search is active in PR124; adding cards from Search is not yet available;
-- wishlist pagination remains bounded; wishlist actions from binder/grid and Collection are not available;
+- PR125 still requires manual iPhone and desktop validation before merge;
+- global Search actions remain inside Card Detail; the image-only result grid has no direct management controls;
+- wishlist pagination remains bounded; direct actions from binder grids are not available;
 - trade and missing workflows are not yet available;
 - full external catalog synchronization remains future work;
 - historical project facts should not be added back to this status document unless they are operationally current.
