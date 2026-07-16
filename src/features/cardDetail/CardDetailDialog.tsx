@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 
 import type {
+  ConfirmedOwnership,
   CollectionOwnershipState,
   CollectionStatus,
 } from '../collectionCards';
@@ -139,12 +140,8 @@ export function CardDetailDialog({
     if (isMutating) return { label: 'Bijwerken…', className: 'is-pending' };
     return getOwnershipLabel(ownership, copy);
   }, [copy, mutation.status, ownership]);
-  const isWishlistOnly = ownership.status === 'ready'
-    && ownership.value.kind === 'snapshot'
-    && ownership.value.value.byStatus.wishlist.length > 0
-    && ownership.value.value.byStatus.owned.length === 0
-    && ownership.value.value.byStatus.trade.length === 0;
-  const actionMode = getCardDetailActionMode({ readOnly, canAdd: capabilities.canAdd, isWishlistOnly });
+  const confirmedOwnership: ConfirmedOwnership | undefined = ownership.status === 'ready' ? ownership.value : undefined;
+  const actionMode = getCardDetailActionMode({ readOnly, ownership: confirmedOwnership });
   const showQuantityControl = actionMode === 'quantity';
   const showCollectionAddAction = actionMode === 'add';
   const feedbackRole = mutation.status === 'error' || mutation.status === 'conflict' ? 'alert' : 'status';
