@@ -1,12 +1,23 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { BinderCardGrid } from '../../components/BinderCardGrid';
 import { CardDetailDialog, type CardDetailCard, type CardDetailMutationState } from '../cardDetail';
-import { getCollectionCardOwnershipForCatalogCards, type CollectionOwnershipState, type ConfirmedOwnership } from '../collectionCards';
+import type { CardDetailMutationOperation } from '../cardDetail/CardDetailDialog';
+import {
+  addCardToWishlist,
+  addOwnedNearMintCollectionCard,
+  decreaseCollectionCardQuantity,
+  getCollectionCardOwnershipForCatalogCards,
+  increaseCollectionCardQuantity,
+  promoteWishlistToOwned,
+  removeCardFromWishlist,
+  type CollectionOwnershipState,
+  type ConfirmedOwnership,
+} from '../collectionCards';
 import { checkCollectionReadiness } from '../collections';
 import { createCardDetailOwnershipPresentation } from '../cardDetail/cardDetailOwnershipPresentation';
 import { searchCatalog } from './catalogSearchService';
 import { isCatalogSearchTermValid, normalizeCatalogSearchTerm } from './catalogSearchHelpers';
-import { toCatalogSearchCardDetailCard } from './catalogSearchCardDetailAdapter';
+import { createCatalogSearchCardDetailCapabilities, doesCatalogSearchOwnershipConfirmMutation, getCatalogSearchConfirmationReadiness, getCatalogSearchMutationRetryHandler, toCatalogSearchCardDetailCard, type CatalogSearchMutationConfirmation, type CatalogSearchMutationRetry } from './catalogSearchCardDetailAdapter';
 import {
   getSafeCatalogSearchErrorMessage,
   shouldApplyCatalogSearchContext,
@@ -43,7 +54,9 @@ export function CatalogSearchPage() {
   const currentCards = result?.cards ?? [];
   const totalPages = Math.max(1, Math.ceil((result?.totalCount ?? 0) / CATALOG_SEARCH_PAGE_SIZE));
   const selectedIndex = selected ? currentCards.findIndex((card) => card.id === selected.cardCatalogId) : -1;
-  const mutation: CardDetailMutationState = { status: 'idle' };
+  const [mutation, setMutation] = useState<CardDetailMutationState>({ status: 'idle' });
+  const mutationInFlightRef = useRef(false);
+  const lastRetryRef = useRef<CatalogSearchMutationRetry | undefined>(undefined);
   const copy = useMemo(
     () => createCardDetailOwnershipPresentation({ ownership: detailOwnership.status === 'ready' ? detailOwnership.value : undefined }),
     [detailOwnership],
@@ -54,6 +67,9 @@ export function CatalogSearchPage() {
     activeDetailContextRef.current = null;
     setSelected(null);
     setDetailOwnership({ status: 'idle' });
+    mutationInFlightRef.current = false;
+    setMutation({ status: 'idle' });
+    lastRetryRef.current = undefined;
   };
 
   const invalidateSearchContext = () => {
@@ -157,6 +173,9 @@ export function CatalogSearchPage() {
     };
     activeDetailContextRef.current = detailContext;
     const detailCard = toCatalogSearchCardDetailCard(card);
+    mutationInFlightRef.current = false;
+    setMutation({ status: 'idle' });
+    lastRetryRef.current = undefined;
     setSelected(detailCard);
     setDetailOwnership(toCatalogSearchDetailOwnershipState(ownershipById.get(card.id), ownershipStatus === 'loading' ? 'loading' : ownershipStatus === 'ready' ? 'ready' : 'error'));
   };
@@ -175,6 +194,20 @@ export function CatalogSearchPage() {
     if (nextCard) openCard(nextCard);
   };
 
+  const refreshSelectedOwnership = async (detailContext: CatalogSearchDetailContext, selectedCardId: string, collectionId: string): Promise<ConfirmedOwnership | null> => {
+    const ownership = await getCollectionCardOwnershipForCatalogCards({ collectionId, cardCatalogIds: [selectedCardId] });
+    if (!shouldApplyCatalogSearchDetailContext(activeDetailContextRef.current, detailContext)) return null;
+    const nextOwnership = ownership.get(selectedCardId);
+    setOwnershipById((current) => {
+      const next = new Map(current);
+      if (nextOwnership) next.set(selectedCardId, nextOwnership);
+      else next.delete(selectedCardId);
+      return next;
+    });
+    setDetailOwnership(nextOwnership ? { status: 'ready', value: nextOwnership } : { status: 'error', retryable: true });
+    return nextOwnership ?? null;
+  };
+
   const retrySelectedOwnership = async () => {
     const selectedContext = activeDetailContextRef.current;
     const selectedCardId = selected?.cardCatalogId;
@@ -189,27 +222,140 @@ export function CatalogSearchPage() {
       const readiness = await checkCollectionReadiness();
       const collectionId = readiness.mainCollection?.id;
       if (!collectionId) throw new Error('collection-unavailable');
-      const ownership = await getCollectionCardOwnershipForCatalogCards({ collectionId, cardCatalogIds: [selectedCardId] });
-      if (!shouldApplyCatalogSearchDetailContext(activeDetailContextRef.current, detailContext)) return;
-      const nextOwnership = ownership.get(selectedCardId);
-      setOwnershipById((current) => {
-        const next = new Map(current);
-        if (nextOwnership) next.set(selectedCardId, nextOwnership);
-        return next;
-      });
-      setDetailOwnership(nextOwnership ? { status: 'ready', value: nextOwnership } : { status: 'error', retryable: true });
+      await refreshSelectedOwnership(detailContext, selectedCardId, collectionId);
     } catch {
       if (shouldApplyCatalogSearchDetailContext(activeDetailContextRef.current, detailContext)) setDetailOwnership({ status: 'error', retryable: true });
     }
   };
+
+
+
+  const runSelectedMutation = async (operation: CardDetailMutationOperation) => {
+    if (mutationInFlightRef.current) return;
+    const selectedContext = activeDetailContextRef.current;
+    const selectedCardId = selected?.cardCatalogId;
+    const searchContext = activeSearchContextRef.current;
+    if (!selectedContext || !selectedCardId || !searchContext || selectedContext.searchRequestId !== searchContext.requestId) return;
+
+    const detailContext: CatalogSearchDetailContext = { ...selectedContext, requestId: ++detailRequestIdRef.current };
+    activeDetailContextRef.current = detailContext;
+    mutationInFlightRef.current = true;
+    setMutation({ status: 'pending', operation });
+    lastRetryRef.current = undefined;
+
+    let confirmation: CatalogSearchMutationConfirmation;
+    let collectionId: string;
+    try {
+      const readiness = await checkCollectionReadiness();
+      collectionId = readiness.mainCollection?.id ?? '';
+      if (!collectionId) throw new Error('collection-unavailable');
+      const ownership = detailOwnership.status === 'ready' ? detailOwnership.value : undefined;
+      const manageable = ownership?.kind === 'snapshot' ? ownership.value.manageableOwnedNearMintRecord : null;
+      const previousQuantity = manageable?.quantity;
+      const collectionCardId = manageable?.collectionCardId;
+
+      if (!shouldApplyCatalogSearchDetailContext(activeDetailContextRef.current, detailContext)) return;
+
+      if (operation === 'add') await addOwnedNearMintCollectionCard({ collectionId, cardCatalogId: selectedCardId });
+      else if (operation === 'add-wishlist') await addCardToWishlist({ collectionId, cardCatalogId: selectedCardId });
+      else if (operation === 'remove-wishlist') await removeCardFromWishlist({ collectionId, cardCatalogId: selectedCardId });
+      else if (operation === 'promote-wishlist') await promoteWishlistToOwned({ collectionId, cardCatalogId: selectedCardId });
+      else if (operation === 'increase') {
+        if (!manageable) throw new Error('unmanageable-card');
+        await increaseCollectionCardQuantity({ collectionId, collectionCardId: manageable.collectionCardId, currentQuantity: manageable.quantity });
+      } else if (operation === 'decrease' || operation === 'delete') {
+        if (!manageable) throw new Error('unmanageable-card');
+        await decreaseCollectionCardQuantity({ collectionId, collectionCardId: manageable.collectionCardId, currentQuantity: manageable.quantity });
+      }
+      confirmation = { operation, before: ownership, confirmed: undefined, collectionCardId, previousQuantity };
+    } catch {
+      if (!shouldApplyCatalogSearchDetailContext(activeDetailContextRef.current, detailContext)) return;
+      mutationInFlightRef.current = false;
+      lastRetryRef.current = { kind: 'write', operation };
+      setMutation({ status: 'error', operation, retryable: true, message: 'Bijwerken is mislukt. Probeer opnieuw.' });
+      return;
+    }
+
+    try {
+      const refreshed = await refreshSelectedOwnership(detailContext, selectedCardId, collectionId);
+      confirmation.confirmed = refreshed ?? undefined;
+      if (!shouldApplyCatalogSearchDetailContext(activeDetailContextRef.current, detailContext)) return;
+      mutationInFlightRef.current = false;
+      if (!doesCatalogSearchOwnershipConfirmMutation(confirmation)) {
+        lastRetryRef.current = { kind: 'confirmation', confirmation };
+        setMutation({ status: 'error', operation, retryable: true, message: 'De collectiestatus kon niet veilig worden bevestigd. Probeer opnieuw.' });
+        return;
+      }
+      lastRetryRef.current = undefined;
+      setMutation({ status: 'success', message: 'Collectiestatus bijgewerkt.' });
+    } catch {
+      if (!shouldApplyCatalogSearchDetailContext(activeDetailContextRef.current, detailContext)) return;
+      mutationInFlightRef.current = false;
+      lastRetryRef.current = { kind: 'confirmation', confirmation };
+      setMutation({ status: 'error', operation, retryable: true, message: 'De collectiestatus kon niet veilig worden bevestigd. Probeer opnieuw.' });
+    }
+  };
+
+  const retryConfirmation = async (retry: Extract<CatalogSearchMutationRetry, { kind: 'confirmation' }>) => {
+    if (mutationInFlightRef.current) return;
+    const selectedContext = activeDetailContextRef.current;
+    const selectedCardId = selected?.cardCatalogId;
+    const searchContext = activeSearchContextRef.current;
+    if (!selectedContext || !selectedCardId || !searchContext || selectedContext.searchRequestId !== searchContext.requestId) return;
+    const detailContext: CatalogSearchDetailContext = { ...selectedContext, requestId: ++detailRequestIdRef.current };
+    activeDetailContextRef.current = detailContext;
+    mutationInFlightRef.current = true;
+    setMutation({ status: 'pending', operation: retry.confirmation.operation });
+    try {
+      const readiness = await checkCollectionReadiness();
+      const nextCollectionId = readiness.mainCollection?.id;
+      const readinessState = getCatalogSearchConfirmationReadiness({
+        collectionId: nextCollectionId,
+        contextIsCurrent: shouldApplyCatalogSearchDetailContext(activeDetailContextRef.current, detailContext),
+      });
+      if (readinessState === 'stale') return;
+      if (readinessState === 'missing-collection') throw new Error('collection-unavailable');
+      if (!nextCollectionId) throw new Error('collection-unavailable');
+      const refreshed = await refreshSelectedOwnership(detailContext, selectedCardId, nextCollectionId);
+      if (!shouldApplyCatalogSearchDetailContext(activeDetailContextRef.current, detailContext)) return;
+      const nextConfirmation = { ...retry.confirmation, confirmed: refreshed ?? undefined };
+      mutationInFlightRef.current = false;
+      if (!doesCatalogSearchOwnershipConfirmMutation(nextConfirmation)) {
+        lastRetryRef.current = { kind: 'confirmation', confirmation: nextConfirmation };
+        setMutation({ status: 'error', operation: retry.confirmation.operation, retryable: true, message: 'De collectiestatus kon niet veilig worden bevestigd. Probeer opnieuw.' });
+      } else {
+        lastRetryRef.current = undefined;
+        setMutation({ status: 'success', message: 'Collectiestatus bijgewerkt.' });
+      }
+    } catch {
+      if (!shouldApplyCatalogSearchDetailContext(activeDetailContextRef.current, detailContext)) return;
+      mutationInFlightRef.current = false;
+      lastRetryRef.current = { kind: 'confirmation', confirmation: retry.confirmation };
+      setMutation({ status: 'error', operation: retry.confirmation.operation, retryable: true, message: 'De collectiestatus kon niet veilig worden bevestigd. Probeer opnieuw.' });
+    }
+  };
+
+  const retryMutation = getCatalogSearchMutationRetryHandler(lastRetryRef.current, {
+    add: () => void runSelectedMutation('add'),
+    'add-wishlist': () => void runSelectedMutation('add-wishlist'),
+    'remove-wishlist': () => void runSelectedMutation('remove-wishlist'),
+    'promote-wishlist': () => void runSelectedMutation('promote-wishlist'),
+    increase: () => void runSelectedMutation('increase'),
+    decrease: () => void runSelectedMutation('decrease'),
+    delete: () => void runSelectedMutation('delete'),
+    confirmation: () => { const retry = lastRetryRef.current; if (retry?.kind === 'confirmation') void retryConfirmation(retry); },
+  });
 
   useEffect(() => () => {
     searchRequestIdRef.current += 1;
     detailRequestIdRef.current += 1;
     activeSearchContextRef.current = null;
     activeDetailContextRef.current = null;
+    mutationInFlightRef.current = false;
   }, []);
 
+  const selectedOwnership = detailOwnership.status === 'ready' ? detailOwnership.value : undefined;
+  const capabilities = createCatalogSearchCardDetailCapabilities({ ownership: selectedOwnership, isPending: mutation.status === 'pending' });
   const isLoading = status === 'loading';
 
   return <>
@@ -232,6 +378,6 @@ export function CatalogSearchPage() {
         <nav className="collection-page-pagination" aria-label="Zoekresultaten paginatie"><button type="button" disabled={isLoading || page <= 1} onClick={() => loadSearchResults(activeTerm, page - 1)}>Vorige</button><span>Pagina {page} van {totalPages}</span><button type="button" disabled={isLoading || page >= totalPages} onClick={() => loadSearchResults(activeTerm, page + 1)}>Volgende</button></nav>
       </> : null}
     </section>
-    {selected ? <CardDetailDialog card={selected} ownership={detailOwnership} mutation={mutation} capabilities={{ canAdd: false, canIncrease: false, canDecrease: false, unavailableReason: 'Beheer is in deze zoekfase niet beschikbaar.' }} copy={{ statusItems: copy.statusItems, physicalPresenceLabel: copy.physicalPresenceLabel, managementMessage: copy.conflictMessage }} readOnly navigation={selectedIndex >= 0 ? { currentIndex: selectedIndex, total: currentCards.length, onPrevious: () => navigateCard(-1), onNext: () => navigateCard(1) } : undefined} onClose={closeCard} onRetryOwnership={() => void retrySelectedOwnership()} /> : null}
+    {selected ? <CardDetailDialog card={selected} ownership={detailOwnership} mutation={mutation} capabilities={capabilities} copy={{ statusItems: copy.statusItems, physicalPresenceLabel: copy.physicalPresenceLabel, managementMessage: copy.conflictMessage }} navigation={selectedIndex >= 0 ? { currentIndex: selectedIndex, total: currentCards.length, onPrevious: () => navigateCard(-1), onNext: () => navigateCard(1) } : undefined} onClose={closeCard} onRetryOwnership={() => void retrySelectedOwnership()} onAdd={() => void runSelectedMutation('add')} onAddWishlist={() => void runSelectedMutation('add-wishlist')} onRemoveWishlist={() => void runSelectedMutation('remove-wishlist')} onPromoteWishlist={() => void runSelectedMutation('promote-wishlist')} onIncrease={() => void runSelectedMutation('increase')} onDecrease={() => void runSelectedMutation(selectedOwnership?.kind === 'snapshot' && selectedOwnership.value.manageableOwnedNearMintRecord?.quantity === 1 ? 'delete' : 'decrease')} onRetryMutation={retryMutation} /> : null}
   </>;
 }
