@@ -1,6 +1,13 @@
-import type { CardDetails } from '../../../scripts/catalog/card-details';
-
-export type CardDetailDetails = CardDetails;
+export type CardDetailDetails = {
+  supertype?: string;
+  subtypes?: string[];
+  hp?: string;
+  types?: string[];
+  evolvesFrom?: string;
+  evolvesTo?: string[];
+  artist?: string;
+  regulationMark?: string;
+};
 
 export type CardDetailDetailItem = {
   label: string;
