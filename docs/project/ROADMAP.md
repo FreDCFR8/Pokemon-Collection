@@ -39,8 +39,9 @@ This document shows product direction and phase status. It intentionally avoids 
 - ✅ Phase 7B-2F2 — gecontroleerde Obsidian Flames-import (`sv3`)
 - ✅ Phase 7B-2F3 — catalog import batch runner
 - ✅ Phase 7B-2F4 — versioneerbare lokale JSON-input via `PokemonTCG/pokemon-tcg-data`
-- 🚧 Phase 7B-2F5 — catalogusmetadata & Card Detail enrichment
-- ⏳ gecontroleerde metadata-backfill en lokale batch-synchronisatie
+- ✅ Phase 7B-2F5 — catalogusmetadata & Card Detail enrichment
+- 🚧 Phase 7B-2F6 — herbruikbare metadata-backfill
+- ⏳ lokale manifest- en batch-synchronisatie
 - ⏳ broader catalog synchronization
 
 ## Sets and binder experience
