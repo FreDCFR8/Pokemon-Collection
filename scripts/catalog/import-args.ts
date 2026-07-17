@@ -113,7 +113,7 @@ export function parseCatalogImportArgs(argv: readonly string[]): CatalogImportOp
     throw new CatalogImportArgumentError('--input is alleen toegestaan met bron pokemon_tcg_data.');
   }
 
-  return { setId, write, source, inputPath };
+  return { setId, write, source, ...(inputPath ? { inputPath } : {}) };
 }
 
 export function assertWriteAuthorized(options: CatalogImportOptions): void {
