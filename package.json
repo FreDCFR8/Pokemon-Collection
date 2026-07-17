@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "catalog:import": "node --experimental-strip-types scripts/catalog/import-set.ts",
+    "catalog:import:batch": "node --experimental-strip-types scripts/catalog/import-batch.ts",
     "test": "node scripts/test-all.mjs"
   },
   "dependencies": {
