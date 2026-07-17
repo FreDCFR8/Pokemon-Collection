@@ -6,6 +6,7 @@ import type {
   CollectionStatus,
 } from '../collectionCards';
 import { areCardDetailActionsBlocked, getCardDetailActionMode } from './cardDetailMutationState';
+import { getCardDetailDetails } from './cardDetails';
 import { getCardDetailMetadata, getCardDetailNavigationState } from './cardDetailGallery';
 
 export type CardDetailMutationOperation = 'add' | 'add-wishlist' | 'remove-wishlist' | 'promote-wishlist' | 'increase' | 'decrease' | 'delete';
@@ -24,6 +25,7 @@ export type CardDetailCard = {
   set: { setCode: string | null; name: string | null; releaseDate?: string | null };
   rarity: string | null;
   energyType?: string | null;
+  details?: import('./cardDetails').CardDetailDetails | null;
   images: { small: string | null; large: string | null };
 };
 
@@ -131,6 +133,7 @@ export function CardDetailDialog({
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const detailImageUrl = card.images.large ?? card.images.small;
   const metadata = useMemo(() => getCardDetailMetadata(card), [card]);
+  const cardDetails = useMemo(() => getCardDetailDetails(card.details), [card.details]);
   const navigationState = navigation
     ? getCardDetailNavigationState(navigation.currentIndex, navigation.total)
     : null;
@@ -254,6 +257,16 @@ export function CardDetailDialog({
             {metadata.length > 0 ? (
               <dl className="card-detail-metadata" aria-label="Kaartmetadata">
                 {metadata.map((item) => (
+                  <div key={item.label}>
+                    <dt>{item.label}</dt>
+                    <dd>{item.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            ) : null}
+            {cardDetails.length > 0 ? (
+              <dl className="card-detail-metadata" aria-label="Uitgebreide kaartdetails">
+                {cardDetails.map((item) => (
                   <div key={item.label}>
                     <dt>{item.label}</dt>
                     <dd>{item.value}</dd>
