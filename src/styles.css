@@ -1622,6 +1622,25 @@ button {
   overflow-wrap: anywhere;
 }
 
+.card-detail-detail-section {
+  width: 100%;
+  max-width: 520px;
+  margin-top: 14px;
+}
+
+.card-detail-detail-section h5 {
+  margin: 0;
+  color: #334155;
+  font-size: 0.76rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.card-detail-detail-section .card-detail-metadata {
+  margin-top: 6px;
+}
+
 .card-detail-body .card-detail-feedback-message {
   max-width: 420px;
   font-size: 0.75rem;
