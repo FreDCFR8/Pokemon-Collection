@@ -27,8 +27,9 @@ export type CardDetailMetadataIcon =
   | 'rarity-rare'
   | 'rarity-ultra'
   | 'rarity-special'
+  | 'rarity-secret'
+  | 'rarity-hyper'
   | 'pokedex'
-  | 'genset'
   | 'release-date'
   | 'illustrator';
 
@@ -58,7 +59,9 @@ function getEnergyIcon(value: string): CardDetailMetadataIcon {
 
 function getRarityIcon(value: string): CardDetailMetadataIcon {
   const normalized = value.toLowerCase();
-  if (normalized.includes('special illustration') || normalized.includes('hyper') || normalized.includes('secret')) return 'rarity-special';
+  if (normalized.includes('special illustration') || normalized.includes('illustration rare')) return 'rarity-special';
+  if (normalized.includes('hyper')) return 'rarity-hyper';
+  if (normalized.includes('secret')) return 'rarity-secret';
   if (normalized.includes('ultra')) return 'rarity-ultra';
   if (normalized.includes('uncommon')) return 'rarity-uncommon';
   if (normalized.includes('common')) return 'rarity-common';
@@ -83,7 +86,6 @@ export function getCardDetailMetadata(card: CardDetailMetadataSource): CardDetai
     energyType ? { label: 'Energy Type', value: energyType, icon: getEnergyIcon(energyType) } : null,
     card.rarity ? { label: 'Rarity', value: card.rarity, icon: getRarityIcon(card.rarity) } : null,
     nationalNumber ? { label: 'Pokédex Number', value: nationalNumber, icon: 'pokedex' } : null,
-    card.set.series ? { label: 'Genset', value: card.set.series, icon: 'genset' } : null,
     card.set.releaseDate ? { label: 'Release Date', value: formatCardDetailReleaseDate(card.set.releaseDate), icon: 'release-date' } : null,
     card.details?.artist ? { label: 'Illustrator', value: card.details.artist, icon: 'illustrator' } : null,
   ].filter((item): item is CardDetailMetadataItem => item !== null);

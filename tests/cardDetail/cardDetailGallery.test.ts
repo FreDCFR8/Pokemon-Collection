@@ -18,7 +18,6 @@ test('Card Detail metadata includes available fields and hides missing values', 
     { label: 'Energy Type', value: 'Lightning', icon: 'energy-lightning' },
     { label: 'Rarity', value: 'Rare', icon: 'rarity-rare' },
     { label: 'Pokédex Number', value: '25', icon: 'pokedex' },
-    { label: 'Genset', value: 'Original', icon: 'genset' },
     { label: 'Release Date', value: '9 jan 1999', icon: 'release-date' },
     { label: 'Illustrator', value: 'Artist', icon: 'illustrator' },
   ]);
@@ -32,8 +31,15 @@ test('formats release dates stably and keeps invalid source values unchanged', (
 });
 
 test('derives energy and rarity icons from real values', () => {
-  assert.equal(getCardDetailMetadata({ ...card, energyType: 'Psychic', rarity: 'Ultra Rare' })[0]?.icon, 'energy-psychic');
-  assert.equal(getCardDetailMetadata({ ...card, energyType: 'Darkness', rarity: 'Special Illustration Rare' })[1]?.icon, 'rarity-special');
+  const energyTypes = ['Psychic', 'Darkness', 'Fire', 'Water', 'Grass', 'Lightning', 'Colorless'];
+  assert.deepEqual(energyTypes.map((energyType) => getCardDetailMetadata({ ...card, energyType })[0]?.icon), [
+    'energy-psychic', 'energy-darkness', 'energy-fire', 'energy-water', 'energy-grass', 'energy-lightning', 'energy-colorless',
+  ]);
+
+  const rarities = ['Common', 'Uncommon', 'Rare', 'Ultra Rare', 'Special Illustration Rare', 'Secret Rare', 'Hyper Rare'];
+  assert.deepEqual(rarities.map((rarity) => getCardDetailMetadata({ ...card, rarity })[1]?.icon), [
+    'rarity-common', 'rarity-uncommon', 'rarity-rare', 'rarity-ultra', 'rarity-special', 'rarity-secret', 'rarity-hyper',
+  ]);
 });
 
 test('Card Detail navigation disables previous and next at list boundaries', () => {

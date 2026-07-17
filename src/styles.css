@@ -1360,9 +1360,7 @@ button {
 }
 
 .card-detail-quantity-status-mark { margin-right: 5px; }
-.card-detail-management-message,
 .card-detail-feedback-message { display: block; margin-top: 10px; line-height: 1.35; overflow-wrap: anywhere; }
-.card-detail-management-message { color: #475569; font-size: .78rem; font-weight: 800; }
 .card-detail-feedback-message { font-size: .8rem; text-align: left; }
 .card-detail-feedback-message.is-success { color: #166534; }
 .card-detail-feedback-message.is-error { color: #991b1b; }
@@ -1462,20 +1460,20 @@ button {
   align-items: baseline;
   gap: 6px 9px;
   max-width: 100%;
-  margin: 0 0 12px;
+  margin: 0 0 10px;
   color: #6b767a;
-  font-size: .78rem;
+  font-size: .84rem;
   line-height: 1.35;
   overflow-wrap: anywhere;
 }
 .card-detail-set strong { color: inherit; font-weight: 600; }
 .card-detail-body h1 {
   max-width: 100%;
-  margin: 0 0 22px;
+  margin: 0 0 20px;
   color: #11151a;
-  font-size: clamp(1.8rem, 3.4vw, 3.15rem);
-  font-weight: 900;
-  line-height: 1;
+  font-size: clamp(1.8rem, 3.1vw, 2.85rem);
+  font-weight: 850;
+  line-height: 1.05;
   overflow-wrap: anywhere;
 }
 .card-detail-subtitle { display: none; }
@@ -1483,27 +1481,27 @@ button {
 .card-detail-action-row {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  gap: 12px;
   width: 100%;
-  margin: 0 0 26px;
+  margin: 0 0 22px;
 }
 .card-detail-action-row > .card-detail-primary-action,
 .card-detail-action-row > .card-detail-wishlist-button {
   width: 100%;
-  min-height: 60px;
+  min-height: 54px;
   margin: 0;
   border-radius: 16px;
   padding: 0 16px;
   font: inherit;
-  font-size: .95rem;
-  font-weight: 800;
+  font-size: .88rem;
+  font-weight: 750;
 }
 .card-detail-primary-action { border: 0; background: #2f86ef; color: #fff; cursor: pointer; }
 .card-detail-wishlist-button { border: 2px solid #2f86ef; background: transparent; color: #164a91; cursor: pointer; }
 .card-detail-action-row > .card-detail-quantity-control,
 .card-detail-action-row > .card-detail-quantity-status { grid-column: 1 / -1; width: 100%; margin: 0; }
 
-.card-detail-attributes-title { margin: 0 0 12px; color: #687276; font-size: 1.05rem; font-weight: 800; }
+.card-detail-attributes-title { margin: 0 0 10px; color: #687276; font-size: .96rem; font-weight: 750; }
 .card-detail-attributes { display: grid; gap: 8px; width: 100%; margin: 0; }
 .card-detail-attribute {
   display: grid;
@@ -1518,22 +1516,26 @@ button {
   padding: 10px 16px;
 }
 .card-detail-attribute-icon { grid-row: 1 / -1; display: grid; place-items: center; color: #263238; }
-.card-detail-attribute-svg { width: 23px; height: 23px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
+.card-detail-attribute-svg { width: 24px; height: 24px; overflow: visible; }
+.card-detail-energy-disc { fill: currentColor; }
+.card-detail-energy-glyph { color: #fff; }
 .card-detail-attribute-icon.is-energy-psychic { color: #8a4eb7; }
 .card-detail-attribute-icon.is-energy-darkness { color: #20252b; }
 .card-detail-attribute-icon.is-energy-fire { color: #d9483b; }
 .card-detail-attribute-icon.is-energy-water { color: #287bc1; }
 .card-detail-attribute-icon.is-energy-grass { color: #3f9145; }
 .card-detail-attribute-icon.is-energy-lightning { color: #d39b00; }
+.card-detail-attribute-icon.is-energy-lightning .card-detail-energy-glyph { color: #2b281f; }
 .card-detail-attribute-icon.is-energy-colorless { color: #778087; }
 .card-detail-attribute-icon.is-rarity-common { color: #6f7780; }
 .card-detail-attribute-icon.is-rarity-uncommon { color: #3e78a8; }
 .card-detail-attribute-icon.is-rarity-rare { color: #d39b00; }
 .card-detail-attribute-icon.is-rarity-ultra { color: #b44b9d; }
 .card-detail-attribute-icon.is-rarity-special { color: #e37427; }
-.card-detail-attribute dt { grid-column: 2; min-width: 0; color: #7a8285; font-size: .74rem; font-weight: 500; overflow-wrap: anywhere; }
-.card-detail-attribute dd { grid-column: 2; min-width: 0; margin: 1px 0 0; color: #11151a; font-size: .88rem; font-weight: 800; overflow-wrap: anywhere; }
-.card-detail-status-list { display: grid; gap: 4px; margin: 12px 0 0; padding: 0; color: #475569; font-size: .78rem; font-weight: 800; list-style: none; }
+.card-detail-attribute-icon.is-rarity-secret { color: #25948a; }
+.card-detail-attribute-icon.is-rarity-hyper { color: #b98a18; }
+.card-detail-attribute dt { grid-column: 2; min-width: 0; color: #7a8285; font-size: .7rem; font-weight: 500; overflow-wrap: anywhere; }
+.card-detail-attribute dd { grid-column: 2; min-width: 0; margin: 1px 0 0; color: #11151a; font-size: .84rem; font-weight: 650; overflow-wrap: anywhere; }
 .card-detail-retry-button { min-height: 44px; margin-top: 10px; border: 0; border-radius: 999px; background: #2563eb; color: #fff; cursor: pointer; padding: 0 16px; font-weight: 800; }
 
 @media (min-width: 820px) and (max-height: 650px) {
@@ -1554,8 +1556,11 @@ button {
   .card-detail-dialog { width: 100%; height: 100dvh; max-height: 100dvh; border-radius: 0; border: 0; }
   .card-detail-header { top: max(12px, env(safe-area-inset-top)); right: max(12px, env(safe-area-inset-right)); }
   .card-detail-content { padding-inline: 16px; padding-bottom: calc(28px + env(safe-area-inset-bottom)); }
-  .card-detail-action-row { grid-template-columns: 1fr; }
-  .card-detail-body h1 { font-size: clamp(1.8rem, 9vw, 2.7rem); }
+  .card-detail-set { align-self: center; justify-content: center; text-align: center; }
+  .card-detail-body h1 { justify-self: center; font-size: clamp(1.75rem, 8.5vw, 2.45rem); text-align: center; }
+  .card-detail-action-row { grid-template-columns: 1fr; gap: 10px; }
+  .card-detail-action-row > .card-detail-primary-action,
+  .card-detail-action-row > .card-detail-wishlist-button { min-height: 50px; }
 }
 
 .sets-page-set-overlay-count,

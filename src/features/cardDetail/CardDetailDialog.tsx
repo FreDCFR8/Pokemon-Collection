@@ -5,6 +5,7 @@ import type {
   CollectionOwnershipState,
   CollectionStatus,
 } from '../collectionCards';
+import cardDetailSymbolsUrl from '../../assets/card-detail-symbols.svg';
 import { areCardDetailActionsBlocked, getCardDetailActionMode, getCardDetailWishlistAction } from './cardDetailMutationState';
 import { getCardDetailMetadata, getCardDetailNavigationState, type CardDetailMetadataIcon } from './cardDetailGallery';
 
@@ -111,23 +112,13 @@ function getOwnershipLabel(ownership: CollectionOwnershipState, copy: CardDetail
 }
 
 function AttributeIcon({ icon }: { icon: CardDetailMetadataIcon }) {
-  const common = { className: 'card-detail-attribute-svg', viewBox: '0 0 24 24', 'aria-hidden': true } as const;
-  if (icon === 'energy-psychic') return <svg {...common}><circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="2.4" /><path d="M12 4v3M12 17v3M4 12h3M17 12h3M6.3 6.3l2.1 2.1M15.6 15.6l2.1 2.1M17.7 6.3l-2.1 2.1M8.4 15.6l-2.1 2.1" /></svg>;
-  if (icon === 'energy-darkness') return <svg {...common}><circle cx="12" cy="12" r="9" /><path d="M15.8 5.2a7 7 0 1 0 3 10.4 6 6 0 1 1-3-10.4Z" /></svg>;
-  if (icon === 'energy-fire') return <svg {...common}><path d="M13 3c1 4-2 5-2 8 0 1.4.9 2.2 2 2.2 2 0 3-2.2 2.6-4.2 2.6 2.3 4.4 5 3.2 7.8A7.2 7.2 0 0 1 5 14c0-3.6 2.2-6.1 5.3-8.8-.2 2.4.7 3.7 1.7 4.2C11.7 7 12 5 13 3Z" /></svg>;
-  if (icon === 'energy-water') return <svg {...common}><path d="M12 3S6 10.1 6 15a6 6 0 0 0 12 0c0-4.9-6-12-6-12Z" /></svg>;
-  if (icon === 'energy-grass') return <svg {...common}><path d="M20 4C10 4 5 8 5 14c0 3 2 5 5 5 6 0 10-5 10-15Z" /><path d="M5 20c2-5 6-8 12-12" /></svg>;
-  if (icon === 'energy-lightning') return <svg {...common}><path d="m13 2-8 12h7l-1 8 8-12h-7l1-8Z" /></svg>;
-  if (icon === 'energy-colorless') return <svg {...common}><path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9L12 3Z" /></svg>;
-  if (icon === 'rarity-common') return <svg {...common}><circle cx="12" cy="12" r="5" /></svg>;
-  if (icon === 'rarity-uncommon') return <svg {...common}><path d="m12 4 8 8-8 8-8-8 8-8Z" /></svg>;
-  if (icon === 'rarity-rare') return <svg {...common}><path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9L12 3Z" /></svg>;
-  if (icon === 'rarity-ultra') return <svg {...common}><path d="m8 4 1.8 3.7 4.2.6-3 2.9.7 4.1L8 13.4l-3.7 1.9.7-4.1-3-2.9 4.2-.6L8 4Zm9 7 1.2 2.4 2.8.4-2 2 .5 2.7-2.5-1.3-2.5 1.3.5-2.7-2-2 2.8-.4L17 11Z" /></svg>;
-  if (icon === 'rarity-special') return <svg {...common}><path d="m6 3 1.2 2.5 2.8.4-2 2 .5 2.7L6 9.3l-2.5 1.3L4 7.9l-2-2 2.8-.4L6 3Zm12 0 1.2 2.5 2.8.4-2 2 .5 2.7L18 9.3l-2.5 1.3.5-2.7-2-2 2.8-.4L18 3Zm-6 9 1.2 2.5 2.8.4-2 2 .5 2.7-2.5-1.3-2.5 1.3.5-2.7-2-2 2.8-.4L12 12Z" /></svg>;
-  if (icon === 'pokedex') return <svg {...common}><path d="M5 4h14M5 20h14M8 4v16M16 4v16" /><path d="M11 9h2a2 2 0 0 1 0 4h-2m0 0h2a2 2 0 0 1 0 4h-2" /></svg>;
-  if (icon === 'genset') return <svg {...common}><path d="m4 8 8-4 8 4-8 4-8-4Zm0 4 8 4 8-4M4 16l8 4 8-4" /></svg>;
-  if (icon === 'release-date') return <svg {...common}><rect x="4" y="5" width="16" height="15" rx="2" /><path d="M8 3v4M16 3v4M4 10h16M8 14h.01M12 14h.01M16 14h.01M8 17h.01M12 17h.01" /></svg>;
-  return <svg {...common}><path d="m14 5 5 5M4 20l4.2-1 9.7-9.7a2.1 2.1 0 0 0-3-3L5.2 16 4 20Z" /><path d="m13 7 4 4" /></svg>;
+  const isEnergy = icon.startsWith('energy-');
+  return (
+    <svg className="card-detail-attribute-svg" viewBox="0 0 24 24" aria-hidden="true">
+      {isEnergy ? <circle className="card-detail-energy-disc" cx="12" cy="12" r="11" /> : null}
+      <use className={isEnergy ? 'card-detail-energy-glyph' : undefined} href={`${cardDetailSymbolsUrl}#${icon}`} />
+    </svg>
+  );
 }
 
 export function CardDetailDialog({
@@ -170,10 +161,6 @@ export function CardDetailDialog({
   const feedbackMessage = mutation.status === 'success' || mutation.status === 'error' || mutation.status === 'conflict'
     ? mutation.message
     : undefined;
-  const managementMessages = [copy.managementMessage, capabilities.unavailableReason]
-    .filter((message): message is string => Boolean(message))
-    .filter((message, index, messages) => messages.indexOf(message) === index);
-
   useEffect(() => {
     window.setTimeout(() => closeButtonRef.current?.focus(), 0);
   }, []);
@@ -292,14 +279,12 @@ export function CardDetailDialog({
                 ))}
               </dl>
             ) : null}
-            {copy.statusItems.length > 0 ? <ul className="card-detail-status-list" aria-label="Collectiestatussen">{copy.statusItems.map((item) => <li key={item.status}>{item.label}</li>)}</ul> : null}
             {ownership.status === 'error' && onRetryOwnership ? <button className="card-detail-retry-button" type="button" onClick={onRetryOwnership}>Collectiestatus opnieuw laden</button> : null}
             {mutation.status === 'error' && mutation.retryable && onRetryMutation ? (
               <button className="card-detail-retry-button" type="button" onClick={onRetryMutation} disabled={isMutating}>
                 Opnieuw proberen
               </button>
             ) : null}
-            {managementMessages.map((message) => <span key={message} className="card-detail-management-message">{message}</span>)}
             {feedbackMessage ? <span className={`card-detail-feedback-message${feedbackRole === 'alert' ? ' is-error' : ' is-success'}`} role={feedbackRole}>{feedbackMessage}</span> : null}
           </div>
         </div>

@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg">
+  <symbol id="energy-psychic" viewBox="0 0 24 24">
+    <path fill="currentColor" d="M12 5.1a6.9 6.9 0 1 0 6.9 6.9h-3.1a3.8 3.8 0 1 1-3.8-3.8V5.1Zm0 4.8a2.1 2.1 0 1 0 0 4.2 2.1 2.1 0 0 0 0-4.2Z"/>
+  </symbol>
+  <symbol id="energy-darkness" viewBox="0 0 24 24">
+    <path fill="currentColor" d="M15.8 5.2a7.6 7.6 0 1 0 3.1 11.2 6.2 6.2 0 1 1-3.1-11.2Z"/>
+  </symbol>
+  <symbol id="energy-fire" viewBox="0 0 24 24">
+    <path fill="currentColor" d="M13.2 3.1c.8 3.5-2.2 4.9-2.2 8 0 1.5.8 2.5 2 2.5 2.1 0 3.1-2.4 2.6-4.5 2.8 2.6 4.2 5.1 3.2 7.7A7.1 7.1 0 0 1 5.2 14c0-3.6 2.2-6.2 5.3-8.9-.2 2.3.5 3.7 1.5 4.4-.2-2.4.2-4.6 1.2-6.4Z"/>
+  </symbol>
+  <symbol id="energy-water" viewBox="0 0 24 24">
+    <path fill="currentColor" d="M12 3.2S6.1 10.1 6.1 15a5.9 5.9 0 1 0 11.8 0C17.9 10.1 12 3.2 12 3.2Z"/>
+  </symbol>
+  <symbol id="energy-grass" viewBox="0 0 24 24">
+    <path fill="currentColor" d="M20.5 3.8C10.3 4.2 5 8.1 5 14.1c0 3.1 2.2 5.2 5.3 5.2 6.3 0 10.2-5.5 10.2-15.5ZM6 20.8c2.3-5.3 6.4-9.2 11.9-12.3-4.6 4.2-7.7 8.3-9.2 12.3H6Z"/>
+  </symbol>
+  <symbol id="energy-lightning" viewBox="0 0 24 24">
+    <path fill="currentColor" d="M13.6 2.2 5 13.9h6.8l-1.2 7.9L19 10.1h-6.6l1.2-7.9Z"/>
+  </symbol>
+  <symbol id="energy-colorless" viewBox="0 0 24 24">
+    <path fill="currentColor" d="m12 2.8 2.4 5.1 5.3-2.7-2.7 5.3 5.2 2.4-5.2 2.4 2.7 5.3-5.3-2.7-2.4 5.2-2.4-5.2-5.3 2.7L7 15.3l-5.2-2.4L7 10.5 4.3 5.2l5.3 2.7L12 2.8Z"/>
+  </symbol>
+
+  <symbol id="rarity-common" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5" fill="currentColor"/></symbol>
+  <symbol id="rarity-uncommon" viewBox="0 0 24 24"><path fill="currentColor" d="m12 3.6 8.4 8.4-8.4 8.4L3.6 12 12 3.6Z"/></symbol>
+  <symbol id="rarity-rare" viewBox="0 0 24 24"><path fill="currentColor" d="m12 2.7 2.8 5.7 6.3.9-4.6 4.4 1.1 6.3-5.6-3-5.6 3 1.1-6.3-4.6-4.4 6.3-.9L12 2.7Z"/></symbol>
+  <symbol id="rarity-ultra" viewBox="0 0 24 24"><path fill="currentColor" d="m8 3 1.8 3.8 4.2.6-3 3 .7 4.2L8 12.6l-3.7 2 .7-4.2-3-3 4.2-.6L8 3Zm9.2 8 1.3 2.7 3 .4-2.2 2.1.6 3-2.7-1.5-2.7 1.5.5-3-2.1-2.1 3-.4 1.3-2.7Z"/></symbol>
+  <symbol id="rarity-special" viewBox="0 0 24 24"><path fill="currentColor" d="m6 2.7 1.3 2.7 3 .4-2.2 2.1.5 3L6 9.5l-2.7 1.4.5-3-2.1-2.1 3-.4L6 2.7Zm12 0 1.3 2.7 3 .4-2.1 2.1.5 3L18 9.5l-2.7 1.4.5-3-2.1-2.1 3-.4L18 2.7Zm-6 9.7 1.3 2.7 3 .4-2.2 2.1.5 3-2.6-1.4-2.7 1.4.5-3-2.1-2.1 3-.4 1.3-2.7Z"/></symbol>
+  <symbol id="rarity-secret" viewBox="0 0 24 24"><path fill="currentColor" d="m12 1.8 1.7 6.5 6.5 1.7-6.5 1.7-1.7 6.5-1.7-6.5L3.8 10l6.5-1.7L12 1.8Zm6 13.2.8 3.2L22 19l-3.2.8L18 23l-.8-3.2L14 19l3.2-.8L18 15Z"/></symbol>
+  <symbol id="rarity-hyper" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2.3 17.7 8 12 13.7 6.3 8 12 2.3Zm0 8.1 5.7 5.7-5.7 5.6-5.7-5.6 5.7-5.7Z"/></symbol>
+
+  <symbol id="pokedex" viewBox="0 0 24 24"><path d="M5 4h14M5 20h14M8 4v16M16 4v16M11 9h2a2 2 0 0 1 0 4h-2m0 0h2a2 2 0 0 1 0 4h-2" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"/></symbol>
+  <symbol id="release-date" viewBox="0 0 24 24"><path d="M8 3v4M16 3v4M4 10h16M8 14h.01M12 14h.01M16 14h.01M8 17h.01M12 17h.01" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.8"/><rect x="4" y="5" width="16" height="15" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+  <symbol id="illustrator" viewBox="0 0 24 24"><path d="m14 5 5 5M4 20l4.2-1 9.7-9.7a2.1 2.1 0 0 0-3-3L5.2 16 4 20Zm9-13 4 4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"/></symbol>
+</svg>
