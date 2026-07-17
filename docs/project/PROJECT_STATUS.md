@@ -6,15 +6,15 @@ This document contains current operational state only. Historical direction belo
 
 ## Current phase
 
-**Phase 7B-2F5 — Catalogusmetadata & Card Detail enrichment**
+**Phase 7B-2F7 — Uitgebreide Card Detail-presentatie**
 
-Deze fase voegt een read-only lokale JSON-bronadapter toe voor de datasetstructuur van `PokemonTCG/pokemon-tcg-data`. De bestaande single-set importer blijft de matching- en veiligheidsgrens; lokale input kan bestaande externe IDs opnieuw valideren zonder API-call of databasewrite.
+De gedeelde Card Detail toont nu de beschikbare geneste kaartdetails zoals abilities, aanvallen, regels, zwaktes, weerstanden, terugtrekkosten, Pokédex-nummers en legaliteit. Deze fase is UI-only: geen migratie, importwrite of wijziging aan `collection_cards`.
 
 ## Latest merged product milestone
 
-**PR128 — Phase 7B-2F3: Catalog Import Batch Runner**
+**PR132 — Phase 7B-2F6: Herbruikbare metadata-backfill**
 
-PR128 is gemerged. De batch-runner doorliep `sv3pt5` en `sv3` gecontroleerd; beide sets zijn dry-run-, write- en idempotency-gevalideerd. De write-approved batch voerde daarna geen nieuwe writes uit.
+PR132 is gemerged. De detail-backfill voor `sv3pt5` vulde 207 lege `card_details`-velden aan; `sv3` was al volledig gevuld. Beide sets hebben nu gecontroleerde detaildata.
 
 ## Active work
 
