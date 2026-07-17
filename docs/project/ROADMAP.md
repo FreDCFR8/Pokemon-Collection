@@ -35,7 +35,8 @@ This document shows product direction and phase status. It intentionally avoids 
 - ✅ controlled local import tooling
 - ✅ dry-run default and explicit `--write`
 - ✅ verified `sv3pt5` reference import
-- 🚧 Phase 7B-2F1 — veilige multi-set dry-runvoorbereiding en gecontroleerde uitbreiding naar aanvullende sets
+- ✅ Phase 7B-2F1 — veilige multi-set dry-runvoorbereiding
+- 🚧 Phase 7B-2F2 — gecontroleerde Obsidian Flames-import (`sv3`)
 - ⏳ broader catalog synchronization
 
 ## Sets and binder experience

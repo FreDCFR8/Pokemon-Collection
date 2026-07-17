@@ -8,6 +8,7 @@ const rejects = (args: string[]) => assert.throws(() => parses(args));
 
 test('allows dry-run for the reference set and other valid set IDs', () => {
   assert.deepEqual(parses(['--set', 'sv3pt5']), { setId: 'sv3pt5', write: false });
+  assert.deepEqual(parses(['--set', 'sv3']), { setId: 'sv3', write: false });
   assert.deepEqual(parses(['--set', 'swsh12']), { setId: 'swsh12', write: false });
   assert.deepEqual(parses(['--set', 'base1']), { setId: 'base1', write: false });
 });
@@ -24,8 +25,9 @@ test('writeplan title distinguishes dry-run from write mode', () => {
   assert.doesNotMatch(getWritePlanTitle(true), /read-only analyse/i);
 });
 
-test('only exact sv3pt5 --write is authorized', () => {
+test('only exact sv3pt5 or sv3 --write is authorized', () => {
   assert.doesNotThrow(() => assertWriteAuthorized(parses(['--set', 'sv3pt5', '--write'])));
+  assert.doesNotThrow(() => assertWriteAuthorized(parses(['--set', 'sv3', '--write'])));
   for (const setId of ['sv4', 'swsh12', 'sm115', 'base1']) {
     assert.throws(() => assertWriteAuthorized(parses(['--set', setId, '--write'])), /write.*allowlist/i);
   }
