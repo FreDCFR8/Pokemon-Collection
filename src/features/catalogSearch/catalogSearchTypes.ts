@@ -11,6 +11,7 @@ export type CatalogSearchCard = {
   rarity: string | null;
   imageSmall: string | null;
   imageLarge: string | null;
+  details?: Record<string, unknown> | null;
 };
 export type CatalogSearchResult = {
   cards: CatalogSearchCard[];
