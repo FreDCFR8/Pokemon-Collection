@@ -21,7 +21,7 @@ PR128 is gemerged. De batch-runner doorliep `sv3pt5` en `sv3` gecontroleerd; bei
 Phase 7B-2F4:
 
 - voeg lokale JSON-input toe voor de `PokemonTCG/pokemon-tcg-data` kaartstructuur;
-- valideer exact één set per inputbestand via ieder kaartitem zijn `set.id`;
+- behandel de upstream `cards/en/{set}.json`-file als één setcontext via `--set`; aanwezige `set.id`-velden worden gecontroleerd wanneer ze aanwezig zijn;
 - hergebruik de bestaande normalisatie, Supabase matching en veiligheidsrapportage;
 - behoud API-identiteit `pokemon_tcg_api` zodat bestaande externe IDs en stabiele interne catalogus-ID's matchen;
 - houd lokale JSON-input read-only totdat een aparte write-autorisatiefase is goedgekeurd;
