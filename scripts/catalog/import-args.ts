@@ -28,6 +28,7 @@ export function parseCatalogImportArgs(argv: readonly string[]): CatalogImportOp
   let setId: string | undefined;
   let write = false;
   let source: CatalogImportSource = 'pokemon_tcg_api';
+  let sourceSpecified = false;
   let inputPath: string | undefined;
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -51,6 +52,8 @@ export function parseCatalogImportArgs(argv: readonly string[]): CatalogImportOp
     }
 
     if (arg === '--source') {
+      if (sourceSpecified) throw new CatalogImportArgumentError('--source mag slechts eenmaal worden opgegeven.');
+      sourceSpecified = true;
       const value = argv[index + 1];
       if (value === undefined || value.startsWith('--')) {
         throw new CatalogImportArgumentError('Ontbrekende waarde voor --source.');
@@ -61,6 +64,8 @@ export function parseCatalogImportArgs(argv: readonly string[]): CatalogImportOp
     }
 
     if (arg.startsWith('--source=')) {
+      if (sourceSpecified) throw new CatalogImportArgumentError('--source mag slechts eenmaal worden opgegeven.');
+      sourceSpecified = true;
       source = parseSource(arg.slice('--source='.length));
       continue;
     }
