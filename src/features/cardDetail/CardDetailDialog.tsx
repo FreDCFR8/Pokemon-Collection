@@ -227,12 +227,8 @@ export function CardDetailDialog({
             {detailImageUrl ? <img src={detailImageUrl} alt={`${card.name} kaart ${card.number ?? ''}`.trim()} width="240" height="336" decoding="async" /> : <span aria-label="Geen afbeelding beschikbaar" />}
           </div>
           <div className="card-detail-body">
-            <p className="card-detail-set">
-              <span>Pokémon</span>
-              <span aria-hidden="true">|</span>
-              <strong>{card.set.name ?? 'Onbekende set'}</strong>
-            </p>
-            <h4 id="card-detail-title">{card.name}</h4>
+            <p className="card-detail-set"><span>Pokémon</span><span aria-hidden="true">|</span><strong>{card.set.name ?? 'Onbekende set'}</strong></p>
+            <h1 id="card-detail-title">{card.name}</h1>
             <p className="card-detail-subtitle">
               {card.set.name ?? 'Onbekende set'}{card.number ? ` · #${card.number}` : ''}
             </p>
@@ -256,9 +252,10 @@ export function CardDetailDialog({
               </span>
             )}
             {metadata.length > 0 ? (
-              <dl className="card-detail-metadata" aria-label="Kaartmetadata">
+              <dl className="card-detail-attributes" aria-label="Kaartattributen">
                 {metadata.map((item) => (
-                  <div key={item.label}>
+                  <div className="card-detail-attribute" key={item.label}>
+                    <span className="card-detail-attribute-icon" aria-hidden="true">{item.label === 'Rarity' ? '◆' : item.label === 'Kaartnummer' ? '#' : '•'}</span>
                     <dt>{item.label}</dt>
                     <dd>{item.value}</dd>
                   </div>
@@ -266,9 +263,10 @@ export function CardDetailDialog({
               </dl>
             ) : null}
             {cardDetails.length > 0 ? (
-              <dl className="card-detail-metadata" aria-label="Uitgebreide kaartdetails">
+              <dl className="card-detail-attributes card-detail-attributes-secondary" aria-label="Uitgebreide kaartdetails">
                 {cardDetails.map((item) => (
-                  <div key={item.label}>
+                  <div className="card-detail-attribute" key={item.label}>
+                    <span className="card-detail-attribute-icon" aria-hidden="true">•</span>
                     <dt>{item.label}</dt>
                     <dd>{item.value}</dd>
                   </div>
