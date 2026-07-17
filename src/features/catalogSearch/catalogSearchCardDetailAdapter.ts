@@ -28,9 +28,9 @@ export function toCatalogSearchCardDetailCard(card: CatalogSearchCard): CardDeta
     cardCatalogId: card.id,
     name: card.pokemon?.trim() || 'Onbekende kaart',
     number: card.number,
-    set: { setCode: card.setCode, name: card.setName },
+    set: { setCode: card.setCode, name: card.setName, ...(card.series ? { series: card.series } : {}), ...(card.releaseDate ? { releaseDate: card.releaseDate } : {}) },
     rarity: card.rarity,
-    details: card.details as import('../cardDetail/cardDetails').CardDetailDetails | null | undefined,
+    ...(card.details ? { details: card.details as import('../cardDetail/cardDetails').CardDetailDetails } : {}),
     images: { small: card.imageSmall, large: card.imageLarge },
   };
 }

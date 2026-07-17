@@ -124,6 +124,11 @@ test('Collection capabilities allow only one owned Near Mint row and never add',
     canDecrease: true,
     unavailableReason: undefined,
   });
+  const card = toCollectionPageCard(pageRow());
+  assert.ok(card);
+  assert.deepEqual(toCollectionCardDetailCard({ ...card, series: 'Original', releaseDate: '1999-01-09' })?.set, {
+    setCode: 'base1', name: 'Base Set', series: 'Original', releaseDate: '1999-01-09',
+  });
 });
 
 test('Collection capabilities disable wishlist, trade, missing, conflict and unknown states', () => {

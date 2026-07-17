@@ -1,5 +1,6 @@
 import { createBrowserSupabaseClient } from '../../lib/supabase';
 import { checkCollectionReadiness } from '../collections';
+import { getCardDetailSetMetadata } from '../cardDetail/cardDetailSetMetadataService';
 import { toCollectionPageCard, type CardsCatalogPageRow } from './collectionPageCardMapper';
 import {
   COLLECTION_PAGE_SIZE,
@@ -297,16 +298,19 @@ export async function loadCollectionPage(
     };
   }
 
+  const cards = ((data ?? []) as CardsCatalogPageRow[]).flatMap((row) => {
+    const card = toCollectionPageCard(row);
+    return card ? [card] : [];
+  });
+  const setMetadata = await getCardDetailSetMetadata(cards.map((card) => card.setCode));
+
   return {
     status: 'ready',
     message: totalCount > 0 ? 'Collectiekaarten geladen.' : 'Nog geen kaarten in deze collectie.',
     totalCount,
     page: safePage,
     pageSize: COLLECTION_PAGE_SIZE,
-    cards: ((data ?? []) as CardsCatalogPageRow[]).flatMap((row) => {
-      const card = toCollectionPageCard(row);
-      return card ? [card] : [];
-    }),
+    cards: cards.map((card) => ({ ...card, ...(setMetadata.get(card.setCode ?? '') ?? {}) })),
     collectionId: mainCollectionId,
   };
 }

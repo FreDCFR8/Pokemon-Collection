@@ -58,8 +58,8 @@ test('direct ILIKE trigram migration contains only the requested index additions
 });
 
 test('maps catalog metadata to the shared Card Detail contract', () => {
-  assert.deepEqual(toCatalogSearchCardDetailCard({ id: '1', pokemon: 'Pikachu', setName: 'Base Set', setCode: 'base1', number: '25', rarity: 'Rare', imageSmall: 's', imageLarge: 'l' }), {
-    cardCatalogId: '1', name: 'Pikachu', number: '25', set: { setCode: 'base1', name: 'Base Set' }, rarity: 'Rare', images: { small: 's', large: 'l' },
+  assert.deepEqual(toCatalogSearchCardDetailCard({ id: '1', pokemon: 'Pikachu', setName: 'Base Set', setCode: 'base1', series: 'Original', releaseDate: '1999-01-09', number: '25', rarity: 'Rare', imageSmall: 's', imageLarge: 'l' }), {
+    cardCatalogId: '1', name: 'Pikachu', number: '25', set: { setCode: 'base1', name: 'Base Set', series: 'Original', releaseDate: '1999-01-09' }, rarity: 'Rare', images: { small: 's', large: 'l' },
   });
 });
 

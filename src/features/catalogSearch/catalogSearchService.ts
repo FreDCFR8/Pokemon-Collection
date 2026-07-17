@@ -5,6 +5,7 @@ import {
   type CatalogSearchResult,
 } from './catalogSearchTypes';
 import { getCatalogSearchRange, isCatalogSearchTermValid, normalizeCatalogSearchTerm } from './catalogSearchHelpers';
+import { getCardDetailSetMetadata } from '../cardDetail/cardDetailSetMetadataService';
 
 const CATALOG_SEARCH_SELECT = 'id, pokemon, set_name, set_code, number, rarity, image_small, image_large, card_details';
 
@@ -63,8 +64,11 @@ export async function searchCatalog(searchTerm: string, page: number): Promise<C
 
   if (error) throw new Error(`Catalogus zoeken is mislukt: ${error.message}`);
 
+  const cards = (data ?? []).map(mapCatalogSearchCard).filter((card): card is CatalogSearchCard => card !== null);
+  const setMetadata = await getCardDetailSetMetadata(cards.map((card) => card.setCode));
+
   return {
-    cards: (data ?? []).map(mapCatalogSearchCard).filter((card): card is CatalogSearchCard => card !== null),
+    cards: cards.map((card) => ({ ...card, ...(setMetadata.get(card.setCode ?? '') ?? {}) })),
     totalCount: count ?? 0,
     page: range.page,
     pageSize: CATALOG_SEARCH_PAGE_SIZE,

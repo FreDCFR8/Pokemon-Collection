@@ -1,5 +1,6 @@
 import { createBrowserSupabaseClient } from '../../lib/supabase';
 import { checkCollectionReadiness } from '../collections';
+import { getCardDetailSetMetadata } from '../cardDetail/cardDetailSetMetadataService';
 import { getSafeWishlistPageAfterRemoval, getWishlistPageRange, WISHLIST_PAGE_SIZE, type WishlistPageCard, type WishlistPageState } from './wishlistPageTypes';
 
 type WishlistCatalogRow = {
@@ -85,16 +86,19 @@ export async function loadWishlistPage(requestedPage = 1): Promise<WishlistPageS
     return unavailableState('error', 'Wishlistkaarten laden is mislukt.', safePage, collectionId, safeErrorMessage(error.message));
   }
 
+  const cards = ((data ?? []) as WishlistCatalogRow[]).flatMap((row) => {
+    const card = toWishlistPageCard(row);
+    return card ? [card] : [];
+  });
+  const setMetadata = await getCardDetailSetMetadata(cards.map((card) => card.setCode));
+
   return {
     status: 'ready',
     message: (countResult.count ?? 0) > 0 ? 'Wishlistkaarten geladen.' : 'Nog geen kaarten op de wishlist.',
     totalCount,
     page: safePage,
     pageSize: WISHLIST_PAGE_SIZE,
-    cards: ((data ?? []) as WishlistCatalogRow[]).flatMap((row) => {
-      const card = toWishlistPageCard(row);
-      return card ? [card] : [];
-    }),
+    cards: cards.map((card) => ({ ...card, ...(setMetadata.get(card.setCode ?? '') ?? {}) })),
     collectionId,
   };
 }

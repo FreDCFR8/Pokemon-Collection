@@ -7,6 +7,8 @@ export type CatalogSearchCard = {
   pokemon: string | null;
   setName: string | null;
   setCode: string | null;
+  series?: string | null;
+  releaseDate?: string | null;
   number: string | null;
   rarity: string | null;
   imageSmall: string | null;
