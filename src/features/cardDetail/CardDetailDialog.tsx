@@ -6,7 +6,6 @@ import type {
   CollectionStatus,
 } from '../collectionCards';
 import { areCardDetailActionsBlocked, getCardDetailActionMode } from './cardDetailMutationState';
-import { getCardDetailDetails, getCardDetailSections } from './cardDetails';
 import { getCardDetailMetadata, getCardDetailNavigationState } from './cardDetailGallery';
 
 export type CardDetailMutationOperation = 'add' | 'add-wishlist' | 'remove-wishlist' | 'promote-wishlist' | 'increase' | 'decrease' | 'delete';
@@ -133,8 +132,6 @@ export function CardDetailDialog({
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const detailImageUrl = card.images.large ?? card.images.small;
   const metadata = useMemo(() => getCardDetailMetadata(card), [card]);
-  const cardDetails = useMemo(() => getCardDetailDetails(card.details), [card.details]);
-  const detailSections = useMemo(() => getCardDetailSections(card.details), [card.details]);
   const navigationState = navigation
     ? getCardDetailNavigationState(navigation.currentIndex, navigation.total)
     : null;
@@ -232,77 +229,50 @@ export function CardDetailDialog({
             <p className="card-detail-subtitle">
               {card.set.name ?? 'Onbekende set'}{card.number ? ` · #${card.number}` : ''}
             </p>
-            {showCollectionAddAction ? (
-              <button className="card-detail-primary-action" type="button" disabled={areActionsBlocked} onClick={onAdd}>
-                Aan collectie toevoegen
-              </button>
-            ) : !showQuantityControl ? (
-              <span id="card-detail-status" className={`card-detail-quantity-status card-detail-read-only-status ${ownershipPresentation.className}`} aria-live="polite">
-                {ownershipPresentation.className === 'is-present' ? <span className="card-detail-quantity-status-mark" aria-hidden="true">✓</span> : null}
-                {ownershipPresentation.label}
-              </span>
-            ) : (
-              <span className="card-detail-quantity-control" role="group" aria-label="Aantal in collectie">
-                <button type="button" aria-label="Eén exemplaar verwijderen" disabled={!capabilities.canDecrease || areActionsBlocked} onClick={onDecrease}>−</button>
-                <span id="card-detail-status" className={`card-detail-quantity-status ${ownershipPresentation.className}`} aria-live="polite">
+            <div className="card-detail-tab" role="tablist" aria-label="Kaartweergave">
+              <span role="tab" aria-selected="true"><span aria-hidden="true">✓</span>Card</span>
+            </div>
+            <div className="card-detail-action-row">
+              {showCollectionAddAction || capabilities.canPromoteWishlist ? (
+                <button className="card-detail-primary-action" type="button" disabled={areActionsBlocked} onClick={showCollectionAddAction ? onAdd : onPromoteWishlist}>
+                  Aan collectie toevoegen
+                </button>
+              ) : showQuantityControl ? (
+                <span className="card-detail-quantity-control" role="group" aria-label="Aantal in collectie">
+                  <button type="button" aria-label="Eén exemplaar verwijderen" disabled={!capabilities.canDecrease || areActionsBlocked} onClick={onDecrease}>−</button>
+                  <span id="card-detail-status" className={`card-detail-quantity-status ${ownershipPresentation.className}`} aria-live="polite">
+                    {ownershipPresentation.className === 'is-present' ? <span className="card-detail-quantity-status-mark" aria-hidden="true">✓</span> : null}
+                    {ownershipPresentation.label}
+                  </span>
+                  <button type="button" aria-label={capabilities.canAdd ? 'Kaart aan collectie toevoegen' : 'Eén exemplaar toevoegen'} disabled={(!capabilities.canAdd && !capabilities.canIncrease) || areActionsBlocked} onClick={() => capabilities.canAdd ? onAdd?.() : onIncrease?.()}>+</button>
+                </span>
+              ) : (
+                <span id="card-detail-status" className={`card-detail-quantity-status card-detail-read-only-status ${ownershipPresentation.className}`} aria-live="polite">
                   {ownershipPresentation.className === 'is-present' ? <span className="card-detail-quantity-status-mark" aria-hidden="true">✓</span> : null}
                   {ownershipPresentation.label}
                 </span>
-                <button type="button" aria-label={capabilities.canAdd ? 'Kaart aan collectie toevoegen' : 'Eén exemplaar toevoegen'} disabled={(!capabilities.canAdd && !capabilities.canIncrease) || areActionsBlocked} onClick={() => capabilities.canAdd ? onAdd?.() : onIncrease?.()}>+</button>
-              </span>
-            )}
+              )}
+              {capabilities.canAddWishlist ? (
+                <button className="card-detail-wishlist-button" type="button" disabled={areActionsBlocked} onClick={onAddWishlist}>
+                  Aan wishlist toevoegen
+                </button>
+              ) : null}
+            </div>
+            <h2 className="card-detail-attributes-title">Attributes</h2>
             {metadata.length > 0 ? (
               <dl className="card-detail-attributes" aria-label="Kaartattributen">
                 {metadata.map((item) => (
                   <div className="card-detail-attribute" key={item.label}>
-                    <span className="card-detail-attribute-icon" aria-hidden="true">{item.label === 'Rarity' ? '◆' : item.label === 'Kaartnummer' ? '#' : '•'}</span>
+                    <span className="card-detail-attribute-icon" aria-hidden="true">{item.label === 'Rarity' ? '★★' : item.label === 'National Number' ? '#' : item.label === 'Energy Type' ? '◉' : '•'}</span>
                     <dt>{item.label}</dt>
                     <dd>{item.value}</dd>
+                    <span className="card-detail-attribute-chevron" aria-hidden="true">›</span>
                   </div>
                 ))}
               </dl>
             ) : null}
-            {cardDetails.length > 0 ? (
-              <dl className="card-detail-attributes card-detail-attributes-secondary" aria-label="Uitgebreide kaartdetails">
-                {cardDetails.map((item) => (
-                  <div className="card-detail-attribute" key={item.label}>
-                    <span className="card-detail-attribute-icon" aria-hidden="true">•</span>
-                    <dt>{item.label}</dt>
-                    <dd>{item.value}</dd>
-                  </div>
-                ))}
-              </dl>
-            ) : null}
-            {detailSections.map((section) => (
-              <section className="card-detail-detail-section" key={section.title}>
-                <h5>{section.title}</h5>
-                <dl className="card-detail-metadata" aria-label={section.title}>
-                  {section.items.map((item, index) => (
-                    <div key={`${item.label}-${index}`}>
-                      <dt>{item.label}</dt>
-                      <dd>{item.value}</dd>
-                    </div>
-                  ))}
-                </dl>
-              </section>
-            ))}
             {copy.statusItems.length > 0 ? <ul className="card-detail-status-list" aria-label="Collectiestatussen">{copy.statusItems.map((item) => <li key={item.status}>{item.label}</li>)}</ul> : null}
             {ownership.status === 'error' && onRetryOwnership ? <button className="card-detail-retry-button" type="button" onClick={onRetryOwnership}>Collectiestatus opnieuw laden</button> : null}
-            {capabilities.canAddWishlist ? (
-              <button
-                className="card-detail-wishlist-button"
-                type="button"
-                disabled={areActionsBlocked}
-                onClick={onAddWishlist}
-              >
-                Aan wishlist toevoegen
-              </button>
-            ) : null}
-            {capabilities.canPromoteWishlist ? (
-              <button className="card-detail-primary-action" type="button" disabled={areActionsBlocked} onClick={onPromoteWishlist}>
-                Aan collectie toevoegen
-              </button>
-            ) : null}
             {capabilities.canRemoveWishlist ? (
               <button
                 className="card-detail-wishlist-button"

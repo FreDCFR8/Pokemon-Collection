@@ -9,18 +9,20 @@ const card = {
   set: { setCode: 'base1', name: 'Base Set', releaseDate: '1999-01-09' },
   rarity: 'Rare',
   energyType: 'Lightning',
+  details: { artist: 'Artist', nationalPokedexNumbers: [25] },
   images: { small: 'small.jpg', large: 'large.jpg' },
 };
 
 test('Card Detail metadata includes available fields and hides missing values', () => {
   assert.deepEqual(getCardDetailMetadata(card), [
+    { label: 'Illustrator', value: 'Artist' },
+    { label: 'Release Date', value: '1999-01-09' },
     { label: 'Rarity', value: 'Rare' },
-    { label: 'Kaartnummer', value: '#25' },
-    { label: 'Energy type', value: 'Lightning' },
-    { label: 'Release datum', value: '1999-01-09' },
+    { label: 'National Number', value: '25' },
+    { label: 'Energy Type', value: 'Lightning' },
   ]);
 
-  assert.deepEqual(getCardDetailMetadata({ ...card, number: null, rarity: null, energyType: null, set: { setCode: null, name: null } }), []);
+  assert.deepEqual(getCardDetailMetadata({ ...card, number: null, rarity: null, energyType: null, details: null, set: { setCode: null, name: null } }), []);
 });
 
 test('Card Detail navigation disables previous and next at list boundaries', () => {
