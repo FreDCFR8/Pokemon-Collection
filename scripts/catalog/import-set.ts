@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { randomUUID } from 'node:crypto';
+import { loadPokemonTcgDataJson } from './local-json.ts';
 import { assertWriteAuthorized, getWritePlanTitle, parseCatalogImportArgs, type CatalogImportOptions } from './import-args.ts';
 
 const SOURCE = 'pokemon_tcg_api';
@@ -975,6 +976,7 @@ function printExamples(title: string, examples: MatchExample[]): void {
 
 function printReport(params: {
   write: boolean;
+  sourceLabel: string;
   setId: string;
   setName: string;
   expectedCards: number | string;
@@ -992,7 +994,7 @@ function printReport(params: {
   matching?: MatchingReport;
 }): void {
   console.log(params.write ? 'Catalog import write' : 'Catalog import dry run');
-  console.log(`Source: ${SOURCE}`);
+  console.log(`Source: ${params.sourceLabel}`);
   console.log(`Set: ${params.setId}`);
   console.log(`Set name: ${params.setName}`);
   console.log(`Mode: ${params.write ? 'WRITE' : 'DRY RUN'}`);
@@ -1071,18 +1073,39 @@ async function main(): Promise<number> {
   const start = Date.now();
   const stats: FetchStats = { retriesUsed: 0 };
   let setId = 'unknown';
+  let sourceLabel = 'pokemon_tcg_api';
   let writeMode = process.argv.slice(2).includes('--write');
 
   try {
     const options = parseCatalogImportArgs(process.argv.slice(2));
     setId = options.setId;
+    sourceLabel = options.source;
     writeMode = options.write;
     assertWriteAuthorized(options);
-    const apiKey = getApiKey();
     const supabaseConfig = getSupabaseConfig();
     const supabase = createSupabase(supabaseConfig);
-    const set = await fetchSet(setId, apiKey, stats);
-    const cards = await fetchCards(setId, set.total, apiKey, stats);
+    const localData = options.source === 'pokemon_tcg_data' ? loadPokemonTcgDataJson(options.inputPath!, setId) : undefined;
+    const apiKey = options.source === 'pokemon_tcg_api' ? getApiKey() : undefined;
+    const set = localData
+      ? {
+          id: setId,
+          name: localData.setName,
+          series: '',
+          printedTotal: localData.cards.length,
+          total: localData.cards.length,
+          releaseDate: '',
+          updatedAt: '',
+        }
+      : await fetchSet(setId, apiKey!, stats);
+    const cards = localData
+      ? {
+          cards: localData.cards,
+          pagesFetched: 0,
+          emptyPageBeforeExpected: false,
+          repeatedPageDetected: false,
+          repeatedCardIdDetected: false,
+        }
+      : await fetchCards(setId, set.total, apiKey!, stats);
     const validation = validate(set, cards);
     const uniqueExternalIds = new Set(cards.cards.map((card) => card.id).filter(Boolean)).size;
     const matching = await matchCards(supabase, setId, cards.cards);
@@ -1095,6 +1118,7 @@ async function main(): Promise<number> {
 
     printReport({
       write: options.write,
+      sourceLabel,
       setId,
       setName: set.name,
       expectedCards: set.total,
@@ -1182,7 +1206,7 @@ async function main(): Promise<number> {
     return writePassed ? 0 : 1;
   } catch (error) {
     console.error(writeMode ? 'Catalog import write' : 'Catalog import dry run');
-    console.error(`Source: ${SOURCE}`);
+    console.error(`Source: ${sourceLabel}`);
     console.error(`Set: ${setId}`);
     console.error(`Mode: ${writeMode ? 'WRITE' : 'DRY RUN'}`);
     console.error('');
