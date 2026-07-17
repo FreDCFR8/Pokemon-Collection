@@ -37,6 +37,7 @@ export type CardDetailMetadataIcon =
   | 'rarity-special'
   | 'rarity-secret'
   | 'rarity-hyper'
+  | 'rarity-ace-spec'
   | 'rarity-unknown'
   | 'pokedex'
   | 'release-date'
@@ -75,6 +76,7 @@ function getRarityIcon(value: string): CardDetailMetadataIcon {
   const normalized = value.toLowerCase();
   if (normalized.includes('special illustration')) return 'rarity-special';
   if (normalized.includes('illustration rare')) return 'rarity-illustration';
+  if (normalized.includes('ace spec') || normalized.includes('ace rare')) return 'rarity-ace-spec';
   if (normalized.includes('hyper')) return 'rarity-hyper';
   if (normalized.includes('secret')) return 'rarity-secret';
   if (normalized.includes('double rare')) return 'rarity-double';

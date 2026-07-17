@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { formatCardDetailReleaseDate, getCardDetailMetadata, getCardDetailNavigationState } from '../../src/features/cardDetail/cardDetailGallery.ts';
 
@@ -44,12 +45,22 @@ test('derives all supported energy icons from card_details.types and supports mu
 });
 
 test('derives every supported rarity icon and uses a neutral fallback', () => {
-  const rarities = ['Common', 'Uncommon', 'Rare', 'Rare Holo', 'Double Rare', 'Ultra Rare', 'Illustration Rare', 'Special Illustration Rare', 'Hyper Rare', 'Secret Rare'];
+  const rarities = ['Common', 'Uncommon', 'Rare', 'Rare Holo', 'Double Rare', 'Ultra Rare', 'Illustration Rare', 'Special Illustration Rare', 'Hyper Rare', 'Secret Rare', 'ACE SPEC Rare'];
   assert.deepEqual(rarities.map((rarity) => getCardDetailMetadata({ ...card, rarity })[1]?.icons), [
     ['rarity-common'], ['rarity-uncommon'], ['rarity-rare'], ['rarity-rare-holo'], ['rarity-double'], ['rarity-ultra'],
-    ['rarity-illustration'], ['rarity-special'], ['rarity-hyper'], ['rarity-secret'],
+    ['rarity-illustration'], ['rarity-special'], ['rarity-hyper'], ['rarity-secret'], ['rarity-ace-spec'],
   ]);
   assert.deepEqual(getCardDetailMetadata({ ...card, rarity: 'Promo' })[1]?.icons, ['rarity-unknown']);
+});
+
+test('Card Detail icon implementation references only bundled local assets', () => {
+  const source = readFileSync(new URL('../../src/features/cardDetail/CardDetailAttributeIcon.tsx', import.meta.url), 'utf8');
+  assert.doesNotMatch(source, /https?:\/\//);
+  assert.doesNotMatch(source, /<use\b/);
+  assert.match(source, /assets\/tcg-symbols\/energy-psychic\.png/);
+  assert.match(source, /assets\/tcg-symbols\/energy-darkness\.png/);
+  assert.match(source, /assets\/tcg-symbols\/rarity-common\.png/);
+  assert.match(source, /assets\/tcg-symbols\/rarity-ace-spec\.png/);
 });
 
 test('always assigns visible neutral icons to Pokédex Number, Release Date and Illustrator rows', () => {
