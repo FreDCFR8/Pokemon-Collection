@@ -18,14 +18,13 @@ PR128 is gemerged. De batch-runner doorliep `sv3pt5` en `sv3` gecontroleerd; bei
 
 ## Active work
 
-Phase 7B-2F5:
+Phase 7B-2F6:
 
-- breid `cards_catalog` uit met gestructureerde optionele kaartdetails;
-- normaliseer API- en lokale JSON-velden via één importnormalizer;
-- toon beschikbare stabiele kaartdetails in het gedeelde Card Detail;
-- behoud bestaande metadata en collection-data veilig;
-- voeg gerichte tests toe voor normalisatie en presentatie;
-- de migration wordt in deze PR voorbereid maar niet toegepast.
+- herbruikbare detail-backfill via `catalog:backfill:details`;
+- dry-run standaard en expliciete write alleen voor `sv3pt5`/`sv3` via API-bron;
+- alleen lege `card_details` worden aangevuld;
+- missing targets, verkeerde sets en collection-countwijzigingen blokkeren de run;
+- lokale JSON blijft read-only voor backfill totdat apart geautoriseerd.
 
 ## Current architecture baseline
 
