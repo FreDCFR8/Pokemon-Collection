@@ -1,6 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { randomUUID } from 'node:crypto';
 import { loadPokemonTcgDataJson } from './local-json.ts';
+import { parseCardDetails, type CardDetails } from './card-details.ts';
 import { assertWriteAuthorized, getWritePlanTitle, parseCatalogImportArgs, type CatalogImportOptions } from './import-args.ts';
 
 const SOURCE = 'pokemon_tcg_api';
@@ -33,6 +34,7 @@ type CatalogCardRow = {
   rarity: string | null;
   image_small: string | null;
   image_large: string | null;
+  card_details?: CardDetails | null;
 };
 
 type CatalogIdentityRow = {
@@ -96,6 +98,7 @@ type PlannedCatalogInsert = {
   rarity: string | null;
   image_small: string | null;
   image_large: string | null;
+  card_details: CardDetails;
   set_code: string;
 };
 
@@ -157,6 +160,7 @@ type PokemonCard = {
     small?: string;
     large?: string;
   };
+  details: CardDetails;
 };
 
 type FetchStats = {
@@ -249,6 +253,7 @@ function parseCards(value: unknown): PokemonCard[] {
             large: readString(images, 'large'),
           }
         : undefined,
+      details: parseCardDetails(item),
     };
   });
 }
@@ -330,7 +335,7 @@ async function fetchCards(setId: string, expectedCards: number, apiKey: string, 
     url.searchParams.set('q', `set.id:${setId}`);
     url.searchParams.set('page', String(page));
     url.searchParams.set('pageSize', String(PAGE_SIZE));
-    url.searchParams.set('select', 'id,name,number,rarity,images');
+    url.searchParams.set('select', 'id,name,number,rarity,images,supertype,subtypes,hp,types,evolvesFrom,evolvesTo,rules,abilities,attacks,weaknesses,resistances,retreatCost,artist,nationalPokedexNumbers,legalities,regulationMark');
 
     const response = (await fetchJson(url, apiKey, stats)) as PokemonCardsResponse;
     if (!isObject(response) || response.data === undefined) {
@@ -535,7 +540,7 @@ async function fetchCatalogCardsForSet(supabase: SupabaseClient, setCode: string
     const batch = await readRows<CatalogCardRow>(
       supabase
         .from('cards_catalog')
-        .select('id,set_code,number,pokemon,rarity,image_small,image_large')
+        .select('id,set_code,number,pokemon,rarity,image_small,image_large,card_details')
         .eq('set_code', setCode)
         .order('id')
         .range(offset, offset + SUPABASE_BATCH_SIZE - 1),
@@ -771,6 +776,7 @@ function buildWritePlan(matching: MatchingReport, setName: string, importedAt: s
       rarity: normalizeOptional(classification.externalCard.rarity),
       image_small: normalizeOptional(classification.externalCard.images?.small),
       image_large: normalizeOptional(classification.externalCard.images?.large),
+      card_details: classification.externalCard.details,
       set_code: setCode,
     });
     referencesForNewCards.push({
