@@ -7,10 +7,24 @@ const parses = (args: string[]) => parseCatalogImportArgs(args);
 const rejects = (args: string[]) => assert.throws(() => parses(args));
 
 test('allows dry-run for the reference set and other valid set IDs', () => {
-  assert.deepEqual(parses(['--set', 'sv3pt5']), { setId: 'sv3pt5', write: false });
-  assert.deepEqual(parses(['--set', 'sv3']), { setId: 'sv3', write: false });
-  assert.deepEqual(parses(['--set', 'swsh12']), { setId: 'swsh12', write: false });
-  assert.deepEqual(parses(['--set', 'base1']), { setId: 'base1', write: false });
+  assert.deepEqual(parses(['--set', 'sv3pt5']), { setId: 'sv3pt5', write: false, source: 'pokemon_tcg_api' });
+  assert.deepEqual(parses(['--set', 'sv3']), { setId: 'sv3', write: false, source: 'pokemon_tcg_api' });
+  assert.deepEqual(parses(['--set', 'swsh12']), { setId: 'swsh12', write: false, source: 'pokemon_tcg_api' });
+  assert.deepEqual(parses(['--set', 'base1']), { setId: 'base1', write: false, source: 'pokemon_tcg_api' });
+});
+
+
+test('parses local JSON source input as read-only', () => {
+  assert.deepEqual(parses(['--set', 'sv3', '--source', 'pokemon_tcg_data', '--input', 'data/sv3.json']), {
+    setId: 'sv3',
+    write: false,
+    source: 'pokemon_tcg_data',
+    inputPath: 'data/sv3.json',
+  });
+  assert.throws(
+    () => assertWriteAuthorized(parses(['--set', 'sv3', '--source', 'pokemon_tcg_data', '--input', 'data/sv3.json', '--write'])),
+    /lokale JSON-bron.*read-only/i,
+  );
 });
 
 test('dry-run is never write-authorized', () => {
@@ -38,7 +52,7 @@ test('rejects unsafe or malformed arguments', () => {
     [], ['--set'], ['--set', ''], ['--set', 'sv3pt5', '--set', 'sv4'], ['--set', 'sv3pt5', '--write', '--write'],
     ['--set', 'sv3pt5', '--write=true'], ['--set', 'sv3pt5', '--write=false'], ['--set', 'sv3pt5', '--wat'],
     ['--set', 'SV3PT5'], ['--set', 'sv 3pt5'], ['--set', 'sv/3pt5'], ['--set', 'sv?3pt5'], ['--set', 'sv&3pt5'],
-    ['--set', 'sv:3pt5'], ['--set', 'sv.3pt5'], ['--set', 'sv\\3pt5'], ['--set', 'a'.repeat(33)], ['--set', 'sv3pt5', 'extra'],
+    ['--set', 'sv:3pt5'], ['--set', 'sv.3pt5'], ['--set', 'sv\\3pt5'], ['--set', 'a'.repeat(33)], ['--set', 'sv3pt5', 'extra'], ['--set', 'sv3', '--source', 'pokemon_tcg_data'], ['--set', 'sv3', '--source', 'pokemon_tcg_data', '--input', 'a', '--input', 'b'], ['--set', 'sv3', '--source', 'pokemon_tcg_data', '--input', 'a', '--source', 'pokemon_tcg_api'],
   ]) rejects(args);
 });
 
