@@ -49,6 +49,7 @@ function parseCard(value: unknown, setId: string): LocalPokemonCard {
           large: readString(images, 'large'),
         }
       : undefined,
+    details: parseCardDetails(value),
   };
 }
 
