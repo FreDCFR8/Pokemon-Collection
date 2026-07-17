@@ -7,6 +7,8 @@ export type {
   CardDetailProductCopy,
 } from './CardDetailDialog';
 export { getCardDetailMetadata, getCardDetailNavigationState } from './cardDetailGallery';
+export { getCardDetailDetails } from './cardDetails';
+export type { CardDetailDetails, CardDetailDetailItem } from './cardDetails';
 export type { CardDetailMetadataItem } from './cardDetailGallery';
 export {
   createCardDetailOwnershipPresentation,
