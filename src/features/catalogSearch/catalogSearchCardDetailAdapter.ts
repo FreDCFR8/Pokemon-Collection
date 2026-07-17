@@ -30,6 +30,7 @@ export function toCatalogSearchCardDetailCard(card: CatalogSearchCard): CardDeta
     number: card.number,
     set: { setCode: card.setCode, name: card.setName },
     rarity: card.rarity,
+    details: card.details as import('../cardDetail/cardDetails').CardDetailDetails | null | undefined,
     images: { small: card.imageSmall, large: card.imageLarge },
   };
 }

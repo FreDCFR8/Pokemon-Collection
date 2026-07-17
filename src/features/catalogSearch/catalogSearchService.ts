@@ -6,7 +6,7 @@ import {
 } from './catalogSearchTypes';
 import { getCatalogSearchRange, isCatalogSearchTermValid, normalizeCatalogSearchTerm } from './catalogSearchHelpers';
 
-const CATALOG_SEARCH_SELECT = 'id, pokemon, set_name, set_code, number, rarity, image_small, image_large';
+const CATALOG_SEARCH_SELECT = 'id, pokemon, set_name, set_code, number, rarity, image_small, image_large, card_details';
 
 type CatalogSearchDatabaseRow = {
   id: unknown;
@@ -17,6 +17,7 @@ type CatalogSearchDatabaseRow = {
   rarity: unknown;
   image_small: unknown;
   image_large: unknown;
+  card_details: unknown;
 };
 
 function textOrNull(value: unknown): string | null {
@@ -34,6 +35,7 @@ function mapCatalogSearchCard(row: CatalogSearchDatabaseRow): CatalogSearchCard 
     rarity: textOrNull(row.rarity),
     imageSmall: textOrNull(row.image_small),
     imageLarge: textOrNull(row.image_large),
+    details: row.card_details && typeof row.card_details === 'object' ? row.card_details as Record<string, unknown> : null,
   } : null;
 }
 

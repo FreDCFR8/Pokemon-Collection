@@ -23,6 +23,7 @@ test('parses the PokemonTCG local card JSON shape', () => {
         number: '1',
         rarity: 'Common',
         images: { small: 'small-url', large: 'large-url' },
+        details: {},
       },
     ],
   });
@@ -31,7 +32,7 @@ test('parses the PokemonTCG local card JSON shape', () => {
 test('accepts the upstream per-set card file without repeated set metadata', () => {
   assert.deepEqual(parsePokemonTcgDataJson(JSON.stringify([{ id: 'sv3-1', name: 'Oddish', number: '1' }]), 'sv3'), {
     setName: 'sv3',
-    cards: [{ id: 'sv3-1', name: 'Oddish', number: '1', rarity: undefined, images: undefined }],
+    cards: [{ id: 'sv3-1', name: 'Oddish', number: '1', rarity: undefined, images: undefined, details: {} }],
   });
 });
 

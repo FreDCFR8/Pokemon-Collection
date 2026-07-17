@@ -6,7 +6,7 @@ This document contains current operational state only. Historical direction belo
 
 ## Current phase
 
-**Phase 7B-2F4 — Versioneerbare lokale JSON-input**
+**Phase 7B-2F5 — Catalogusmetadata & Card Detail enrichment**
 
 Deze fase voegt een read-only lokale JSON-bronadapter toe voor de datasetstructuur van `PokemonTCG/pokemon-tcg-data`. De bestaande single-set importer blijft de matching- en veiligheidsgrens; lokale input kan bestaande externe IDs opnieuw valideren zonder API-call of databasewrite.
 
@@ -18,14 +18,14 @@ PR128 is gemerged. De batch-runner doorliep `sv3pt5` en `sv3` gecontroleerd; bei
 
 ## Active work
 
-Phase 7B-2F4:
+Phase 7B-2F5:
 
-- voeg lokale JSON-input toe voor de `PokemonTCG/pokemon-tcg-data` kaartstructuur;
-- behandel de upstream `cards/en/{set}.json`-file als één setcontext via `--set`; aanwezige `set.id`-velden worden gecontroleerd wanneer ze aanwezig zijn;
-- hergebruik de bestaande normalisatie, Supabase matching en veiligheidsrapportage;
-- behoud API-identiteit `pokemon_tcg_api` zodat bestaande externe IDs en stabiele interne catalogus-ID's matchen;
-- houd lokale JSON-input read-only totdat een aparte write-autorisatiefase is goedgekeurd;
-- voeg parser- en CLI-tests toe zonder databasewrites of import-run in de PR.
+- breid `cards_catalog` uit met gestructureerde optionele kaartdetails;
+- normaliseer API- en lokale JSON-velden via één importnormalizer;
+- toon beschikbare stabiele kaartdetails in het gedeelde Card Detail;
+- behoud bestaande metadata en collection-data veilig;
+- voeg gerichte tests toe voor normalisatie en presentatie;
+- de migration wordt in deze PR voorbereid maar niet toegepast.
 
 ## Current architecture baseline
 
@@ -81,4 +81,4 @@ Pokémon TCG API set `sv3` (`Obsidian Flames`) is imported and idempotency-verif
 
 ## Next phase scope
 
-Na validatie van de lokale JSON-bron volgt een afzonderlijke fase voor lokale bronwrites en daarna bredere catalogussynchronisatie. Trade remains a separate future area and the lowest product priority.
+Na metadata-enrichment volgt een afzonderlijke gecontroleerde backfill voor bestaande catalogusrecords, daarna lokale manifest/batch-synchronisatie en pas daarna bredere cataloguswrites. Trade remains a separate future area and the lowest product priority.
