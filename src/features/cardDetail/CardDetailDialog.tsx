@@ -5,9 +5,9 @@ import type {
   CollectionOwnershipState,
   CollectionStatus,
 } from '../collectionCards';
-import cardDetailSymbolsUrl from '../../assets/card-detail-symbols.svg';
+import { CardDetailAttributeIcon } from './CardDetailAttributeIcon';
 import { areCardDetailActionsBlocked, getCardDetailActionMode, getCardDetailWishlistAction } from './cardDetailMutationState';
-import { getCardDetailMetadata, getCardDetailNavigationState, type CardDetailMetadataIcon } from './cardDetailGallery';
+import { getCardDetailMetadata, getCardDetailNavigationState } from './cardDetailGallery';
 
 export type CardDetailMutationOperation = 'add' | 'add-wishlist' | 'remove-wishlist' | 'promote-wishlist' | 'increase' | 'decrease' | 'delete';
 
@@ -109,16 +109,6 @@ function getOwnershipLabel(ownership: CollectionOwnershipState, copy: CardDetail
     label: copy.physicalPresenceLabel ?? (ownership.value.value.physicalPresence === 'present' ? 'In collectie' : 'Niet in collectie'),
     className: ownership.value.value.physicalPresence === 'present' ? 'is-present' : 'is-absent',
   };
-}
-
-function AttributeIcon({ icon }: { icon: CardDetailMetadataIcon }) {
-  const isEnergy = icon.startsWith('energy-');
-  return (
-    <svg className="card-detail-attribute-svg" viewBox="0 0 24 24" aria-hidden="true">
-      {isEnergy ? <circle className="card-detail-energy-disc" cx="12" cy="12" r="11" /> : null}
-      <use className={isEnergy ? 'card-detail-energy-glyph' : undefined} href={`${cardDetailSymbolsUrl}#${icon}`} />
-    </svg>
-  );
 }
 
 export function CardDetailDialog({
@@ -272,7 +262,13 @@ export function CardDetailDialog({
               <dl className="card-detail-attributes" aria-label="Kaartattributen">
                 {metadata.map((item) => (
                   <div className="card-detail-attribute" key={item.label}>
-                    <span className={`card-detail-attribute-icon is-${item.icon}`}><AttributeIcon icon={item.icon} /></span>
+                    <span className="card-detail-attribute-icons">
+                      {item.icons.map((icon, index) => (
+                        <span className={`card-detail-attribute-icon is-${icon}`} key={`${icon}-${index}`}>
+                          <CardDetailAttributeIcon icon={icon} />
+                        </span>
+                      ))}
+                    </span>
                     <dt>{item.label}</dt>
                     <dd>{item.value}</dd>
                   </div>

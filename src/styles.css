@@ -1505,7 +1505,7 @@ button {
 .card-detail-attributes { display: grid; gap: 8px; width: 100%; margin: 0; }
 .card-detail-attribute {
   display: grid;
-  grid-template-columns: 38px minmax(0, 1fr);
+  grid-template-columns: minmax(38px, auto) minmax(0, 1fr);
   grid-template-rows: auto auto;
   align-items: center;
   min-width: 0;
@@ -1515,25 +1515,32 @@ button {
   background: #fff;
   padding: 10px 16px;
 }
-.card-detail-attribute-icon { grid-row: 1 / -1; display: grid; place-items: center; color: #263238; }
-.card-detail-attribute-svg { width: 24px; height: 24px; overflow: visible; }
-.card-detail-energy-disc { fill: currentColor; }
-.card-detail-energy-glyph { color: #fff; }
+.card-detail-attribute-icons { grid-row: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 3px; padding-right: 8px; }
+.card-detail-attribute-icon { display: grid; place-items: center; color: #394349; }
+.card-detail-attribute-svg { display: block; width: 23px; height: 23px; overflow: visible; }
 .card-detail-attribute-icon.is-energy-psychic { color: #8a4eb7; }
 .card-detail-attribute-icon.is-energy-darkness { color: #20252b; }
 .card-detail-attribute-icon.is-energy-fire { color: #d9483b; }
 .card-detail-attribute-icon.is-energy-water { color: #287bc1; }
 .card-detail-attribute-icon.is-energy-grass { color: #3f9145; }
 .card-detail-attribute-icon.is-energy-lightning { color: #d39b00; }
-.card-detail-attribute-icon.is-energy-lightning .card-detail-energy-glyph { color: #2b281f; }
 .card-detail-attribute-icon.is-energy-colorless { color: #778087; }
+.card-detail-attribute-icon.is-energy-fighting { color: #ad6741; }
+.card-detail-attribute-icon.is-energy-metal { color: #71808a; }
+.card-detail-attribute-icon.is-energy-fairy { color: #d76cae; }
+.card-detail-attribute-icon.is-energy-dragon { color: #c89a24; }
+.card-detail-attribute-icon.is-energy-unknown { color: #778087; }
 .card-detail-attribute-icon.is-rarity-common { color: #6f7780; }
 .card-detail-attribute-icon.is-rarity-uncommon { color: #3e78a8; }
 .card-detail-attribute-icon.is-rarity-rare { color: #d39b00; }
+.card-detail-attribute-icon.is-rarity-rare-holo { color: #2987b8; }
+.card-detail-attribute-icon.is-rarity-double { color: #475569; }
 .card-detail-attribute-icon.is-rarity-ultra { color: #b44b9d; }
+.card-detail-attribute-icon.is-rarity-illustration { color: #cf8c22; }
 .card-detail-attribute-icon.is-rarity-special { color: #e37427; }
 .card-detail-attribute-icon.is-rarity-secret { color: #25948a; }
 .card-detail-attribute-icon.is-rarity-hyper { color: #b98a18; }
+.card-detail-attribute-icon.is-rarity-unknown { color: #778087; }
 .card-detail-attribute dt { grid-column: 2; min-width: 0; color: #7a8285; font-size: .7rem; font-weight: 500; overflow-wrap: anywhere; }
 .card-detail-attribute dd { grid-column: 2; min-width: 0; margin: 1px 0 0; color: #11151a; font-size: .84rem; font-weight: 650; overflow-wrap: anywhere; }
 .card-detail-retry-button { min-height: 44px; margin-top: 10px; border: 0; border-radius: 999px; background: #2563eb; color: #fff; cursor: pointer; padding: 0 16px; font-weight: 800; }

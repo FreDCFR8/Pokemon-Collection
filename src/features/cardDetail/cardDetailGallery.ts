@@ -11,7 +11,7 @@ export type CardDetailMetadataSource = {
 export type CardDetailMetadataItem = {
   label: string;
   value: string;
-  icon: CardDetailMetadataIcon;
+  icons: CardDetailMetadataIcon[];
 };
 
 export type CardDetailMetadataIcon =
@@ -20,15 +20,24 @@ export type CardDetailMetadataIcon =
   | 'energy-fire'
   | 'energy-grass'
   | 'energy-lightning'
+  | 'energy-fighting'
+  | 'energy-metal'
+  | 'energy-fairy'
+  | 'energy-dragon'
+  | 'energy-unknown'
   | 'energy-psychic'
   | 'energy-water'
   | 'rarity-common'
   | 'rarity-uncommon'
   | 'rarity-rare'
+  | 'rarity-rare-holo'
+  | 'rarity-double'
   | 'rarity-ultra'
+  | 'rarity-illustration'
   | 'rarity-special'
   | 'rarity-secret'
   | 'rarity-hyper'
+  | 'rarity-unknown'
   | 'pokedex'
   | 'release-date'
   | 'illustrator';
@@ -47,25 +56,34 @@ export function formatCardDetailReleaseDate(value: string): string {
 }
 
 function getEnergyIcon(value: string): CardDetailMetadataIcon {
-  const normalized = value.toLowerCase();
+  const normalized = value.trim().toLowerCase();
   if (normalized.includes('psychic')) return 'energy-psychic';
   if (normalized.includes('darkness') || normalized.includes('dark')) return 'energy-darkness';
   if (normalized.includes('fire')) return 'energy-fire';
   if (normalized.includes('water')) return 'energy-water';
   if (normalized.includes('grass')) return 'energy-grass';
   if (normalized.includes('lightning') || normalized.includes('electric')) return 'energy-lightning';
-  return 'energy-colorless';
+  if (normalized.includes('colorless') || normalized.includes('colourless')) return 'energy-colorless';
+  if (normalized.includes('fighting')) return 'energy-fighting';
+  if (normalized.includes('metal') || normalized.includes('steel')) return 'energy-metal';
+  if (normalized.includes('fairy')) return 'energy-fairy';
+  if (normalized.includes('dragon')) return 'energy-dragon';
+  return 'energy-unknown';
 }
 
 function getRarityIcon(value: string): CardDetailMetadataIcon {
   const normalized = value.toLowerCase();
-  if (normalized.includes('special illustration') || normalized.includes('illustration rare')) return 'rarity-special';
+  if (normalized.includes('special illustration')) return 'rarity-special';
+  if (normalized.includes('illustration rare')) return 'rarity-illustration';
   if (normalized.includes('hyper')) return 'rarity-hyper';
   if (normalized.includes('secret')) return 'rarity-secret';
+  if (normalized.includes('double rare')) return 'rarity-double';
   if (normalized.includes('ultra')) return 'rarity-ultra';
+  if (normalized.includes('rare holo') || normalized.includes('holo rare')) return 'rarity-rare-holo';
   if (normalized.includes('uncommon')) return 'rarity-uncommon';
   if (normalized.includes('common')) return 'rarity-common';
-  return 'rarity-rare';
+  if (normalized === 'rare') return 'rarity-rare';
+  return 'rarity-unknown';
 }
 
 export function getCardDetailNavigationState(currentIndex: number, total: number): { canPrevious: boolean; canNext: boolean } {
@@ -80,13 +98,16 @@ export function getCardDetailNavigationState(currentIndex: number, total: number
 
 export function getCardDetailMetadata(card: CardDetailMetadataSource): CardDetailMetadataItem[] {
   const nationalNumber = card.details?.nationalPokedexNumbers?.filter((number) => Number.isFinite(number)).join(', ');
-  const energyType = card.energyType ?? card.details?.types?.filter(Boolean).join(', ');
+  const detailTypes = card.details?.types?.map((type) => type.trim()).filter(Boolean) ?? [];
+  const fallbackTypes = card.energyType?.split(/\s*[,/]\s*/).map((type) => type.trim()).filter(Boolean) ?? [];
+  const energyTypes = detailTypes.length > 0 ? detailTypes : fallbackTypes;
+  const energyType = energyTypes.join(', ');
 
   return [
-    energyType ? { label: 'Energy Type', value: energyType, icon: getEnergyIcon(energyType) } : null,
-    card.rarity ? { label: 'Rarity', value: card.rarity, icon: getRarityIcon(card.rarity) } : null,
-    nationalNumber ? { label: 'Pokédex Number', value: nationalNumber, icon: 'pokedex' } : null,
-    card.set.releaseDate ? { label: 'Release Date', value: formatCardDetailReleaseDate(card.set.releaseDate), icon: 'release-date' } : null,
-    card.details?.artist ? { label: 'Illustrator', value: card.details.artist, icon: 'illustrator' } : null,
+    energyType ? { label: 'Energy Type', value: energyType, icons: energyTypes.map(getEnergyIcon) } : null,
+    card.rarity ? { label: 'Rarity', value: card.rarity, icons: [getRarityIcon(card.rarity)] } : null,
+    nationalNumber ? { label: 'Pokédex Number', value: nationalNumber, icons: ['pokedex'] } : null,
+    card.set.releaseDate ? { label: 'Release Date', value: formatCardDetailReleaseDate(card.set.releaseDate), icons: ['release-date'] } : null,
+    card.details?.artist ? { label: 'Illustrator', value: card.details.artist, icons: ['illustrator'] } : null,
   ].filter((item): item is CardDetailMetadataItem => item !== null);
 }

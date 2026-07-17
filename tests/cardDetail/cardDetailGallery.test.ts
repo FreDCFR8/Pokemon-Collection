@@ -15,11 +15,11 @@ const card = {
 
 test('Card Detail metadata includes available fields and hides missing values', () => {
   assert.deepEqual(getCardDetailMetadata(card), [
-    { label: 'Energy Type', value: 'Lightning', icon: 'energy-lightning' },
-    { label: 'Rarity', value: 'Rare', icon: 'rarity-rare' },
-    { label: 'Pokédex Number', value: '25', icon: 'pokedex' },
-    { label: 'Release Date', value: '9 jan 1999', icon: 'release-date' },
-    { label: 'Illustrator', value: 'Artist', icon: 'illustrator' },
+    { label: 'Energy Type', value: 'Lightning', icons: ['energy-lightning'] },
+    { label: 'Rarity', value: 'Rare', icons: ['rarity-rare'] },
+    { label: 'Pokédex Number', value: '25', icons: ['pokedex'] },
+    { label: 'Release Date', value: '9 jan 1999', icons: ['release-date'] },
+    { label: 'Illustrator', value: 'Artist', icons: ['illustrator'] },
   ]);
 
   assert.deepEqual(getCardDetailMetadata({ ...card, number: null, rarity: null, energyType: null, details: null, set: { setCode: null, name: null } }), []);
@@ -30,15 +30,34 @@ test('formats release dates stably and keeps invalid source values unchanged', (
   assert.equal(formatCardDetailReleaseDate('not-a-date'), 'not-a-date');
 });
 
-test('derives energy and rarity icons from real values', () => {
-  const energyTypes = ['Psychic', 'Darkness', 'Fire', 'Water', 'Grass', 'Lightning', 'Colorless'];
-  assert.deepEqual(energyTypes.map((energyType) => getCardDetailMetadata({ ...card, energyType })[0]?.icon), [
-    'energy-psychic', 'energy-darkness', 'energy-fire', 'energy-water', 'energy-grass', 'energy-lightning', 'energy-colorless',
+test('derives all supported energy icons from card_details.types and supports multiple types', () => {
+  const energyTypes = ['Psychic', 'Darkness', 'Fire', 'Water', 'Grass', 'Lightning', 'Colorless', 'Fighting', 'Metal', 'Fairy', 'Dragon'];
+  assert.deepEqual(energyTypes.map((energyType) => getCardDetailMetadata({ ...card, details: { ...card.details, types: [energyType] } })[0]?.icons), [
+    ['energy-psychic'], ['energy-darkness'], ['energy-fire'], ['energy-water'], ['energy-grass'], ['energy-lightning'], ['energy-colorless'],
+    ['energy-fighting'], ['energy-metal'], ['energy-fairy'], ['energy-dragon'],
   ]);
 
-  const rarities = ['Common', 'Uncommon', 'Rare', 'Ultra Rare', 'Special Illustration Rare', 'Secret Rare', 'Hyper Rare'];
-  assert.deepEqual(rarities.map((rarity) => getCardDetailMetadata({ ...card, rarity })[1]?.icon), [
-    'rarity-common', 'rarity-uncommon', 'rarity-rare', 'rarity-ultra', 'rarity-special', 'rarity-secret', 'rarity-hyper',
+  assert.deepEqual(getCardDetailMetadata({ ...card, details: { ...card.details, types: ['Fire', 'Dragon'] } })[0], {
+    label: 'Energy Type', value: 'Fire, Dragon', icons: ['energy-fire', 'energy-dragon'],
+  });
+  assert.deepEqual(getCardDetailMetadata({ ...card, details: { ...card.details, types: ['Mystery'] } })[0]?.icons, ['energy-unknown']);
+});
+
+test('derives every supported rarity icon and uses a neutral fallback', () => {
+  const rarities = ['Common', 'Uncommon', 'Rare', 'Rare Holo', 'Double Rare', 'Ultra Rare', 'Illustration Rare', 'Special Illustration Rare', 'Hyper Rare', 'Secret Rare'];
+  assert.deepEqual(rarities.map((rarity) => getCardDetailMetadata({ ...card, rarity })[1]?.icons), [
+    ['rarity-common'], ['rarity-uncommon'], ['rarity-rare'], ['rarity-rare-holo'], ['rarity-double'], ['rarity-ultra'],
+    ['rarity-illustration'], ['rarity-special'], ['rarity-hyper'], ['rarity-secret'],
+  ]);
+  assert.deepEqual(getCardDetailMetadata({ ...card, rarity: 'Promo' })[1]?.icons, ['rarity-unknown']);
+});
+
+test('always assigns visible neutral icons to Pokédex Number, Release Date and Illustrator rows', () => {
+  const metadata = getCardDetailMetadata(card);
+  assert.deepEqual(metadata.slice(2).map(({ label, icons }) => ({ label, icons })), [
+    { label: 'Pokédex Number', icons: ['pokedex'] },
+    { label: 'Release Date', icons: ['release-date'] },
+    { label: 'Illustrator', icons: ['illustrator'] },
   ]);
 });
 
