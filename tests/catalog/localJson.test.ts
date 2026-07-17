@@ -28,7 +28,14 @@ test('parses the PokemonTCG local card JSON shape', () => {
   });
 });
 
-test('rejects mixed-set local JSON input', () => {
+test('accepts the upstream per-set card file without repeated set metadata', () => {
+  assert.deepEqual(parsePokemonTcgDataJson(JSON.stringify([{ id: 'sv3-1', name: 'Oddish', number: '1' }]), 'sv3'), {
+    setName: 'sv3',
+    cards: [{ id: 'sv3-1', name: 'Oddish', number: '1', rarity: undefined, images: undefined }],
+  });
+});
+
+test('rejects mixed-set local JSON input when set metadata is present', () => {
   assert.throws(
     () =>
       parsePokemonTcgDataJson(
@@ -45,8 +52,5 @@ test('rejects mixed-set local JSON input', () => {
 test('rejects empty or malformed local JSON input', () => {
   assert.throws(() => parsePokemonTcgDataJson('[]', 'sv3'), /niet-lege array/i);
   assert.throws(() => parsePokemonTcgDataJson('{"cards": []}', 'sv3'), /niet-lege array/i);
-  assert.throws(
-    () => parsePokemonTcgDataJson(JSON.stringify([{ id: 'sv3-1', name: 'Oddish', number: '1' }]), 'sv3'),
-    /set\.name/i,
-  );
+  assert.throws(() => parsePokemonTcgDataJson('not-json', 'sv3'), /geldige JSON/i);
 });
