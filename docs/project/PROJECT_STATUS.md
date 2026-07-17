@@ -6,39 +6,25 @@ This document contains current operational state only. Historical direction belo
 
 ## Current phase
 
-**Phase 7D-1B — Collection- en Wishlistacties vanuit Zoeken**
+**Phase 7B-2F1 — Veilige multi-set dry-runvoorbereiding**
+
+Deze fase bereidt uitsluitend veilige read-only dry-runs voor meerdere geldige Pokémon TCG-set-ID’s voor. Er wordt geen catalogusimport uitgevoerd en er zijn geen databasewrites toegestaan.
 
 ## Latest merged product milestone
 
-**PR124 — Phase 7D-1A: Globale cataloguszoekfunctie read-only**
+**PR125 — Phase 7D-1B: Kaart toevoegen vanuit globale cataloguszoekfunctie**
 
-PR124 is gemerged. De globale cataloguszoekfunctie gebruikt bounded server-side search, pagina’s van 24 kaarten, gedeelde image-only grids en read-only Card Detail.
-
-Available behavior:
-
-- Sets uses the shared controlled Card Detail presentation through a thin Sets adapter;
-- opened sets load catalog cards in server-side batches of 30;
-- binder grid shows card images with a subtle collection marker;
-- card metadata and management controls are shown in card detail;
-- absent cards can be added as one owned Near Mint copy;
-- quantity changes use secured exact-step UPDATE behavior;
-- transition from one copy to zero uses secured DELETE behavior;
-- Collection Card Detail quantity management is available for the active collection;
-- set progress counts unique physical card presence, not quantity;
-- Lars and Lore remain isolated through the active collection and RLS.
+PR125 is gemerged. Phase 7D-1B is afgerond en catalogusdekking en collectiebeheer zijn de primaire productfocus.
 
 ## Active work
 
-Phase 7D-1B adds existing Collection and Wishlist management to global Search:
+Phase 7B-2F1:
 
-- absent cards can be added as one owned Near Mint copy or one wishlist entry;
-- wishlist-only cards can be removed or atomically promoted to owned;
-- manageable owned Near Mint cards support secured exact-step quantity changes and last-copy deletion;
-- every write is followed by a bounded ownership read for the selected card;
-- success is shown only when the returned server truth matches the expected state transition;
-- a failed confirmation retry repeats only the ownership read and never repeats a completed write;
-- request-context guards prevent stale responses from changing another card, page or search;
-- PR125 has passed technical review and awaits manual iPhone and desktop validation.
+- lowercase ASCII-set-ID’s met begrensde lengte zijn read-only analyseerbaar;
+- dry-run blijft de standaard en toont matching, fallbackkandidaten en een theoretisch writeplan;
+- alleen exact `npm run catalog:import -- --set sv3pt5 --write` is write-geautoriseerd;
+- andere sets met `--write` worden vóór externe API- of Supabase-calls geblokkeerd;
+- `collection_cards` blijft buiten ieder importer-writepad en `public.cards` blijft legacy.
 
 ## Current architecture baseline
 
@@ -74,17 +60,8 @@ Pokémon TCG API set `sv3pt5` (`151`) remains the verified controlled-import ref
 - post-write idempotency dry-run planned and executed zero writes;
 - `collection_cards` was unchanged by the catalog import.
 
-Expansion to other catalog sets requires separately scoped validation and approval.
+Expansion to other catalog sets requires separately scoped validation and approval. This phase adds no second write-authorized set.
 
 ## Next phase scope
 
-Complete Phase 7D-1B through manual iPhone and desktop validation, documentation verification and merge of PR125. Advanced search filters, Trade, missing and condition/status editing remain separate future phases.
-
-## Known attention points
-
-- PR125 still requires manual iPhone and desktop validation before merge;
-- global Search actions remain inside Card Detail; the image-only result grid has no direct management controls;
-- wishlist pagination remains bounded; direct actions from binder grids are not available;
-- trade and missing workflows are not yet available;
-- full external catalog synchronization remains future work;
-- historical project facts should not be added back to this status document unless they are operationally current.
+Candidate pilot-set selection and any new write authorization require a separate reviewed phase. Trade remains a separate future area and the lowest product priority.

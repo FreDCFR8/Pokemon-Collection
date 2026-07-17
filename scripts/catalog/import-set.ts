@@ -1,7 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { randomUUID } from 'node:crypto';
+import { assertWriteAuthorized, getWritePlanTitle, parseCatalogImportArgs, type CatalogImportOptions } from './import-args.ts';
 
-const ALLOWED_SET_ID = 'sv3pt5';
 const SOURCE = 'pokemon_tcg_api';
 const API_BASE_URL = 'https://api.pokemontcg.io/v2';
 const PAGE_SIZE = 250;
@@ -13,7 +13,7 @@ const EXAMPLE_LIMIT = 10;
 const RETRY_STATUSES = new Set([429, 502, 503, 504]);
 const PERMANENT_STATUSES = new Set([400, 401, 403, 404]);
 
-type CliOptions = { setId: string; write: boolean };
+type CliOptions = CatalogImportOptions;
 
 type SupabaseConfig = { url: string; serviceRoleKey: string };
 
@@ -183,54 +183,6 @@ type ValidationResult = {
 class UserFacingError extends Error {}
 class RequestError extends Error {}
 class InvalidResponseError extends Error {}
-
-function parseArgs(argv: string[]): CliOptions {
-  let setId: string | undefined;
-  let write = false;
-
-  for (let index = 0; index < argv.length; index += 1) {
-    const arg = argv[index];
-
-    if (arg === '--set') {
-      if (setId !== undefined) throw new UserFacingError('--set mag slechts eenmaal worden opgegeven.');
-      const value = argv[index + 1];
-      if (!value || value.startsWith('--')) {
-        throw new UserFacingError('Ontbrekende waarde voor --set. Gebruik: npm run catalog:import -- --set sv3pt5');
-      }
-      setId = value;
-      index += 1;
-      continue;
-    }
-
-    if (arg.startsWith('--set=')) {
-      if (setId !== undefined) throw new UserFacingError('--set mag slechts eenmaal worden opgegeven.');
-      setId = arg.slice('--set='.length);
-      continue;
-    }
-
-    if (arg === '--write') {
-      if (write) throw new UserFacingError('--write mag slechts eenmaal worden opgegeven.');
-      write = true;
-      continue;
-    }
-
-    if (arg.startsWith('--write=')) {
-      throw new UserFacingError('Ongeldige --write-variant. Alleen het exacte argument --write is toegestaan.');
-    }
-
-    throw new UserFacingError(`Onbekend argument: ${arg}`);
-  }
-
-  if (!setId) {
-    throw new UserFacingError('Verplicht argument ontbreekt: --set. Gebruik: npm run catalog:import -- --set sv3pt5');
-  }
-
-  if (setId !== ALLOWED_SET_ID) {
-    throw new UserFacingError(`Ongeldige set-ID: ${setId}. In deze fase is alleen ${ALLOWED_SET_ID} toegestaan.`);
-  }
-
-  return { setId, write };
-}
 
 function getApiKey(): string {
   const apiKey = process.env.POKEMON_TCG_API_KEY;
@@ -1072,6 +1024,7 @@ function printReport(params: {
     console.log(`Unresolved without set mapping: ${params.matching.unresolvedWithoutSetMapping}`);
     console.log(`Metadata unchanged: ${params.matching.metadataUnchanged}`);
     console.log(`Metadata changed: ${params.matching.metadataChanged}`);
+    console.log(`Setmapping status: ${params.matching.setCode ? `reliable (${params.matching.setCode})` : 'missing or ambiguous'}`);
     if (!params.matching.fallbackAvailable) console.log('Fallback matching: unavailable (geen betrouwbare sets_catalog mapping gevonden).');
     printExamples('Candidate by set and number samples', params.matching.candidateExamples);
     printExamples('New samples', params.matching.newExamples);
@@ -1083,14 +1036,14 @@ function printReport(params: {
   }
 }
 
-function printWritePlan(plan: WritePlan): void {
-  console.log('Writeplan');
+function printWritePlan(plan: WritePlan, write: boolean): void {
+  console.log(getWritePlanTitle(write));
   console.log(`Bestaande matches ongewijzigd: ${plan.existingMatches}`);
   console.log(`Nieuwe cards_catalog-records: ${plan.newCatalogRows.length}`);
   console.log(`Nieuwe card_external_references: ${plan.referencesForNewCards.length}`);
   console.log(`Veilige references voor bestaande fallbackkandidaten: ${plan.referencesForExistingCandidates.length}`);
   console.log(`Geblokkeerde items: ${plan.blockedItems}`);
-  console.log(`Geplande databasewrites: ${plan.plannedDatabaseWrites}`);
+  console.log(`Theoretisch geplande writes: ${plan.plannedDatabaseWrites}`);
   console.log('');
 }
 
@@ -1117,13 +1070,14 @@ function printPostWriteReport(stats: WriteStats, verification: PostWriteVerifica
 async function main(): Promise<number> {
   const start = Date.now();
   const stats: FetchStats = { retriesUsed: 0 };
-  let setId = ALLOWED_SET_ID;
+  let setId = 'unknown';
   let writeMode = process.argv.slice(2).includes('--write');
 
   try {
-    const options = parseArgs(process.argv.slice(2));
+    const options = parseCatalogImportArgs(process.argv.slice(2));
     setId = options.setId;
     writeMode = options.write;
+    assertWriteAuthorized(options);
     const apiKey = getApiKey();
     const supabaseConfig = getSupabaseConfig();
     const supabase = createSupabase(supabaseConfig);
@@ -1157,7 +1111,7 @@ async function main(): Promise<number> {
       durationMs: Date.now() - start,
       matching,
     });
-    printWritePlan(writePlan);
+    printWritePlan(writePlan, options.write);
 
     if (!passed) {
       for (const error of allErrors) console.error(`Fout: ${error}`);

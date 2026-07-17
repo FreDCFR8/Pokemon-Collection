@@ -35,7 +35,7 @@ This document shows product direction and phase status. It intentionally avoids 
 - ✅ controlled local import tooling
 - ✅ dry-run default and explicit `--write`
 - ✅ verified `sv3pt5` reference import
-- 🔎 controlled expansion to additional sets
+- 🚧 Phase 7B-2F1 — veilige multi-set dry-runvoorbereiding en gecontroleerde uitbreiding naar aanvullende sets
 - ⏳ broader catalog synchronization
 
 ## Sets and binder experience
@@ -62,8 +62,8 @@ This document shows product direction and phase status. It intentionally avoids 
 - ✅ Phase 7C-2H — Wishlist en Collection binder-look
 - ✅ Phase 7C-2L — Uniforme kaartgalerij voor Collection, Sets en Wishlist (PR123 afgerond)
 - ✅ read-only reuse in Search (Phase 7D-1A)
-- 🚧 Collection and Wishlist management from Search (Phase 7D-1B / PR125)
-- ⏳ reuse in Trade
+- ✅ Collection and Wishlist management from Search (Phase 7D-1B / PR125)
+- ⏳ reuse in Trade (lowest priority)
 - ⏳ extended characteristics and metadata
 - ✅ previous/next card navigation (PR122 afgerond)
 
@@ -79,7 +79,7 @@ This document shows product direction and phase status. It intentionally avoids 
 ## Catalog discovery
 
 - ✅ Phase 7D-1A — global full-catalog search (read-only, PR124 afgerond)
-- 🚧 Phase 7D-1B — Collection- en Wishlistacties vanuit global Search (PR125)
+- ✅ Phase 7D-1B — Collection- en Wishlistacties vanuit global Search (PR125)
 - ⏳ advanced catalog filters
 
 ## Collection states
@@ -87,7 +87,7 @@ This document shows product direction and phase status. It intentionally avoids 
 - ✅ wishlist add/remove vanuit shared Card Detail (PR116 afgerond)
 - ✅ wishlist naar collectie vanuit Sets en Wishlist Card Detail
 - ⏳ wishlist beheer en read-model uitbreidingen
-- ⏳ trade workflow
+- ⏳ trade workflow (lowest priority)
 - ⏳ missing workflow
 - ⏳ condition and status editing
 
@@ -102,6 +102,10 @@ This document shows product direction and phase status. It intentionally avoids 
 
 - ⏳ scanner and assisted card identification
 - ⏳ import/export improvements
+
+## Product focus
+
+Catalogusdekking en collectiebeheer zijn de primaire productfocus. Trade staat expliciet op de laagste prioriteit.
 
 ## Planning rule
 
