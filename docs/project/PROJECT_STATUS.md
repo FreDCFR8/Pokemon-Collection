@@ -6,27 +6,27 @@ This document contains current operational state only. Historical direction belo
 
 ## Current phase
 
-**Phase 7B-2F2 — Gecontroleerde Obsidian Flames-import**
+**Phase 7B-2F3 — Catalog Import Batch Runner**
 
-Deze fase autoriseert Pokémon TCG API set `sv3` (`Obsidian Flames`) als tweede expliciet toegestane catalogusimportset, na een geslaagde read-only pilot. De bestaande importflow blijft per set, operatorgestuurd, dry-run als standaard en geblokkeerd voor niet-geautoriseerde write-sets.
+Deze fase vervangt handmatig set-per-set importeren door een gecontroleerde batch-runner bovenop de bestaande bewezen single-set importer. De runner verwerkt sets sequentieel, valideert per stap de bestaande importer-output en stopt bij een falende set.
 
 ## Latest merged product milestone
 
-**PR126 — Phase 7B-2F1: Veilige multi-set dry-runvoorbereiding**
+**PR127 — Phase 7B-2F2: Gecontroleerde Obsidian Flames-import**
 
-PR126 is gemerged. Generieke read-only dry-runs zijn mogelijk voor geldige lowercase ASCII-set-ID's, maar write-autorisatie blijft expliciet per set in code.
+PR127 is gemerged. Pokémon TCG API set `sv3` (`Obsidian Flames`) is write-geautoriseerd en succesvol geïmporteerd.
 
 ## Active work
 
-Phase 7B-2F2:
+Phase 7B-2F3:
 
-- `sv3pt5` blijft de bewezen referentie-import;
-- `sv3` wordt afzonderlijk write-geautoriseerd;
-- dry-run blijft de standaard en toont matching, fallbackkandidaten en een theoretisch writeplan;
-- andere sets met `--write` worden vóór externe API- of Supabase-calls geblokkeerd;
-- `collection_cards` blijft buiten ieder importer-writepad en `public.cards` blijft legacy;
-- vóór een echte `sv3 --write` is een verse groene dry-run vereist;
-- na een write zijn postchecks en een idempotency dry-run verplicht.
+- voeg een repo-gecontroleerde batchconfig toe voor catalogussets;
+- voeg een batchcommando toe voor dry-run en expliciet `write-approved` mode;
+- voer per set automatisch dry-run, write en idempotency dry-run uit in write-approved mode;
+- valideer batchstappen op importer-output, niet alleen op exitcode;
+- stop de batch bij de eerste falende set;
+- behoud de bestaande single-set importer als enige plaats voor API-, matching-, write- en post-write veiligheidscontroles;
+- `collection_cards` blijft buiten ieder importer-writepad en `public.cards` blijft legacy.
 
 ## Current architecture baseline
 
@@ -62,20 +62,24 @@ Pokémon TCG API set `sv3pt5` (`151`) remains the verified controlled-import ref
 - post-write idempotency dry-run planned and executed zero writes;
 - `collection_cards` was unchanged by the catalog import.
 
-## Current `sv3` pilot evidence
+## Verified `sv3` import
 
-Pokémon TCG API set `sv3` (`Obsidian Flames`) passed the read-only pilot:
+Pokémon TCG API set `sv3` (`Obsidian Flames`) is imported and idempotency-verified:
 
+- write result: PASS;
 - 230 expected and received cards;
-- 230 unique external IDs;
-- 56 existing matches through external references;
-- 174 planned new `cards_catalog` records;
-- 174 planned new `card_external_references` records;
-- 348 theoretical writes;
-- zero ambiguous, conflicts or blocked items;
-- reliable setmapping;
-- database writes: 0.
+- 174 new `cards_catalog` records;
+- 174 new `card_external_references` records;
+- 348 database writes;
+- zero failed writes;
+- post-write reference count: 230;
+- post-write unique external-reference count: 230;
+- post-write catalog links: 230;
+- `collection_cards` remained unchanged: 1111 → 1111;
+- idempotency dry-run result: PASS;
+- idempotency planned writes: 0;
+- idempotency database writes: 0.
 
 ## Next phase scope
 
-Complete the controlled `sv3` import only after a fresh green dry-run, explicit operator approval for `--write`, post-write verification and idempotency confirmation. Broader local JSON input through `PokemonTCG/pokemon-tcg-data` remains a separate future architecture phase. Trade remains a separate future area and the lowest product priority.
+Complete the batch runner and then use it to reduce manual import work. Broader local JSON input through `PokemonTCG/pokemon-tcg-data` remains a separate future architecture phase. Trade remains a separate future area and the lowest product priority.
