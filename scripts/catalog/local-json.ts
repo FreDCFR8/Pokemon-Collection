@@ -31,7 +31,8 @@ function parseCard(value: unknown, setId: string): LocalPokemonCard {
 
   const cardSet = isObject(value.set) ? value.set : undefined;
   const cardSetId = cardSet ? readString(cardSet, 'id') : undefined;
-  if (cardSetId !== undefined && cardSetId !== setId) {
+  if (!cardSetId) throw new Error(`Lokale JSON-input mist set.id voor kaart ${readString(value, 'id') ?? '[onbekend]'}.`);
+  if (cardSetId !== setId) {
     throw new Error(`Lokale JSON-input bevat kaart ${readString(value, 'id') ?? '[onbekend]'} uit set ${cardSetId} in plaats van ${setId}.`);
   }
 
