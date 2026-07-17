@@ -37,8 +37,9 @@ This document shows product direction and phase status. It intentionally avoids 
 - ✅ verified `sv3pt5` reference import
 - ✅ Phase 7B-2F1 — veilige multi-set dry-runvoorbereiding
 - ✅ Phase 7B-2F2 — gecontroleerde Obsidian Flames-import (`sv3`)
-- 🚧 Phase 7B-2F3 — catalog import batch runner
-- ⏳ local JSON input via `PokemonTCG/pokemon-tcg-data`
+- ✅ Phase 7B-2F3 — catalog import batch runner
+- 🚧 Phase 7B-2F4 — versioneerbare lokale JSON-input via `PokemonTCG/pokemon-tcg-data`
+- ⏳ lokale JSON-writeautorisatie en bredere catalogussynchronisatie
 - ⏳ broader catalog synchronization
 
 ## Sets and binder experience

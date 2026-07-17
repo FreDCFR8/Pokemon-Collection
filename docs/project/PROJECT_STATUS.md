@@ -6,27 +6,26 @@ This document contains current operational state only. Historical direction belo
 
 ## Current phase
 
-**Phase 7B-2F3 — Catalog Import Batch Runner**
+**Phase 7B-2F4 — Versioneerbare lokale JSON-input**
 
-Deze fase vervangt handmatig set-per-set importeren door een gecontroleerde batch-runner bovenop de bestaande bewezen single-set importer. De runner verwerkt sets sequentieel, valideert per stap de bestaande importer-output en stopt bij een falende set.
+Deze fase voegt een read-only lokale JSON-bronadapter toe voor de datasetstructuur van `PokemonTCG/pokemon-tcg-data`. De bestaande single-set importer blijft de matching- en veiligheidsgrens; lokale input kan bestaande externe IDs opnieuw valideren zonder API-call of databasewrite.
 
 ## Latest merged product milestone
 
-**PR127 — Phase 7B-2F2: Gecontroleerde Obsidian Flames-import**
+**PR128 — Phase 7B-2F3: Catalog Import Batch Runner**
 
-PR127 is gemerged. Pokémon TCG API set `sv3` (`Obsidian Flames`) is write-geautoriseerd en succesvol geïmporteerd.
+PR128 is gemerged. De batch-runner doorliep `sv3pt5` en `sv3` gecontroleerd; beide sets zijn dry-run-, write- en idempotency-gevalideerd. De write-approved batch voerde daarna geen nieuwe writes uit.
 
 ## Active work
 
-Phase 7B-2F3:
+Phase 7B-2F4:
 
-- voeg een repo-gecontroleerde batchconfig toe voor catalogussets;
-- voeg een batchcommando toe voor dry-run en expliciet `write-approved` mode;
-- voer per set automatisch dry-run, write en idempotency dry-run uit in write-approved mode;
-- valideer batchstappen op importer-output, niet alleen op exitcode;
-- stop de batch bij de eerste falende set;
-- behoud de bestaande single-set importer als enige plaats voor API-, matching-, write- en post-write veiligheidscontroles;
-- `collection_cards` blijft buiten ieder importer-writepad en `public.cards` blijft legacy.
+- voeg lokale JSON-input toe voor de `PokemonTCG/pokemon-tcg-data` kaartstructuur;
+- valideer exact één set per inputbestand via ieder kaartitem zijn `set.id`;
+- hergebruik de bestaande normalisatie, Supabase matching en veiligheidsrapportage;
+- behoud API-identiteit `pokemon_tcg_api` zodat bestaande externe IDs en stabiele interne catalogus-ID's matchen;
+- houd lokale JSON-input read-only totdat een aparte write-autorisatiefase is goedgekeurd;
+- voeg parser- en CLI-tests toe zonder databasewrites of import-run in de PR.
 
 ## Current architecture baseline
 
@@ -82,4 +81,4 @@ Pokémon TCG API set `sv3` (`Obsidian Flames`) is imported and idempotency-verif
 
 ## Next phase scope
 
-Complete the batch runner and then use it to reduce manual import work. Broader local JSON input through `PokemonTCG/pokemon-tcg-data` remains a separate future architecture phase. Trade remains a separate future area and the lowest product priority.
+Na validatie van de lokale JSON-bron volgt een afzonderlijke fase voor lokale bronwrites en daarna bredere catalogussynchronisatie. Trade remains a separate future area and the lowest product priority.
