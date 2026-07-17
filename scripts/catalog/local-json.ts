@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { parseCardDetails, type CardDetails } from './card-details.ts';
 
 type JsonObject = Record<string, unknown>;
 
@@ -11,6 +12,7 @@ export type LocalPokemonCard = {
     small?: string;
     large?: string;
   };
+  details: CardDetails;
 };
 
 export type LocalPokemonData = {
