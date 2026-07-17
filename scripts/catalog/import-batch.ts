@@ -19,8 +19,6 @@ type SetResult = {
   idempotency?: StepResult;
 };
 
-class CatalogBatchError extends Error {}
-
 function runImportSet(setId: string, write: boolean): StepResult {
   const step: StepName = write ? 'write' : 'dry-run';
   const args = ['--experimental-strip-types', 'scripts/catalog/import-set.ts', '--set', setId, ...(write ? ['--write'] : [])];
@@ -142,7 +140,6 @@ async function main(): Promise<number> {
     console.error('Catalog batch import');
     console.error(`Mode: ${mode}`);
     console.error(`Fout: ${error instanceof Error ? error.message : 'Onbekende batchfout.'}`);
-    if (error instanceof CatalogBatchError) return 1;
     return 1;
   }
 }
