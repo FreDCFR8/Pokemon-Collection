@@ -110,6 +110,16 @@ function getOwnershipLabel(ownership: CollectionOwnershipState, copy: CardDetail
   };
 }
 
+function AttributeIcon({ label }: { label: string }) {
+  const common = { className: 'card-detail-attribute-svg', viewBox: '0 0 24 24', 'aria-hidden': true } as const;
+  if (label === 'Energy Type') return <svg {...common}><circle cx="12" cy="12" r="8" /><path d="M8 15c2.5 2 5.5 2 8 0M8 9c2.5-2 5.5-2 8 0" /></svg>;
+  if (label === 'Rarity') return <svg {...common}><path d="m7 4 1.5 3.2L12 8.5 8.5 9.8 7 13l-1.5-3.2L2 8.5l3.5-1.3L7 4Zm11 6 1 2.1 2 .9-2 .9-1 2.1-1-2.1-2-.9 2-.9 1-2.1Z" /></svg>;
+  if (label === 'Pokédex Number') return <svg {...common}><path d="M5 4h14M5 20h14M8 4v16M16 4v16" /><path d="M11 9h2a2 2 0 0 1 0 4h-2m0 0h2a2 2 0 0 1 0 4h-2" /></svg>;
+  if (label === 'Genset') return <svg {...common}><path d="m4 8 8-4 8 4-8 4-8-4Zm0 4 8 4 8-4M4 16l8 4 8-4" /></svg>;
+  if (label === 'Release Date') return <svg {...common}><rect x="4" y="5" width="16" height="15" rx="2" /><path d="M8 3v4M16 3v4M4 10h16M8 14h.01M12 14h.01M16 14h.01M8 17h.01M12 17h.01" /></svg>;
+  return <svg {...common}><path d="m14 5 5 5M4 20l4.2-1 9.7-9.7a2.1 2.1 0 0 0-3-3L5.2 16 4 20Z" /><path d="m13 7 4 4" /></svg>;
+}
+
 export function CardDetailDialog({
   card,
   ownership,
@@ -224,14 +234,13 @@ export function CardDetailDialog({
             {detailImageUrl ? <img src={detailImageUrl} alt={`${card.name} kaart ${card.number ?? ''}`.trim()} width="240" height="336" decoding="async" /> : <span aria-label="Geen afbeelding beschikbaar" />}
           </div>
           <div className="card-detail-body">
-            <p className="card-detail-set"><span>Pokémon</span><span aria-hidden="true">|</span><strong>{card.set.name ?? 'Onbekende set'}</strong></p>
+            <p className="card-detail-set">
+              <span>Pokémon</span><span aria-hidden="true">|</span><span>{card.set.setCode ?? 'Set'}</span><span aria-hidden="true">|</span><strong>{card.set.name ?? 'Onbekende set'}</strong>
+            </p>
             <h1 id="card-detail-title">{card.name}</h1>
             <p className="card-detail-subtitle">
               {card.set.name ?? 'Onbekende set'}{card.number ? ` · #${card.number}` : ''}
             </p>
-            <div className="card-detail-tab" role="tablist" aria-label="Kaartweergave">
-              <span role="tab" aria-selected="true"><span aria-hidden="true">✓</span>Card</span>
-            </div>
             <div className="card-detail-action-row">
               {showCollectionAddAction || capabilities.canPromoteWishlist ? (
                 <button className="card-detail-primary-action" type="button" disabled={areActionsBlocked} onClick={showCollectionAddAction ? onAdd : onPromoteWishlist}>
@@ -263,7 +272,7 @@ export function CardDetailDialog({
               <dl className="card-detail-attributes" aria-label="Kaartattributen">
                 {metadata.map((item) => (
                   <div className="card-detail-attribute" key={item.label}>
-                    <span className="card-detail-attribute-icon" aria-hidden="true">{item.label === 'Rarity' ? '★★' : item.label === 'National Number' ? '#' : item.label === 'Energy Type' ? '◉' : '•'}</span>
+                    <span className={`card-detail-attribute-icon is-${item.label.toLowerCase().replace(/\s+/g, '-')}`}><AttributeIcon label={item.label} /></span>
                     <dt>{item.label}</dt>
                     <dd>{item.value}</dd>
                     <span className="card-detail-attribute-chevron" aria-hidden="true">›</span>

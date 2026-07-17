@@ -15,11 +15,12 @@ const card = {
 
 test('Card Detail metadata includes available fields and hides missing values', () => {
   assert.deepEqual(getCardDetailMetadata(card), [
-    { label: 'Illustrator', value: 'Artist' },
-    { label: 'Release Date', value: '1999-01-09' },
-    { label: 'Rarity', value: 'Rare' },
-    { label: 'National Number', value: '25' },
     { label: 'Energy Type', value: 'Lightning' },
+    { label: 'Rarity', value: 'Rare' },
+    { label: 'Pokédex Number', value: '25' },
+    { label: 'Genset', value: 'base1' },
+    { label: 'Release Date', value: '1999-01-09' },
+    { label: 'Illustrator', value: 'Artist' },
   ]);
 
   assert.deepEqual(getCardDetailMetadata({ ...card, number: null, rarity: null, energyType: null, details: null, set: { setCode: null, name: null } }), []);
