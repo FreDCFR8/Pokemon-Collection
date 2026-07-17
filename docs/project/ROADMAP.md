@@ -40,8 +40,8 @@ This document shows product direction and phase status. It intentionally avoids 
 - ✅ Phase 7B-2F3 — catalog import batch runner
 - ✅ Phase 7B-2F4 — versioneerbare lokale JSON-input via `PokemonTCG/pokemon-tcg-data`
 - ✅ Phase 7B-2F5 — catalogusmetadata & Card Detail enrichment
-- 🚧 Phase 7B-2F6 — herbruikbare metadata-backfill
-- ⏳ lokale manifest- en batch-synchronisatie
+- ✅ Phase 7B-2F6 — herbruikbare metadata-backfill\n- 🚧 Phase 7B-2F7 — uitgebreide Card Detail-presentatie
+- 🚧 lokale manifest- en batch-synchronisatie
 - ⏳ broader catalog synchronization
 
 ## Sets and binder experience
@@ -70,7 +70,7 @@ This document shows product direction and phase status. It intentionally avoids 
 - ✅ read-only reuse in Search (Phase 7D-1A)
 - ✅ Collection and Wishlist management from Search (Phase 7D-1B / PR125)
 - ⏳ reuse in Trade (lowest priority)
-- ⏳ extended characteristics and metadata
+- ✅ extended characteristics and metadata
 - ✅ previous/next card navigation (PR122 afgerond)
 
 ## Collection experience
