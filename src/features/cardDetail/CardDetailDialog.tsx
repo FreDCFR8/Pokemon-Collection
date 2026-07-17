@@ -6,7 +6,7 @@ import type {
   CollectionStatus,
 } from '../collectionCards';
 import { areCardDetailActionsBlocked, getCardDetailActionMode } from './cardDetailMutationState';
-import { getCardDetailDetails } from './cardDetails';
+import { getCardDetailDetails, getCardDetailSections } from './cardDetails';
 import { getCardDetailMetadata, getCardDetailNavigationState } from './cardDetailGallery';
 
 export type CardDetailMutationOperation = 'add' | 'add-wishlist' | 'remove-wishlist' | 'promote-wishlist' | 'increase' | 'decrease' | 'delete';
@@ -134,6 +134,7 @@ export function CardDetailDialog({
   const detailImageUrl = card.images.large ?? card.images.small;
   const metadata = useMemo(() => getCardDetailMetadata(card), [card]);
   const cardDetails = useMemo(() => getCardDetailDetails(card.details), [card.details]);
+  const detailSections = useMemo(() => getCardDetailSections(card.details), [card.details]);
   const navigationState = navigation
     ? getCardDetailNavigationState(navigation.currentIndex, navigation.total)
     : null;
@@ -274,6 +275,19 @@ export function CardDetailDialog({
                 ))}
               </dl>
             ) : null}
+            {detailSections.map((section) => (
+              <section className="card-detail-detail-section" key={section.title}>
+                <h5>{section.title}</h5>
+                <dl className="card-detail-metadata" aria-label={section.title}>
+                  {section.items.map((item, index) => (
+                    <div key={`${item.label}-${index}`}>
+                      <dt>{item.label}</dt>
+                      <dd>{item.value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </section>
+            ))}
             {copy.statusItems.length > 0 ? <ul className="card-detail-status-list" aria-label="Collectiestatussen">{copy.statusItems.map((item) => <li key={item.status}>{item.label}</li>)}</ul> : null}
             {ownership.status === 'error' && onRetryOwnership ? <button className="card-detail-retry-button" type="button" onClick={onRetryOwnership}>Collectiestatus opnieuw laden</button> : null}
             {capabilities.canAddWishlist ? (
