@@ -31,8 +31,7 @@ function parseCard(value: unknown, setId: string): LocalPokemonCard {
 
   const cardSet = isObject(value.set) ? value.set : undefined;
   const cardSetId = cardSet ? readString(cardSet, 'id') : undefined;
-  if (!cardSetId) throw new Error(`Lokale JSON-input mist set.id voor kaart ${readString(value, 'id') ?? '[onbekend]'}.`);
-  if (cardSetId !== setId) {
+  if (cardSetId !== undefined && cardSetId !== setId) {
     throw new Error(`Lokale JSON-input bevat kaart ${readString(value, 'id') ?? '[onbekend]'} uit set ${cardSetId} in plaats van ${setId}.`);
   }
 
@@ -67,11 +66,7 @@ export function parsePokemonTcgDataJson(text: string, setId: string): LocalPokem
   const firstSet = isObject(parsed[0]) && isObject(parsed[0].set) ? parsed[0].set : undefined;
   const setName = firstSet ? readString(firstSet, 'name') : undefined;
 
-  if (!setName) {
-    throw new Error('Lokale JSON-input mist set.name op het eerste kaartitem.');
-  }
-
-  return { setName, cards };
+  return { setName: setName ?? setId, cards };
 }
 
 export function loadPokemonTcgDataJson(path: string, setId: string): LocalPokemonData {
