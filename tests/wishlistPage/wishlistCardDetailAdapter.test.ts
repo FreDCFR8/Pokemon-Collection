@@ -9,6 +9,8 @@ const wishlistCard: WishlistPageCard = {
   pokemon: 'Pikachu',
   setName: '151',
   setCode: 'sv3pt5',
+  series: 'Scarlet & Violet',
+  releaseDate: '2023-09-22',
   number: '025',
   rarity: 'Common',
   imageSmall: 'https://img.test/small.png',
@@ -29,7 +31,7 @@ test('Wishlist adapter preserves catalog identity, metadata and large image', ()
     cardCatalogId: 'catalog-42',
     name: 'Pikachu',
     number: '025',
-    set: { setCode: 'sv3pt5', name: '151' },
+    set: { setCode: 'sv3pt5', name: '151', series: 'Scarlet & Violet', releaseDate: '2023-09-22' },
     rarity: 'Common',
     images: { small: 'https://img.test/small.png', large: 'https://img.test/large.png' },
   });

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { areCardDetailActionsBlocked, getCardDetailActionMode } from '../../src/features/cardDetail/cardDetailMutationState.ts';
+import { areCardDetailActionsBlocked, getCardDetailActionMode, getCardDetailWishlistAction } from '../../src/features/cardDetail/cardDetailMutationState.ts';
 import type { CardDetailMutationState } from '../../src/features/cardDetail/CardDetailDialog.tsx';
 import type { ConfirmedOwnership } from '../../src/features/collectionCards/index.ts';
 
@@ -35,6 +35,14 @@ test('shared Card Detail blocks repeated wishlist/quantity actions during pendin
 test('shared Card Detail uses an explicit add action for absent cards', () => {
   assert.equal(getCardDetailActionMode({ readOnly: false, ownership: absentOwnership }), 'add');
   assert.notEqual(getCardDetailActionMode({ readOnly: false, ownership: absentOwnership }), 'quantity');
+});
+
+test('shared Card Detail exposes one wishlist action in the primary action row', () => {
+  const base = { canAdd: false, canIncrease: false, canDecrease: false };
+  assert.equal(getCardDetailWishlistAction({ ...base, canAddWishlist: true, canRemoveWishlist: false }), 'add');
+  assert.equal(getCardDetailWishlistAction({ ...base, canAddWishlist: false, canRemoveWishlist: true }), 'remove');
+  assert.equal(getCardDetailWishlistAction({ ...base, canAddWishlist: false, canRemoveWishlist: false }), null);
+  assert.equal(getCardDetailWishlistAction({ ...base, canAddWishlist: true, canRemoveWishlist: true }), 'add');
 });
 
 test('absent pending keeps the explicit add action visible and blocked', () => {

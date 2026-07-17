@@ -11,7 +11,7 @@ export function toWishlistCardDetailCard(card: WishlistPageCard): CardDetailCard
     cardCatalogId,
     name: card.pokemon?.trim() || 'Onbekende kaart',
     number: card.number,
-    set: { setCode: card.setCode, name: card.setName },
+    set: { setCode: card.setCode, name: card.setName, ...(card.series ? { series: card.series } : {}), ...(card.releaseDate ? { releaseDate: card.releaseDate } : {}) },
     rarity: card.rarity,
     images: { small: card.imageSmall, large: card.imageLarge },
   };

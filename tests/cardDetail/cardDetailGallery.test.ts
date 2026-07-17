@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { getCardDetailMetadata, getCardDetailNavigationState } from '../../src/features/cardDetail/cardDetailGallery.ts';
+import { formatCardDetailReleaseDate, getCardDetailMetadata, getCardDetailNavigationState } from '../../src/features/cardDetail/cardDetailGallery.ts';
 
 const card = {
   cardCatalogId: 'card-1',
   name: 'Pikachu',
   number: '25',
-  set: { setCode: 'base1', name: 'Base Set', releaseDate: '1999-01-09' },
+  set: { setCode: 'base1', name: 'Base Set', series: 'Original', releaseDate: '1999-01-09' },
   rarity: 'Rare',
   energyType: 'Lightning',
   details: { artist: 'Artist', nationalPokedexNumbers: [25] },
@@ -15,15 +15,25 @@ const card = {
 
 test('Card Detail metadata includes available fields and hides missing values', () => {
   assert.deepEqual(getCardDetailMetadata(card), [
-    { label: 'Energy Type', value: 'Lightning' },
-    { label: 'Rarity', value: 'Rare' },
-    { label: 'Pokédex Number', value: '25' },
-    { label: 'Genset', value: 'base1' },
-    { label: 'Release Date', value: '1999-01-09' },
-    { label: 'Illustrator', value: 'Artist' },
+    { label: 'Energy Type', value: 'Lightning', icon: 'energy-lightning' },
+    { label: 'Rarity', value: 'Rare', icon: 'rarity-rare' },
+    { label: 'Pokédex Number', value: '25', icon: 'pokedex' },
+    { label: 'Genset', value: 'Original', icon: 'genset' },
+    { label: 'Release Date', value: '9 jan 1999', icon: 'release-date' },
+    { label: 'Illustrator', value: 'Artist', icon: 'illustrator' },
   ]);
 
   assert.deepEqual(getCardDetailMetadata({ ...card, number: null, rarity: null, energyType: null, details: null, set: { setCode: null, name: null } }), []);
+});
+
+test('formats release dates stably and keeps invalid source values unchanged', () => {
+  assert.equal(formatCardDetailReleaseDate('2023-09-22'), '22 sep 2023');
+  assert.equal(formatCardDetailReleaseDate('not-a-date'), 'not-a-date');
+});
+
+test('derives energy and rarity icons from real values', () => {
+  assert.equal(getCardDetailMetadata({ ...card, energyType: 'Psychic', rarity: 'Ultra Rare' })[0]?.icon, 'energy-psychic');
+  assert.equal(getCardDetailMetadata({ ...card, energyType: 'Darkness', rarity: 'Special Illustration Rare' })[1]?.icon, 'rarity-special');
 });
 
 test('Card Detail navigation disables previous and next at list boundaries', () => {

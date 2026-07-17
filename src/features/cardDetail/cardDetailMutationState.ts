@@ -6,6 +6,12 @@ export function areCardDetailActionsBlocked(mutation: { status: CardDetailMutati
   return mutation.status === 'pending' || mutation.status === 'conflict';
 }
 
+export function getCardDetailWishlistAction(capabilities: { canAddWishlist?: boolean; canRemoveWishlist?: boolean }): 'add' | 'remove' | null {
+  if (capabilities.canAddWishlist) return 'add';
+  if (capabilities.canRemoveWishlist) return 'remove';
+  return null;
+}
+
 export type CardDetailActionMode = 'read-only' | 'add' | 'wishlist' | 'quantity' | 'unavailable';
 
 export function getCardDetailActionMode(params: { readOnly: boolean; ownership: ConfirmedOwnership | undefined }): CardDetailActionMode {
