@@ -1,14 +1,13 @@
-import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
 import { isAbsolute, join, relative, resolve } from 'node:path';
 import { isValidSetId } from './import-args.ts';
 import { POKEMON_TCG_DATA_REPOSITORY, type LocalCatalogManifest } from './local-manifest.ts';
+import { PINNED_DATASET_VERSION, validateLocalDatasetCheckout, type GitRunner } from './local-checkout.ts';
 
-export const PINNED_DATASET_VERSION = '0af6250a22495e4a3e9f60ff45fc3fedc2e0563d';
+export { PINNED_DATASET_VERSION } from './local-checkout.ts';
 
 type DatasetSet = { id: string; total: number };
 type DatasetCard = { id: unknown };
-type GitRunner = (inputRoot: string, args: string[]) => string;
 type FileWriter = (content: string, outputPath: string) => void;
 
 export type ManifestInventoryError = { setId?: string; file: string; reason: string };
@@ -35,33 +34,13 @@ export class LocalManifestGenerationError extends Error {}
 
 function asError(reason: string, file: string, setId?: string): ManifestInventoryError { return { ...(setId ? { setId } : {}), file, reason }; }
 function readJson(path: string): unknown { return JSON.parse(readFileSync(path, 'utf8')) as unknown; }
-function git(inputRoot: string, args: string[]): string { return execFileSync('git', ['-C', inputRoot, ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim(); }
-function normalizeOrigin(value: string): string {
-  const normalized = value.trim().replace(/\.git$/, '');
-  if (normalized.startsWith('git@github.com:')) return `https://github.com/${normalized.slice('git@github.com:'.length)}`;
-  if (normalized.startsWith('ssh://git@github.com/')) return `https://github.com/${normalized.slice('ssh://git@github.com/'.length)}`;
-  return normalized;
-}
-
-function validateCheckout(inputRoot: string, runGit: GitRunner = git): void {
-  if (!existsSync(inputRoot)) throw new LocalManifestGenerationError(`input-root bestaat niet: ${inputRoot}`);
-  try {
-    if (runGit(inputRoot, ['rev-parse', '--is-inside-work-tree']) !== 'true') throw new Error('geen Git-worktree');
-    const origin = normalizeOrigin(runGit(inputRoot, ['remote', 'get-url', 'origin']));
-    if (origin.toLowerCase() !== `https://github.com/${POKEMON_TCG_DATA_REPOSITORY.toLowerCase()}`) throw new Error(`origin verwijst naar ${origin}, verwacht ${POKEMON_TCG_DATA_REPOSITORY}`);
-    const head = runGit(inputRoot, ['rev-parse', 'HEAD']);
-    if (head !== PINNED_DATASET_VERSION) throw new Error(`HEAD is ${head}, verwacht exact ${PINNED_DATASET_VERSION}`);
-    if (runGit(inputRoot, ['status', '--porcelain=v1']) !== '') throw new Error('de dataset-worktree is niet schoon');
-  } catch (error) { throw new LocalManifestGenerationError(`Ongeldige lokale dataset-checkout: ${error instanceof Error ? error.message : 'onbekende Git-fout'}`); }
-}
-
 function pathIsSafe(path: string, root: string): boolean { return !isAbsolute(path) && !relative(root, resolve(root, path)).startsWith('..'); }
 function baseReport(outputPath: string, values: Pick<ManifestInventoryReport, 'setsIndexed' | 'setsValid' | 'setsFailed' | 'indexedCardsTotal' | 'receivedCardsTotal' | 'status'> & { errors?: ManifestInventoryError[]; warnings?: ManifestInventoryWarning[] }): ManifestInventoryReport {
   return { source: 'pokemon_tcg_data', datasetRepository: POKEMON_TCG_DATA_REPOSITORY, datasetVersion: PINNED_DATASET_VERSION, manifestWritten: false, manifestOutputPath: outputPath, ...values };
 }
 
 export function inventoryLocalDataset(inputRoot: string, outputPath: string, runGit: GitRunner = git): { manifest?: LocalCatalogManifest; report: ManifestInventoryReport } {
-  try { validateCheckout(inputRoot, runGit); } catch (error) {
+  try { validateLocalDatasetCheckout(inputRoot, runGit); } catch (error) {
     return { report: baseReport(outputPath, { status: 'FAIL', setsIndexed: 0, setsValid: 0, setsFailed: 0, indexedCardsTotal: 0, receivedCardsTotal: 0, errors: [asError(`checkout-validatie mislukt: ${error instanceof Error ? error.message : 'onbekende fout'}`, 'Git checkout')] }) };
   }
 

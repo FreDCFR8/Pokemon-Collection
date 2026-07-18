@@ -1,8 +1,10 @@
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
 import { parseCatalogBatchArgs, parseCatalogBatchConfigFromText, type CatalogBatchMode } from './import-batch-args.ts';
 import { parseLocalCatalogManifestFromText, type LocalCatalogManifestSet } from './local-manifest.ts';
+import { validateLocalDatasetCheckout } from './local-checkout.ts';
+import { assertCheckpointIdentity, CHECKPOINT_SCHEMA_VERSION, checkpointExists, readCheckpoint, sha256File, supabaseProjectIdentity, writeAtomicJson, type CatalogBatchCheckpoint, type CheckpointIdentity, type CheckpointSet } from './checkpoint.ts';
 
 type StepName = 'dry-run' | 'write' | 'idempotency';
 
@@ -200,6 +202,67 @@ function selectedLocalSets(options: ReturnType<typeof parseCatalogBatchArgs>): L
   return { datasetRepository: manifest.datasetRepository, datasetVersion: manifest.datasetVersion, sets };
 }
 
+function localIdentity(local: LocalBatchSelection, manifestPath: string): CheckpointIdentity {
+  return {
+    checkpointSchemaVersion: CHECKPOINT_SCHEMA_VERSION,
+    source: 'pokemon_tcg_data',
+    mode: 'dry-run',
+    datasetRepository: local.datasetRepository,
+    datasetVersion: local.datasetVersion,
+    manifestHash: sha256File(manifestPath),
+    setIds: local.sets.map((set) => set.setId),
+    supabaseProjectIdentity: supabaseProjectIdentity(process.env.SUPABASE_URL),
+  };
+}
+
+function initialCheckpoint(identity: CheckpointIdentity, sets: LocalBatchSelection['sets'], now = new Date().toISOString()): CatalogBatchCheckpoint {
+  return { ...identity, startedAt: now, updatedAt: now, sets: sets.map((set) => ({ setId: set.setId, expectedCards: set.expectedCards, status: 'pending' })) };
+}
+
+function saveCheckpoint(path: string, checkpoint: CatalogBatchCheckpoint): void {
+  writeAtomicJson(path, { ...checkpoint, updatedAt: new Date().toISOString() });
+}
+
+function checkpointSetFromResult(result: SetResult, expectedCards: number): CheckpointSet {
+  const step = latestStep(result);
+  return {
+    setId: result.setId,
+    expectedCards,
+    status: setPassed(result) ? 'passed' : 'failed',
+    ...(step?.receivedCards !== undefined ? { receivedCards: step.receivedCards } : {}),
+    ...(step?.plannedWrites !== undefined ? { plannedWrites: step.plannedWrites } : {}),
+    ...(step?.databaseWrites !== undefined ? { databaseWrites: step.databaseWrites } : {}),
+    ...((result.error ?? firstFailedStep(result)?.error) ? { error: result.error ?? firstFailedStep(result)?.error } : {}),
+  };
+}
+
+function setResultFromCheckpoint(set: CheckpointSet): SetResult {
+  return { setId: set.setId, expectedCards: set.expectedCards, error: set.error, dryRun: set.status === 'passed' ? {
+    step: 'dry-run', exitCode: 0, output: '', passed: true,
+    ...(set.receivedCards !== undefined ? { receivedCards: set.receivedCards } : {}),
+    ...(set.plannedWrites !== undefined ? { plannedWrites: set.plannedWrites } : {}),
+    ...(set.databaseWrites !== undefined ? { databaseWrites: set.databaseWrites } : {}),
+  } : undefined };
+}
+
+function checkpointSet(checkpoint: CatalogBatchCheckpoint, setId: string): CheckpointSet {
+  const set = checkpoint.sets.find((item) => item.setId === setId);
+  if (!set) throw new Error(`Checkpoint mist set ${setId}.`);
+  return set;
+}
+
+function reportTotals(results: SetResult[]): { expectedCardsTotal: number; receivedCardsTotal: number; plannedWritesTotal: number; databaseWritesTotal: number } {
+  return results.reduce((totals, result) => {
+    const step = latestStep(result);
+    return {
+      expectedCardsTotal: totals.expectedCardsTotal + (result.expectedCards ?? 0),
+      receivedCardsTotal: totals.receivedCardsTotal + (step?.receivedCards ?? 0),
+      plannedWritesTotal: totals.plannedWritesTotal + (step?.plannedWrites ?? 0),
+      databaseWritesTotal: totals.databaseWritesTotal + (step?.databaseWrites ?? 0),
+    };
+  }, { expectedCardsTotal: 0, receivedCardsTotal: 0, plannedWritesTotal: 0, databaseWritesTotal: 0 });
+}
+
 function toReportStep(step: StepResult): ReportStep {
   return {
     name: step.step,
@@ -229,7 +292,7 @@ function toReportSet(result: SetResult): ReportSet {
 }
 
 function writeReport(path: string, report: unknown): void {
-  writeFileSync(path, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
+  writeAtomicJson(path, report);
 }
 
 async function main(): Promise<number> {
@@ -247,15 +310,43 @@ async function main(): Promise<number> {
 
     if (options.source === 'pokemon_tcg_data') {
       const local = selectedLocalSets(options);
+      validateLocalDatasetCheckout(options.inputRoot!);
       datasetRepository = local.datasetRepository;
       datasetVersion = local.datasetVersion;
       console.log(`Dataset repository: ${datasetRepository}`);
       console.log(`Dataset version: ${datasetVersion}`);
       console.log(`Sets: ${local.sets.map((set) => set.setId).join(', ')}`);
 
+      const identity = localIdentity(local, options.manifestPath!);
+      let checkpoint: CatalogBatchCheckpoint | undefined;
+      if (options.checkpointPath) {
+        if (options.resume) {
+          if (!checkpointExists(options.checkpointPath)) throw new Error(`--resume vereist een bestaand checkpoint: ${options.checkpointPath}`);
+          checkpoint = readCheckpoint(options.checkpointPath);
+          assertCheckpointIdentity(checkpoint, identity);
+        } else {
+          if (checkpointExists(options.checkpointPath)) throw new Error(`Checkpoint bestaat al; gebruik --resume om het te hervatten: ${options.checkpointPath}`);
+          checkpoint = initialCheckpoint(identity, local.sets);
+          saveCheckpoint(options.checkpointPath, checkpoint);
+        }
+      }
+
+      const checkpointResults = checkpoint?.sets.map(setResultFromCheckpoint) ?? [];
+      results.push(...checkpointResults);
+      let setsExecutedThisInvocation = 0;
+      let setsSkippedFromCheckpoint = 0;
       for (const set of local.sets) {
+        const saved = checkpoint ? checkpointSet(checkpoint, set.setId) : undefined;
+        if (saved?.status === 'passed') { setsSkippedFromCheckpoint += 1; continue; }
         const result: SetResult = { setId: set.setId, expectedCards: set.expectedCards };
-        results.push(result);
+        const existingIndex = results.findIndex((item) => item.setId === set.setId);
+        if (existingIndex >= 0) results[existingIndex] = result; else results.push(result);
+        setsExecutedThisInvocation += 1;
+        if (checkpoint) {
+          saved!.status = 'running';
+          delete saved!.error;
+          saveCheckpoint(options.checkpointPath!, checkpoint);
+        }
         result.dryRun = runImportSet(set.setId, false, set.inputPath);
         if (result.dryRun.receivedCards !== set.expectedCards) {
           result.dryRun.passed = false;
@@ -266,7 +357,38 @@ async function main(): Promise<number> {
           result.dryRun.error = `${result.dryRun.error ? `${result.dryRun.error} ` : ''}Lokale dry-run rapporteert databasewrites != 0.`;
         }
         printStep(set.setId, result.dryRun);
+        if (checkpoint) {
+          const updated = checkpointSetFromResult(result, set.expectedCards);
+          const index = checkpoint.sets.findIndex((item) => item.setId === set.setId);
+          checkpoint.sets[index] = updated;
+          saveCheckpoint(options.checkpointPath!, checkpoint);
+        }
       }
+      const totals = reportTotals(results);
+      const statuses = checkpoint?.sets ?? results.map((result) => checkpointSetFromResult(result, result.expectedCards ?? 0));
+      const localReport = {
+        checkpointSchemaVersion: CHECKPOINT_SCHEMA_VERSION,
+        source: options.source,
+        mode,
+        datasetRepository: local.datasetRepository,
+        datasetVersion: local.datasetVersion,
+        manifestHash: identity.manifestHash,
+        supabaseProjectIdentity: identity.supabaseProjectIdentity,
+        startedAt: checkpoint?.startedAt ?? new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        setsPlanned: local.sets.length,
+        setsExecutedThisInvocation,
+        setsSkippedFromCheckpoint,
+        setsPassed: statuses.filter((set) => set.status === 'passed').length,
+        setsFailed: statuses.filter((set) => set.status === 'failed').length,
+        setsPending: statuses.filter((set) => set.status === 'pending' || set.status === 'running').length,
+        ...totals,
+        status: statuses.every((set) => set.status === 'passed') && totals.expectedCardsTotal === totals.receivedCardsTotal && totals.databaseWritesTotal === 0 ? 'PASS' : 'FAIL',
+        results: statuses.map((set) => ({ setId: set.setId, status: set.status, expectedCards: set.expectedCards, ...(set.receivedCards !== undefined ? { receivedCards: set.receivedCards } : {}), ...(set.plannedWrites !== undefined ? { plannedWrites: set.plannedWrites } : {}), ...(set.databaseWrites !== undefined ? { databaseWrites: set.databaseWrites } : {}), ...(set.error ? { error: set.error } : {}) })),
+      };
+      if (options.reportPath) writeReport(options.reportPath, localReport);
+      printSummary({ mode, results, datasetRepository, datasetVersion });
+      return localReport.status === 'PASS' ? 0 : 1;
     } else {
       const setIds = readApiSetIds(options);
       console.log(`Sets: ${setIds.join(', ')}`);

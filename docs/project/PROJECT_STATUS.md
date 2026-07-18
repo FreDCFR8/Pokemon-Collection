@@ -6,19 +6,19 @@ This document contains current operational state only. Historical direction belo
 
 ## Current phase
 
-**Phase 7B-2F9A — Automatische volledige lokale datasetinventaris**
+**Phase 7B-2F9B — Hervatbare volledige lokale catalogus-dry-run**
 
 De actieve fase bouwt een versieerbare, volledig read-only manifestbatch voor meerdere lokale JSON-setbestanden uit `PokemonTCG/pokemon-tcg-data`. De batchrunner blijft orchestratie-only en hergebruikt `import-set.ts` voor parsing, matching en veiligheidsvalidatie.
 
 ## Latest merged product milestone
 
-**PR135 — Phase 7B-2F8: Lokale catalogusmanifest- en batchvalidatie**
+**PR136 — Phase 7B-2F9A: Automatische volledige lokale datasetinventaris**
 
-PR135 is gemerged. De lokale manifestbatch blijft read-only, gebruikt de bestaande single-set importer en wijzigt geen `cards_catalog` of `collection_cards`.
+PR136 is gemerged. De lokale manifestbatch blijft read-only, gebruikt de bestaande single-set importer en wijzigt geen `cards_catalog` of `collection_cards`.
 
 ## Active work
 
-Phase 7B-2F9A:
+Phase 7B-2F9B:
 
 - automatische inventarisatie via `catalog:manifest:generate -- --input-root <datasetmap> --output <manifestpad> [--report <rapportpad>]`;
 - de generator controleert een schone checkout met exact de vastgepinde datasetcommit;
@@ -27,7 +27,9 @@ Phase 7B-2F9A:
 - de werkelijke kaartbestandslengte bepaalt `expectedCards` in het manifest en `receivedCardsTotal`; het vastgestelde volledige datasetprofiel is 20.219 geïndexeerde kaarten, 20.324 kaartrecords en zes count-waarschuwingen;
 - countverschillen zijn niet-blokkerende waarschuwingen; ontbrekende bestanden, ongeldige JSON, kaart-ID-fouten en checkoutfouten blijven blokkerend;
 - manifestoutput wordt alleen bij een volledige PASS atomisch geschreven;
-- volledige catalogus-dry-run blijft Phase 7B-2F9B.
+- checkpoint/resume gebruikt een atomisch machineleesbaar checkpoint, exact manifest- en setfingerprint, datasetcheckoutvalidatie en gesanitiseerde per-setstatus;
+- het eindrapport is atomisch en rapporteert expliciet `databaseWritesTotal: 0`;
+- de volledige operationele 173-setrun blijft operatorwerk in de gecontroleerde lokale datasetomgeving.
 
 ## Current architecture baseline
 

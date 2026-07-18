@@ -54,8 +54,14 @@ test('blocks local write attempts and incomplete local batch arguments', () => {
 test('rejects unsafe or malformed batch arguments', () => {
   for (const args of [
     ['--mode'], ['--mode', 'write'], ['--mode=WRITE'], ['--config'], ['--config='], ['--sets'], ['--sets='],
-    ['--sets', 'sv3,sv3'], ['--sets', 'SV3'], ['--sets', 'sv/3'], ['--sets', 'sv3', '--sets', 'sv4'], ['--unknown'],
+    ['--sets', 'sv3,sv3'], ['--sets', 'SV3'], ['--sets', 'sv/3'], ['--sets', 'sv3', '--sets', 'sv4'], ['--unknown'], ['--resume'], ['--checkpoint'], ['--checkpoint', 'a', '--checkpoint', 'b'],
   ]) rejects(args);
+});
+
+test('parses checkpoint and resume flags and keeps local mode read-only', () => {
+  assert.deepEqual(parses(['--source', 'pokemon_tcg_data', '--manifest', 'm.json', '--input-root', 'data', '--checkpoint', 'run.json', '--resume']), {
+    mode: 'dry-run', source: 'pokemon_tcg_data', configPath: DEFAULT_CATALOG_BATCH_CONFIG_PATH, manifestPath: 'm.json', inputRoot: 'data', checkpointPath: 'run.json', resume: true,
+  });
 });
 
 test('parses and validates batch config', () => {

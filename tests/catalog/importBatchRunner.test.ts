@@ -9,14 +9,16 @@ const datasetVersion = '0af6250a22495e4a3e9f60ff45fc3fedc2e0563d';
 
 function makeTmp(): string { return mkdtempSync(join(tmpdir(), 'pokemon-batch-')); }
 
-function writeLocalFixture(dir: string, received: Record<string, number>): { manifest: string; root: string; stub: string; report: string } {
+function writeLocalFixture(dir: string, received: Record<string, number>): { manifest: string; root: string; stub: string; report: string; gitDir: string } {
   const root = join(dir, 'data'); mkdirSync(root, { recursive: true });
   for (const setId of ['sv3pt5', 'sv3']) writeFileSync(join(root, `${setId}.json`), '[]');
   const manifest = join(dir, 'manifest.json');
   writeFileSync(manifest, JSON.stringify({ source: 'pokemon_tcg_data', datasetRepository: 'PokemonTCG/pokemon-tcg-data', datasetVersion, sets: [{ setId: 'sv3pt5', jsonPath: 'sv3pt5.json', expectedCards: 207, enabled: true }, { setId: 'sv3', jsonPath: 'sv3.json', expectedCards: 230, enabled: true }] }));
   const stub = join(dir, 'stub-import-set.ts');
-  writeFileSync(stub, `const args = process.argv.slice(2);\nconst set = args[args.indexOf('--set') + 1];\nconst input = args[args.indexOf('--input') + 1];\nif (!args.includes('--source') || !args.includes('pokemon_tcg_data') || !input) process.exit(3);\nconst counts = ${JSON.stringify(received)};\nconsole.log('Catalog import dry run');\nconsole.log('Source: pokemon_tcg_data');\nconsole.log('Set: ' + set);\nconsole.log('Mode: DRY RUN');\nconsole.log('Expected cards: ' + counts[set]);\nconsole.log('Received cards: ' + counts[set]);\nconsole.log('Theoretisch geplande writes: 0');\nconsole.log('Result: PASS');\nconsole.log('Database writes: 0');\n`);
-  return { manifest, root, stub, report: join(dir, 'report.json') };
+  writeFileSync(stub, `const args = process.argv.slice(2);\nconst set = args[args.indexOf('--set') + 1];\nconst input = args[args.indexOf('--input') + 1];\nif (!args.includes('--source') || !args.includes('pokemon_tcg_data') || !input) process.exit(3);\nconst counts = ${JSON.stringify(received)};\nconst failed = process.env.BATCH_STUB_FAIL_SET === set;\nconsole.log('Catalog import dry run');\nconsole.log('Source: pokemon_tcg_data');\nconsole.log('Set: ' + set);\nconsole.log('Mode: DRY RUN');\nconsole.log('Expected cards: ' + counts[set]);\nconsole.log('Received cards: ' + counts[set]);\nconsole.log('Theoretisch geplande writes: 0');\nconsole.log('Result: ' + (failed ? 'FAIL' : 'PASS'));\nconsole.log('Database writes: 0');\nprocess.exit(failed ? 1 : 0);\n`);
+  const gitDir = join(dir, 'fake-git'); mkdirSync(gitDir);
+  writeFileSync(join(gitDir, 'git.cmd'), '@echo off\nif "%3"=="rev-parse" if "%4"=="--is-inside-work-tree" echo true\nif "%3"=="remote" echo https://github.com/PokemonTCG/pokemon-tcg-data\nif "%3"=="status" exit /b 0\nif "%3"=="rev-parse" if "%4"=="HEAD" echo 0af6250a22495e4a3e9f60ff45fc3fedc2e0563d\n');
+  return { manifest, root, stub, report: join(dir, 'report.json'), gitDir };
 }
 
 function writeApiFixture(dir: string, failureStep?: 'write' | 'idempotency'): { config: string; stub: string; report: string; state: string } {
@@ -29,8 +31,8 @@ function writeApiFixture(dir: string, failureStep?: 'write' | 'idempotency'): { 
   return { config, stub, report: join(dir, 'report.json'), state };
 }
 
-function runLocalBatch(paths: ReturnType<typeof writeLocalFixture>, extra: string[] = []) {
-  return spawnSync(process.execPath, ['--experimental-strip-types', 'scripts/catalog/import-batch.ts', '--source', 'pokemon_tcg_data', '--manifest', paths.manifest, '--input-root', paths.root, ...extra], { encoding: 'utf8', env: { ...process.env, CATALOG_IMPORT_SET_SCRIPT: paths.stub } });
+function runLocalBatch(paths: ReturnType<typeof writeLocalFixture>, extra: string[] = [], envOverrides: Record<string, string> = {}) {
+  return spawnSync(process.execPath, ['--experimental-strip-types', 'scripts/catalog/import-batch.ts', '--source', 'pokemon_tcg_data', '--manifest', paths.manifest, '--input-root', paths.root, ...extra], { encoding: 'utf8', env: { ...process.env, CATALOG_GIT_BINARY: join(paths.gitDir, 'git.cmd'), CATALOG_IMPORT_SET_SCRIPT: paths.stub, ...envOverrides } });
 }
 
 function runApiBatch(paths: ReturnType<typeof writeApiFixture>, extra: string[] = []) {
@@ -40,7 +42,7 @@ function runApiBatch(paths: ReturnType<typeof writeApiFixture>, extra: string[] 
 test('passes correct CLI arguments to import-set and supports --sets filtering', () => {
   const paths = writeLocalFixture(makeTmp(), { sv3pt5: 207, sv3: 230 });
   const result = runLocalBatch(paths, ['--sets', 'sv3']);
-  assert.equal(result.status, 0);
+  assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /Sets: sv3/);
   assert.doesNotMatch(result.stdout, /sv3pt5 \/ dry-run/);
 });
@@ -48,7 +50,7 @@ test('passes correct CLI arguments to import-set and supports --sets filtering',
 test('continues after one failed local set and exits non-zero for partial failure', () => {
   const paths = writeLocalFixture(makeTmp(), { sv3pt5: 206, sv3: 230 });
   const result = runLocalBatch(paths);
-  assert.equal(result.status, 1);
+  assert.equal(result.status, 1, result.stderr);
   assert.match(result.stdout, /sv3pt5 \/ dry-run/);
   assert.match(result.stdout, /sv3 \/ dry-run/);
   assert.match(result.stdout, /Expected\/received mismatch/);
@@ -57,16 +59,45 @@ test('continues after one failed local set and exits non-zero for partial failur
 test('local dry-run reports zero database writes and JSON report contains no sensitive values', () => {
   const paths = writeLocalFixture(makeTmp(), { sv3pt5: 207, sv3: 230 });
   const result = runLocalBatch(paths, ['--report', paths.report]);
-  assert.equal(result.status, 0);
+  assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /Database writes: 0/);
   assert.match(result.stdout, /Dataset repository: PokemonTCG\/pokemon-tcg-data/);
   assert.match(result.stdout, new RegExp(`Dataset version: ${datasetVersion}`));
   const report = JSON.parse(readFileSync(paths.report, 'utf8'));
   assert.equal(report.datasetRepository, 'PokemonTCG/pokemon-tcg-data');
   assert.equal(report.datasetVersion, datasetVersion);
-  assert.doesNotMatch(JSON.stringify(report), /SUPABASE|POKEMON_TCG_API_KEY|serviceRole|apiKey|secret|Catalog import dry run/i);
+  assert.doesNotMatch(JSON.stringify(report), /POKEMON_TCG_API_KEY|serviceRole|apiKey|secret|Catalog import dry run|Source:|Mode: DRY RUN/i);
+  assert.equal(report.databaseWritesTotal, 0);
   assert.equal(report.results[0].databaseWrites, 0);
-  assert.equal(report.results[0].steps[0].databaseWrites, 0);
+});
+
+test('checkpoint is created before execution and resume skips passed sets', () => {
+  const paths = writeLocalFixture(makeTmp(), { sv3pt5: 207, sv3: 230 });
+  const checkpoint = join(makeTmp(), 'checkpoint.json');
+  const first = runLocalBatch(paths, ['--checkpoint', checkpoint], { BATCH_STUB_FAIL_SET: 'sv3pt5' });
+  assert.equal(first.status, 1, first.stderr);
+  const saved = JSON.parse(readFileSync(checkpoint, 'utf8'));
+  assert.deepEqual(saved.sets.map((set: { setId: string; status: string }) => [set.setId, set.status]), [['sv3pt5', 'failed'], ['sv3', 'passed']]);
+  const resumed = runLocalBatch(paths, ['--checkpoint', checkpoint, '--resume', '--report', paths.report]);
+  assert.equal(resumed.status, 0, resumed.stderr);
+  assert.match(resumed.stdout, /sv3pt5 \/ dry-run/);
+  assert.doesNotMatch(resumed.stdout, /sv3 \/ dry-run/);
+  const report = JSON.parse(readFileSync(paths.report, 'utf8'));
+  assert.equal(report.setsExecutedThisInvocation, 1);
+  assert.equal(report.setsSkippedFromCheckpoint, 1);
+  assert.equal(report.databaseWritesTotal, 0);
+});
+
+test('resume rejects a manifest fingerprint mismatch before subprocesses', () => {
+  const paths = writeLocalFixture(makeTmp(), { sv3pt5: 207, sv3: 230 });
+  const checkpoint = join(makeTmp(), 'checkpoint.json');
+  const first = runLocalBatch(paths, ['--checkpoint', checkpoint], { BATCH_STUB_FAIL_SET: 'sv3' });
+  assert.equal(first.status, 1, first.stderr);
+  writeFileSync(paths.manifest, `${readFileSync(paths.manifest, 'utf8')}\n`);
+  const resumed = runLocalBatch(paths, ['--checkpoint', checkpoint, '--resume']);
+  assert.equal(resumed.status, 1);
+  assert.match(resumed.stderr, /manifestHash/);
+  assert.doesNotMatch(resumed.stdout, /Catalog import dry run/);
 });
 
 test('dry-run PASS plus write FAIL makes the API set summary and report fail', () => {
