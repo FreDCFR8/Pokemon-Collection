@@ -6,25 +6,26 @@ This document contains current operational state only. Historical direction belo
 
 ## Current phase
 
-**Phase 7B-2F7 — Uitgebreide Card Detail-presentatie**
+**Phase 7B-2F8 — Lokale catalogusmanifest- en batchvalidatie**
 
-De gedeelde Card Detail toont nu de beschikbare geneste kaartdetails zoals abilities, aanvallen, regels, zwaktes, weerstanden, terugtrekkosten, Pokédex-nummers en legaliteit. Deze fase is UI-only: geen migratie, importwrite of wijziging aan `collection_cards`.
+De actieve fase bouwt een versieerbare, volledig read-only manifestbatch voor meerdere lokale JSON-setbestanden uit `PokemonTCG/pokemon-tcg-data`. De batchrunner blijft orchestratie-only en hergebruikt `import-set.ts` voor parsing, matching en veiligheidsvalidatie.
 
 ## Latest merged product milestone
 
-**PR132 — Phase 7B-2F6: Herbruikbare metadata-backfill**
+**PR134 — Phase 7B-2F7: Uitgebreide Card Detail-presentatie**
 
-PR132 is gemerged. De detail-backfill voor `sv3pt5` vulde 207 lege `card_details`-velden aan; `sv3` was al volledig gevuld. Beide sets hebben nu gecontroleerde detaildata.
+PR134 is gemerged. Card Detail-presentatie en lokale energie-/rarity-symbolen zijn afgerond; de fase was UI-only zonder migratie, importwrite of wijziging aan `collection_cards`.
 
 ## Active work
 
-Phase 7B-2F6:
+Phase 7B-2F8:
 
-- herbruikbare detail-backfill via `catalog:backfill:details`;
-- dry-run standaard en expliciete write alleen voor `sv3pt5`/`sv3` via API-bron;
-- alleen lege `card_details` worden aangevuld;
-- missing targets, verkeerde sets en collection-countwijzigingen blokkeren de run;
-- lokale JSON blijft read-only voor backfill totdat apart geautoriseerd.
+- lokale manifestbatch via `catalog:import:batch -- --source pokemon_tcg_data --manifest <pad> --input-root <datasetmap>`;
+- dry-run blijft permanent de standaard;
+- lokale bron blokkeert `write-approved` en `--write`;
+- manifestsets worden vooraf gevalideerd en sequentieel via `import-set.ts` uitgevoerd;
+- lokale batchvalidatie schrijft niet naar Supabase en raakt `collection_cards` niet;
+- bredere cataloguswrites vereisen een afzonderlijke goedgekeurde fase.
 
 ## Current architecture baseline
 
@@ -80,4 +81,4 @@ Pokémon TCG API set `sv3` (`Obsidian Flames`) is imported and idempotency-verif
 
 ## Next phase scope
 
-Na metadata-enrichment volgt een afzonderlijke gecontroleerde backfill voor bestaande catalogusrecords, daarna lokale manifest/batch-synchronisatie en pas daarna bredere cataloguswrites. Trade remains a separate future area and the lowest product priority.
+Na Phase 7B-2F8 blijven bredere cataloguswrites en verdere synchronisatie expliciet aparte, goedgekeurde fases. Trade remains a separate future area and the lowest product priority.

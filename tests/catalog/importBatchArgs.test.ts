@@ -10,20 +10,45 @@ const parses = (args: string[]) => parseCatalogBatchArgs(args);
 const rejects = (args: string[]) => assert.throws(() => parses(args));
 
 test('uses dry-run mode and default config by default', () => {
-  assert.deepEqual(parses([]), { mode: 'dry-run', configPath: DEFAULT_CATALOG_BATCH_CONFIG_PATH });
+  assert.deepEqual(parses([]), { mode: 'dry-run', source: 'pokemon_tcg_api', configPath: DEFAULT_CATALOG_BATCH_CONFIG_PATH });
 });
 
 test('parses explicit dry-run and write-approved modes', () => {
-  assert.deepEqual(parses(['--mode', 'dry-run']), { mode: 'dry-run', configPath: DEFAULT_CATALOG_BATCH_CONFIG_PATH });
-  assert.deepEqual(parses(['--mode=write-approved']), { mode: 'write-approved', configPath: DEFAULT_CATALOG_BATCH_CONFIG_PATH });
+  assert.deepEqual(parses(['--mode', 'dry-run']), { mode: 'dry-run', source: 'pokemon_tcg_api', configPath: DEFAULT_CATALOG_BATCH_CONFIG_PATH });
+  assert.deepEqual(parses(['--mode=write-approved']), { mode: 'write-approved', source: 'pokemon_tcg_api', configPath: DEFAULT_CATALOG_BATCH_CONFIG_PATH });
 });
 
 test('parses config path and comma separated set override', () => {
   assert.deepEqual(parses(['--config', 'tmp/sets.json', '--sets', 'sv3pt5,sv3']), {
     mode: 'dry-run',
+    source: 'pokemon_tcg_api',
     configPath: 'tmp/sets.json',
     setIds: ['sv3pt5', 'sv3'],
   });
+});
+
+
+
+test('parses controlled local manifest batch arguments', () => {
+  assert.deepEqual(parses(['--source', 'pokemon_tcg_data', '--manifest', 'config/local.json', '--input-root', 'tmp/data', '--sets', 'sv3pt5,sv3', '--report', 'tmp/report.json']), {
+    mode: 'dry-run',
+    source: 'pokemon_tcg_data',
+    configPath: DEFAULT_CATALOG_BATCH_CONFIG_PATH,
+    manifestPath: 'config/local.json',
+    inputRoot: 'tmp/data',
+    reportPath: 'tmp/report.json',
+    setIds: ['sv3pt5', 'sv3'],
+  });
+});
+
+test('blocks local write attempts and incomplete local batch arguments', () => {
+  for (const args of [
+    ['--source', 'pokemon_tcg_data', '--mode', 'write-approved', '--manifest', 'm.json', '--input-root', 'data'],
+    ['--source', 'pokemon_tcg_data', '--input-root', 'data'],
+    ['--source', 'pokemon_tcg_data', '--manifest', 'm.json'],
+    ['--manifest', 'm.json'],
+    ['--input-root', 'data'],
+  ]) rejects(args);
 });
 
 test('rejects unsafe or malformed batch arguments', () => {

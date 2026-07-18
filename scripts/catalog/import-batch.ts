@@ -1,6 +1,8 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
+import { resolve } from 'node:path';
 import { parseCatalogBatchArgs, parseCatalogBatchConfigFromText, type CatalogBatchMode } from './import-batch-args.ts';
+import { parseLocalCatalogManifestFromText, type LocalCatalogManifestSet } from './local-manifest.ts';
 
 type StepName = 'dry-run' | 'write' | 'idempotency';
 
@@ -10,22 +12,68 @@ type StepResult = {
   output: string;
   passed: boolean;
   error?: string;
+  expectedCards?: number;
+  receivedCards?: number;
+  plannedWrites?: number;
+  databaseWrites?: number;
 };
 
 type SetResult = {
   setId: string;
+  expectedCards?: number;
   dryRun?: StepResult;
   write?: StepResult;
   idempotency?: StepResult;
+  error?: string;
 };
 
-function runImportSet(setId: string, write: boolean): StepResult {
+type LocalBatchSelection = {
+  datasetRepository: string;
+  datasetVersion: string;
+  sets: (LocalCatalogManifestSet & { inputPath: string })[];
+};
+
+type ReportStep = {
+  name: StepName;
+  passed: boolean;
+  exitCode: number;
+  expectedCards?: number;
+  receivedCards?: number;
+  plannedWrites?: number;
+  databaseWrites?: number;
+  error?: string;
+};
+
+type ReportSet = {
+  setId: string;
+  passed: boolean;
+  expectedCards?: number;
+  receivedCards?: number;
+  plannedWrites?: number;
+  databaseWrites?: number;
+  error?: string;
+  steps: ReportStep[];
+};
+
+function readNumberLine(output: string, label: string): number | undefined {
+  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = output.match(new RegExp(`^${escaped}: (\\d+)$`, 'm'));
+  return match ? Number(match[1]) : undefined;
+}
+
+function runImportSet(setId: string, write: boolean, inputPath?: string): StepResult {
   const step: StepName = write ? 'write' : 'dry-run';
-  const args = ['--experimental-strip-types', 'scripts/catalog/import-set.ts', '--set', setId, ...(write ? ['--write'] : [])];
+  const args = [
+    '--experimental-strip-types',
+    process.env.CATALOG_IMPORT_SET_SCRIPT ?? 'scripts/catalog/import-set.ts',
+    '--set',
+    setId,
+    ...(inputPath ? ['--source', 'pokemon_tcg_data', '--input', inputPath] : []),
+    ...(write ? ['--write'] : []),
+  ];
   const result = spawnSync(process.execPath, args, { encoding: 'utf8' });
   const output = `${result.stdout ?? ''}${result.stderr ?? ''}`;
-  const exitCode = result.status ?? 1;
-  return validateStepOutput({ step, exitCode, output });
+  return validateStepOutput({ step, exitCode: result.status ?? 1, output });
 }
 
 function runIdempotency(setId: string): StepResult {
@@ -39,6 +87,11 @@ function hasLine(output: string, pattern: RegExp): boolean {
 
 function validateStepOutput(params: { step: StepName; exitCode: number; output: string }): StepResult {
   const errors: string[] = [];
+  const expectedCards = readNumberLine(params.output, 'Expected cards');
+  const receivedCards = readNumberLine(params.output, 'Received cards');
+  const plannedWrites = readNumberLine(params.output, 'Theoretisch geplande writes');
+  const databaseWrites = readNumberLine(params.output, 'Database writes');
+
   if (params.exitCode !== 0) errors.push(`exitcode ${params.exitCode}`);
   if (!hasLine(params.output, /^Result: PASS$/)) errors.push('Result: PASS ontbreekt.');
 
@@ -65,7 +118,33 @@ function validateStepOutput(params: { step: StepName; exitCode: number; output: 
     output: params.output,
     passed: errors.length === 0,
     ...(errors.length > 0 ? { error: errors.join(' ') } : {}),
+    ...(expectedCards !== undefined ? { expectedCards } : {}),
+    ...(receivedCards !== undefined ? { receivedCards } : {}),
+    ...(plannedWrites !== undefined ? { plannedWrites } : {}),
+    ...(databaseWrites !== undefined ? { databaseWrites } : {}),
   };
+}
+
+function executedSteps(result: SetResult): StepResult[] {
+  return [result.dryRun, result.write, result.idempotency].filter((step): step is StepResult => Boolean(step));
+}
+
+function setPassed(result: SetResult): boolean {
+  const steps = executedSteps(result);
+  return !result.error && steps.length > 0 && steps.every((step) => step.passed);
+}
+
+function firstFailedStep(result: SetResult): StepResult | undefined {
+  return executedSteps(result).find((step) => !step.passed);
+}
+
+function latestStep(result: SetResult): StepResult | undefined {
+  return executedSteps(result).at(-1);
+}
+
+function stepStatuses(result: SetResult): string {
+  const statuses = executedSteps(result).map((step) => `${step.step}=${step.passed ? 'PASS' : 'FAIL'}`);
+  return statuses.length > 0 ? statuses.join(', ') : 'not-run';
 }
 
 function printStep(setId: string, result: StepResult): void {
@@ -76,66 +155,151 @@ function printStep(setId: string, result: StepResult): void {
   if (result.error) console.log(`Batch validation: ${result.error}`);
 }
 
-function printSummary(mode: CatalogBatchMode, results: SetResult[]): void {
-  const failed = results.filter((result) =>
-    [result.dryRun, result.write, result.idempotency].some((step) => step && !step.passed),
-  );
+function printSummary(params: { mode: CatalogBatchMode; results: SetResult[]; datasetRepository?: string; datasetVersion?: string }): void {
+  const failed = params.results.filter((result) => !setPassed(result));
   console.log('\nCatalog batch summary');
-  console.log(`Mode: ${mode}`);
-  console.log(`Sets planned: ${results.length}`);
-  console.log(`Sets completed: ${results.length - failed.length}`);
+  if (params.datasetRepository) console.log(`Dataset repository: ${params.datasetRepository}`);
+  if (params.datasetVersion) console.log(`Dataset version: ${params.datasetVersion}`);
+  console.log(`Mode: ${params.mode}`);
+  console.log(`Sets planned: ${params.results.length}`);
+  console.log(`Sets executed: ${params.results.filter((result) => executedSteps(result).length > 0).length}`);
+  console.log(`Sets passed: ${params.results.length - failed.length}`);
   console.log(`Sets failed: ${failed.length}`);
-  for (const result of results) {
-    const statuses = [result.dryRun, result.write, result.idempotency]
-      .filter((step): step is StepResult => Boolean(step))
-      .map((step) => `${step.step}=${step.passed ? 'PASS' : 'FAIL'}`)
-      .join(', ');
-    console.log(`- ${result.setId}: ${statuses}`);
+
+  for (const result of params.results) {
+    const displayStep = latestStep(result);
+    const failedStep = firstFailedStep(result);
+    const error = result.error ?? failedStep?.error;
+    console.log(
+      `- ${result.setId}: ${setPassed(result) ? 'PASS' : 'FAIL'}; steps=${stepStatuses(result)}; expected=${result.expectedCards ?? displayStep?.expectedCards ?? 'n/a'}; received=${displayStep?.receivedCards ?? 'n/a'}; planned_writes=${displayStep?.plannedWrites ?? 'n/a'}; database_writes=${displayStep?.databaseWrites ?? 'n/a'}${error ? `; error=${error}` : ''}`,
+    );
   }
 }
 
-function readSetIds(options: ReturnType<typeof parseCatalogBatchArgs>): string[] {
+function readApiSetIds(options: ReturnType<typeof parseCatalogBatchArgs>): string[] {
   if (options.setIds) return options.setIds;
-  const config = parseCatalogBatchConfigFromText(readFileSync(options.configPath, 'utf8'));
-  return config.sets;
+  return parseCatalogBatchConfigFromText(readFileSync(options.configPath, 'utf8')).sets;
+}
+
+function selectedLocalSets(options: ReturnType<typeof parseCatalogBatchArgs>): LocalBatchSelection {
+  const manifest = parseLocalCatalogManifestFromText(readFileSync(options.manifestPath!, 'utf8'));
+  const wanted = options.setIds ? new Set(options.setIds) : undefined;
+  const sets = manifest.sets
+    .filter((set) => set.enabled && (!wanted || wanted.has(set.setId)))
+    .map((set) => ({ ...set, inputPath: resolve(options.inputRoot!, set.jsonPath) }));
+
+  if (sets.length === 0) throw new Error('Geen actieve manifestsets geselecteerd voor uitvoering.');
+  if (wanted) {
+    for (const setId of wanted) {
+      if (!manifest.sets.some((set) => set.setId === setId && set.enabled)) throw new Error(`Geselecteerde set ${setId} staat niet actief in het lokale manifest.`);
+    }
+  }
+  for (const set of sets) {
+    if (!existsSync(set.inputPath)) throw new Error(`Lokale JSON-input ontbreekt voor ${set.setId}: ${set.inputPath}`);
+  }
+  return { datasetRepository: manifest.datasetRepository, datasetVersion: manifest.datasetVersion, sets };
+}
+
+function toReportStep(step: StepResult): ReportStep {
+  return {
+    name: step.step,
+    exitCode: step.exitCode,
+    passed: step.passed,
+    ...(step.expectedCards !== undefined ? { expectedCards: step.expectedCards } : {}),
+    ...(step.receivedCards !== undefined ? { receivedCards: step.receivedCards } : {}),
+    ...(step.plannedWrites !== undefined ? { plannedWrites: step.plannedWrites } : {}),
+    ...(step.databaseWrites !== undefined ? { databaseWrites: step.databaseWrites } : {}),
+    ...(step.error ? { error: step.error } : {}),
+  };
+}
+
+function toReportSet(result: SetResult): ReportSet {
+  const displayStep = latestStep(result);
+  const error = result.error ?? firstFailedStep(result)?.error;
+  return {
+    setId: result.setId,
+    passed: setPassed(result),
+    ...(result.expectedCards !== undefined || displayStep?.expectedCards !== undefined ? { expectedCards: result.expectedCards ?? displayStep?.expectedCards } : {}),
+    ...(displayStep?.receivedCards !== undefined ? { receivedCards: displayStep.receivedCards } : {}),
+    ...(displayStep?.plannedWrites !== undefined ? { plannedWrites: displayStep.plannedWrites } : {}),
+    ...(displayStep?.databaseWrites !== undefined ? { databaseWrites: displayStep.databaseWrites } : {}),
+    ...(error ? { error } : {}),
+    steps: executedSteps(result).map(toReportStep),
+  };
+}
+
+function writeReport(path: string, report: unknown): void {
+  writeFileSync(path, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
 }
 
 async function main(): Promise<number> {
   const results: SetResult[] = [];
   let mode: CatalogBatchMode = 'dry-run';
+  let datasetRepository: string | undefined;
+  let datasetVersion: string | undefined;
 
   try {
     const options = parseCatalogBatchArgs(process.argv.slice(2));
     mode = options.mode;
-    const setIds = readSetIds(options);
-
     console.log('Catalog batch import');
-    console.log('Source: pokemon_tcg_api');
+    console.log(`Source: ${options.source}`);
     console.log(`Mode: ${mode}`);
-    console.log(`Sets: ${setIds.join(', ')}`);
 
-    for (const setId of setIds) {
-      const result: SetResult = { setId };
-      results.push(result);
+    if (options.source === 'pokemon_tcg_data') {
+      const local = selectedLocalSets(options);
+      datasetRepository = local.datasetRepository;
+      datasetVersion = local.datasetVersion;
+      console.log(`Dataset repository: ${datasetRepository}`);
+      console.log(`Dataset version: ${datasetVersion}`);
+      console.log(`Sets: ${local.sets.map((set) => set.setId).join(', ')}`);
 
-      result.dryRun = runImportSet(setId, false);
-      printStep(setId, result.dryRun);
-      if (!result.dryRun.passed) break;
+      for (const set of local.sets) {
+        const result: SetResult = { setId: set.setId, expectedCards: set.expectedCards };
+        results.push(result);
+        result.dryRun = runImportSet(set.setId, false, set.inputPath);
+        if (result.dryRun.receivedCards !== set.expectedCards) {
+          result.dryRun.passed = false;
+          result.dryRun.error = `${result.dryRun.error ? `${result.dryRun.error} ` : ''}Expected/received mismatch: manifest=${set.expectedCards}, importer=${result.dryRun.receivedCards ?? 'unknown'}.`;
+        }
+        if (result.dryRun.databaseWrites !== 0) {
+          result.dryRun.passed = false;
+          result.dryRun.error = `${result.dryRun.error ? `${result.dryRun.error} ` : ''}Lokale dry-run rapporteert databasewrites != 0.`;
+        }
+        printStep(set.setId, result.dryRun);
+      }
+    } else {
+      const setIds = readApiSetIds(options);
+      console.log(`Sets: ${setIds.join(', ')}`);
+      for (const setId of setIds) {
+        const result: SetResult = { setId };
+        results.push(result);
+        result.dryRun = runImportSet(setId, false);
+        printStep(setId, result.dryRun);
+        if (!result.dryRun.passed) break;
 
-      if (mode === 'write-approved') {
-        result.write = runImportSet(setId, true);
-        printStep(setId, result.write);
-        if (!result.write.passed) break;
+        if (mode === 'write-approved') {
+          result.write = runImportSet(setId, true);
+          printStep(setId, result.write);
+          if (!result.write.passed) break;
 
-        result.idempotency = runIdempotency(setId);
-        printStep(setId, result.idempotency);
-        if (!result.idempotency.passed) break;
+          result.idempotency = runIdempotency(setId);
+          printStep(setId, result.idempotency);
+          if (!result.idempotency.passed) break;
+        }
       }
     }
 
-    printSummary(mode, results);
-    const failed = results.some((result) => [result.dryRun, result.write, result.idempotency].some((step) => step && !step.passed));
-    return failed ? 1 : 0;
+    printSummary({ mode, results, datasetRepository, datasetVersion });
+    if (options.reportPath) {
+      writeReport(options.reportPath, {
+        source: options.source,
+        mode,
+        ...(datasetRepository ? { datasetRepository } : {}),
+        ...(datasetVersion ? { datasetVersion } : {}),
+        results: results.map(toReportSet),
+      });
+    }
+    return results.some((result) => !setPassed(result)) ? 1 : 0;
   } catch (error) {
     console.error('Catalog batch import');
     console.error(`Mode: ${mode}`);
