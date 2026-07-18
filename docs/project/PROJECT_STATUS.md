@@ -6,26 +6,25 @@ This document contains current operational state only. Historical direction belo
 
 ## Current phase
 
-**Phase 7B-2F8 — Lokale catalogusmanifest- en batchvalidatie**
+**Phase 7B-2F9A — Automatische volledige lokale datasetinventaris**
 
 De actieve fase bouwt een versieerbare, volledig read-only manifestbatch voor meerdere lokale JSON-setbestanden uit `PokemonTCG/pokemon-tcg-data`. De batchrunner blijft orchestratie-only en hergebruikt `import-set.ts` voor parsing, matching en veiligheidsvalidatie.
 
 ## Latest merged product milestone
 
-**PR134 — Phase 7B-2F7: Uitgebreide Card Detail-presentatie**
+**PR135 — Phase 7B-2F8: Lokale catalogusmanifest- en batchvalidatie**
 
-PR134 is gemerged. Card Detail-presentatie en lokale energie-/rarity-symbolen zijn afgerond; de fase was UI-only zonder migratie, importwrite of wijziging aan `collection_cards`.
+PR135 is gemerged. De lokale manifestbatch blijft read-only, gebruikt de bestaande single-set importer en wijzigt geen `cards_catalog` of `collection_cards`.
 
 ## Active work
 
-Phase 7B-2F8:
+Phase 7B-2F9A:
 
-- lokale manifestbatch via `catalog:import:batch -- --source pokemon_tcg_data --manifest <pad> --input-root <datasetmap>`;
-- dry-run blijft permanent de standaard;
-- lokale bron blokkeert `write-approved` en `--write`;
-- manifestsets worden vooraf gevalideerd en sequentieel via `import-set.ts` uitgevoerd;
-- lokale batchvalidatie schrijft niet naar Supabase en raakt `collection_cards` niet;
-- bredere cataloguswrites vereisen een afzonderlijke goedgekeurde fase.
+- automatische inventarisatie via `catalog:manifest:generate -- --input-root <datasetmap> --output <manifestpad> [--report <rapportpad>]`;
+- de generator controleert een schone checkout met exact de vastgepinde datasetcommit;
+- setindex en alle Engelse kaartbestanden worden volledig lokaal gevalideerd;
+- manifestoutput wordt alleen bij een volledige PASS atomisch geschreven;
+- volledige catalogus-dry-run blijft Phase 7B-2F9B.
 
 ## Current architecture baseline
 
@@ -81,4 +80,4 @@ Pokémon TCG API set `sv3` (`Obsidian Flames`) is imported and idempotency-verif
 
 ## Next phase scope
 
-Na Phase 7B-2F8 blijven bredere cataloguswrites en verdere synchronisatie expliciet aparte, goedgekeurde fases. Trade remains a separate future area and the lowest product priority.
+Na Phase 7B-2F9A blijven bredere cataloguswrites en de volledige catalogus-dry-run expliciet aparte, goedgekeurde fases. Trade remains a separate future area and the lowest product priority.
