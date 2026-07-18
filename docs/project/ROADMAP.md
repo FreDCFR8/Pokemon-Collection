@@ -40,9 +40,10 @@ This document shows product direction and phase status. It intentionally avoids 
 - ✅ Phase 7B-2F3 — catalog import batch runner
 - ✅ Phase 7B-2F4 — versioneerbare lokale JSON-input via `PokemonTCG/pokemon-tcg-data`
 - ✅ Phase 7B-2F5 — catalogusmetadata & Card Detail enrichment
-- ✅ Phase 7B-2F6 — herbruikbare metadata-backfill\n- 🚧 Phase 7B-2F7 — uitgebreide Card Detail-presentatie
-- 🚧 lokale manifest- en batch-synchronisatie
-- ⏳ broader catalog synchronization
+- ✅ Phase 7B-2F6 — herbruikbare metadata-backfill
+- ✅ Phase 7B-2F7 — uitgebreide Card Detail-presentatie
+- 🚧 Phase 7B-2F8 — lokale catalogusmanifest- en batchvalidatie
+- ⏳ broader catalog synchronization and catalog writes after separate approval
 
 ## Sets and binder experience
 

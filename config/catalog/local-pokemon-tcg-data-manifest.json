@@ -1,0 +1,19 @@
+{
+  "source": "pokemon_tcg_data",
+  "datasetRepository": "PokemonTCG/pokemon-tcg-data",
+  "datasetVersion": "operator-pinned-local-checkout",
+  "sets": [
+    {
+      "setId": "sv3pt5",
+      "jsonPath": "cards/en/sv3pt5.json",
+      "expectedCards": 207,
+      "enabled": true
+    },
+    {
+      "setId": "sv3",
+      "jsonPath": "cards/en/sv3.json",
+      "expectedCards": 230,
+      "enabled": true
+    }
+  ]
+}

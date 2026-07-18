@@ -59,9 +59,18 @@ test('rejects unsafe or malformed arguments', () => {
 test('keeps the importer write boundary and collection isolation intact', () => {
   const importer = readFileSync('scripts/catalog/import-set.ts', 'utf8');
   const authorization = importer.indexOf('assertWriteAuthorized(options);');
-  const apiConfig = importer.indexOf('const apiKey = getApiKey();');
+  const supabaseConfig = importer.indexOf('const supabaseConfig = getSupabaseConfig();');
+  const apiConfig = importer.indexOf('const apiKey = options.source ===');
+  const localJsonLoad = importer.indexOf('loadPokemonTcgDataJson(options.inputPath!, setId)');
   assert.notEqual(authorization, -1);
-  assert.ok(authorization < apiConfig, 'write authorization must precede API configuration');
+  assert.notEqual(apiConfig, -1);
+  assert.ok(authorization < supabaseConfig, 'write authorization must precede database configuration');
+  assert.ok(authorization < apiConfig, 'write authorization must precede external API configuration');
+  assert.ok(authorization < localJsonLoad, 'write authorization must precede local-source processing');
+  assert.throws(
+    () => assertWriteAuthorized(parses(['--set', 'sv3', '--source', 'pokemon_tcg_data', '--input', 'data/sv3.json', '--write'])),
+    /read-only/i,
+  );
   assert.doesNotMatch(importer, /\.from\(['"]collection_cards['"]\)\.(insert|update|delete)/i);
   assert.doesNotMatch(importer, /\.from\(['"]public\.cards['"]\)/i);
   assert.match(importer, /if \(!options\.write\)[\s\S]*?printFinalResult\(true, 0\)/);
