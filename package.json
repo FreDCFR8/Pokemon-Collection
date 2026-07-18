@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "catalog:import": "node --experimental-strip-types scripts/catalog/import-set.ts",
     "catalog:import:batch": "node --experimental-strip-types scripts/catalog/import-batch.ts",
+    "catalog:manifest:generate": "node --experimental-strip-types scripts/catalog/generate-local-manifest.ts",
     "catalog:backfill:details": "node --experimental-strip-types scripts/catalog/backfill-details.ts",
     "test": "node scripts/test-all.mjs"
   },

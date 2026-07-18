@@ -42,7 +42,8 @@ This document shows product direction and phase status. It intentionally avoids 
 - ✅ Phase 7B-2F5 — catalogusmetadata & Card Detail enrichment
 - ✅ Phase 7B-2F6 — herbruikbare metadata-backfill
 - ✅ Phase 7B-2F7 — uitgebreide Card Detail-presentatie
-- 🚧 Phase 7B-2F8 — lokale catalogusmanifest- en batchvalidatie
+- ✅ Phase 7B-2F8 — lokale catalogusmanifest- en batchvalidatie
+- 🚧 Phase 7B-2F9A — automatische volledige lokale datasetinventaris
 - ⏳ broader catalog synchronization and catalog writes after separate approval
 
 ## Sets and binder experience
