@@ -16,7 +16,24 @@ function validFixture() { const root = fixture(); writeFixture(root, [{ id: 'bas
 
 test('generates a valid, sorted manifest and PASS report', () => {
   const root = validFixture(); const output = join(root, 'manifest.json'); const result = inventoryLocalDataset(root, output, fakeGit(root));
-  assert.equal(result.report.status, 'PASS'); assert.equal(result.report.setsIndexed, 2); assert.equal(result.report.expectedCardsTotal, 3); assert.equal(result.report.receivedCardsTotal, 3); assert.deepEqual(result.manifest?.sets.map((set) => set.setId), ['base1', 'sv1']);
+  assert.equal(result.report.status, 'PASS'); assert.equal(result.report.setsIndexed, 2); assert.equal(result.report.indexedCardsTotal, 3); assert.equal(result.report.receivedCardsTotal, 3); assert.deepEqual(result.manifest?.sets.map((set) => set.setId), ['base1', 'sv1']);
+});
+
+test('count mismatch is a warning, remains PASS, and manifest uses file length', () => {
+  const root = fixture(); writeFixture(root, [{ id: 'sv1', total: 1 }], { sv1: [{ id: 'a' }, { id: 'b' }] });
+  const result = generateManifest({ inputRoot: root, outputPath: join(root, 'manifest.json'), reportPath: join(root, 'report.json') }, { inventory: (input, target) => inventoryLocalDataset(input, target, fakeGit(root)) });
+  assert.equal(result.exitCode, 0); assert.equal(result.report.status, 'PASS'); assert.equal(result.report.indexedCardsTotal, 1); assert.equal(result.report.receivedCardsTotal, 2); assert.equal(result.report.warnings?.length, 1); assert.deepEqual(result.report.warnings?.[0], { setId: 'sv1', file: 'cards/en/sv1.json', indexTotal: 1, fileTotal: 2 }); assert.equal(result.report.setsValid, 1); assert.equal(result.report.setsFailed, 0); assert.equal(result.report.manifestWritten, true); assert.equal(result.report.warnings?.[0].fileTotal, JSON.parse(readFileSync(join(root, 'manifest.json'), 'utf8')).sets[0].expectedCards);
+});
+
+test('multiple count warnings are deterministically sorted', () => {
+  const root = fixture(); writeFixture(root, [{ id: 'sv2', total: 1 }, { id: 'sv1', total: 1 }], { sv2: [{ id: 'a' }, { id: 'b' }], sv1: [{ id: 'c' }, { id: 'd' }, { id: 'e' }] });
+  const result = inventoryLocalDataset(root, join(root, 'manifest.json'), fakeGit(root)); assert.deepEqual(result.report.warnings?.map((warning) => warning.setId), ['sv1', 'sv2']); assert.equal(result.report.status, 'PASS');
+});
+
+test('warning reports contain no card payloads', () => {
+  const root = fixture(); writeFixture(root, [{ id: 'sv1', total: 1 }], { sv1: [{ id: 'secret-card-id' }, { id: 'second-card-id' }] });
+  const reportPath = join(root, 'report.json'); generateManifest({ inputRoot: root, outputPath: join(root, 'manifest.json'), reportPath }, { inventory: (input, target) => inventoryLocalDataset(input, target, fakeGit(root)) });
+  const reportText = readFileSync(reportPath, 'utf8'); assert.equal(reportText.includes('secret-card-id'), false); assert.equal(reportText.includes('second-card-id'), false); assert.equal(reportText.includes('"id"'), false);
 });
 
 test('PASS is reported only after successful manifest and report writes', () => {
@@ -26,7 +43,7 @@ test('PASS is reported only after successful manifest and report writes', () => 
 });
 
 test('inventory failure does not create or overwrite a manifest', () => {
-  const root = fixture(); writeFixture(root, [{ id: 'sv1', total: 1 }], { sv1: [{ id: 'one' }, { id: 'two' }] });
+  const root = fixture(); writeFixture(root, [{ id: 'sv1', total: 1 }], { sv1: [{ name: 'missing-id' }] });
   const output = join(root, 'manifest.json'); const reportPath = join(root, 'report.json'); writeFileSync(output, 'existing-manifest');
   const result = generateManifest({ inputRoot: root, outputPath: output, reportPath }, { inventory: (input, target) => inventoryLocalDataset(input, target, fakeGit(root)) });
   assert.equal(result.exitCode, 1); assert.equal(result.report.status, 'FAIL'); assert.equal(result.report.manifestWritten, false); assert.equal(readFileSync(output, 'utf8'), 'existing-manifest'); assert.equal(JSON.parse(readFileSync(reportPath, 'utf8')).manifestWritten, false);
@@ -75,7 +92,7 @@ test('every valid index array keeps valid plus failed equal to indexed', () => {
 test('reports card-file errors and never returns a partial manifest', () => {
   const root = fixture(); writeFixture(root, [{ id: 'sv1', total: 2 }, { id: 'sv2', total: 1 }], { sv1: [{ id: 'same' }, { id: 'same' }], sv2: [{ name: 'missing-id' }] });
   const result = inventoryLocalDataset(root, join(root, 'manifest.json'), fakeGit(root)); assert.equal(result.manifest, undefined); assert.equal(result.report.setsFailed, 2);
-  writeFileSync(join(root, 'sets', 'en.json'), JSON.stringify([{ id: 'sv1', total: 1 }])); const mismatch = inventoryLocalDataset(root, 'manifest.json', fakeGit(root)); assert.equal(mismatch.manifest, undefined); assert.ok(mismatch.report.errors?.some((error) => /mismatch/.test(error.reason)));
+  writeFileSync(join(root, 'cards', 'en', 'sv1.json'), JSON.stringify([{ id: 'unique' }, { id: 'second' }])); writeFileSync(join(root, 'sets', 'en.json'), JSON.stringify([{ id: 'sv1', total: 1 }])); const mismatch = inventoryLocalDataset(root, 'manifest.json', fakeGit(root)); assert.ok(mismatch.manifest); assert.equal(mismatch.report.status, 'PASS'); assert.ok(mismatch.report.warnings?.some((warning) => warning.setId === 'sv1'));
 });
 
 test('reports a missing card file with its set and path', () => {

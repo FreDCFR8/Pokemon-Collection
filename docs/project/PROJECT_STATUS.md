@@ -23,6 +23,9 @@ Phase 7B-2F9A:
 - automatische inventarisatie via `catalog:manifest:generate -- --input-root <datasetmap> --output <manifestpad> [--report <rapportpad>]`;
 - de generator controleert een schone checkout met exact de vastgepinde datasetcommit;
 - setindex en alle Engelse kaartbestanden worden volledig lokaal gevalideerd;
+- `sets/en.json` bepaalt de volledige setlijst en `sets/en.json.total` wordt als `indexedCardsTotal` gerapporteerd;
+- de werkelijke kaartbestandslengte bepaalt `expectedCards` in het manifest en `receivedCardsTotal`; het vastgestelde volledige datasetprofiel is 20.219 geïndexeerde kaarten, 20.324 kaartrecords en zes count-waarschuwingen;
+- countverschillen zijn niet-blokkerende waarschuwingen; ontbrekende bestanden, ongeldige JSON, kaart-ID-fouten en checkoutfouten blijven blokkerend;
 - manifestoutput wordt alleen bij een volledige PASS atomisch geschreven;
 - volledige catalogus-dry-run blijft Phase 7B-2F9B.
 
