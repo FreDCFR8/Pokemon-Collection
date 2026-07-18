@@ -4,15 +4,1041 @@
   "datasetVersion": "0af6250a22495e4a3e9f60ff45fc3fedc2e0563d",
   "sets": [
     {
-      "setId": "sv3pt5",
-      "jsonPath": "cards/en/sv3pt5.json",
-      "expectedCards": 207,
+      "setId": "base1",
+      "jsonPath": "cards/en/base1.json",
+      "expectedCards": 102,
+      "enabled": true
+    },
+    {
+      "setId": "base2",
+      "jsonPath": "cards/en/base2.json",
+      "expectedCards": 64,
+      "enabled": true
+    },
+    {
+      "setId": "base3",
+      "jsonPath": "cards/en/base3.json",
+      "expectedCards": 62,
+      "enabled": true
+    },
+    {
+      "setId": "base4",
+      "jsonPath": "cards/en/base4.json",
+      "expectedCards": 130,
+      "enabled": true
+    },
+    {
+      "setId": "base5",
+      "jsonPath": "cards/en/base5.json",
+      "expectedCards": 83,
+      "enabled": true
+    },
+    {
+      "setId": "base6",
+      "jsonPath": "cards/en/base6.json",
+      "expectedCards": 110,
+      "enabled": true
+    },
+    {
+      "setId": "basep",
+      "jsonPath": "cards/en/basep.json",
+      "expectedCards": 53,
+      "enabled": true
+    },
+    {
+      "setId": "bp",
+      "jsonPath": "cards/en/bp.json",
+      "expectedCards": 9,
+      "enabled": true
+    },
+    {
+      "setId": "bw1",
+      "jsonPath": "cards/en/bw1.json",
+      "expectedCards": 115,
+      "enabled": true
+    },
+    {
+      "setId": "bw10",
+      "jsonPath": "cards/en/bw10.json",
+      "expectedCards": 105,
+      "enabled": true
+    },
+    {
+      "setId": "bw11",
+      "jsonPath": "cards/en/bw11.json",
+      "expectedCards": 140,
+      "enabled": true
+    },
+    {
+      "setId": "bw2",
+      "jsonPath": "cards/en/bw2.json",
+      "expectedCards": 98,
+      "enabled": true
+    },
+    {
+      "setId": "bw3",
+      "jsonPath": "cards/en/bw3.json",
+      "expectedCards": 102,
+      "enabled": true
+    },
+    {
+      "setId": "bw4",
+      "jsonPath": "cards/en/bw4.json",
+      "expectedCards": 103,
+      "enabled": true
+    },
+    {
+      "setId": "bw5",
+      "jsonPath": "cards/en/bw5.json",
+      "expectedCards": 111,
+      "enabled": true
+    },
+    {
+      "setId": "bw6",
+      "jsonPath": "cards/en/bw6.json",
+      "expectedCards": 128,
+      "enabled": true
+    },
+    {
+      "setId": "bw7",
+      "jsonPath": "cards/en/bw7.json",
+      "expectedCards": 153,
+      "enabled": true
+    },
+    {
+      "setId": "bw8",
+      "jsonPath": "cards/en/bw8.json",
+      "expectedCards": 138,
+      "enabled": true
+    },
+    {
+      "setId": "bw9",
+      "jsonPath": "cards/en/bw9.json",
+      "expectedCards": 122,
+      "enabled": true
+    },
+    {
+      "setId": "bwp",
+      "jsonPath": "cards/en/bwp.json",
+      "expectedCards": 101,
+      "enabled": true
+    },
+    {
+      "setId": "cel25",
+      "jsonPath": "cards/en/cel25.json",
+      "expectedCards": 25,
+      "enabled": true
+    },
+    {
+      "setId": "cel25c",
+      "jsonPath": "cards/en/cel25c.json",
+      "expectedCards": 25,
+      "enabled": true
+    },
+    {
+      "setId": "col1",
+      "jsonPath": "cards/en/col1.json",
+      "expectedCards": 106,
+      "enabled": true
+    },
+    {
+      "setId": "dc1",
+      "jsonPath": "cards/en/dc1.json",
+      "expectedCards": 34,
+      "enabled": true
+    },
+    {
+      "setId": "det1",
+      "jsonPath": "cards/en/det1.json",
+      "expectedCards": 18,
+      "enabled": true
+    },
+    {
+      "setId": "dp1",
+      "jsonPath": "cards/en/dp1.json",
+      "expectedCards": 130,
+      "enabled": true
+    },
+    {
+      "setId": "dp2",
+      "jsonPath": "cards/en/dp2.json",
+      "expectedCards": 124,
+      "enabled": true
+    },
+    {
+      "setId": "dp3",
+      "jsonPath": "cards/en/dp3.json",
+      "expectedCards": 132,
+      "enabled": true
+    },
+    {
+      "setId": "dp4",
+      "jsonPath": "cards/en/dp4.json",
+      "expectedCards": 106,
+      "enabled": true
+    },
+    {
+      "setId": "dp5",
+      "jsonPath": "cards/en/dp5.json",
+      "expectedCards": 100,
+      "enabled": true
+    },
+    {
+      "setId": "dp6",
+      "jsonPath": "cards/en/dp6.json",
+      "expectedCards": 146,
+      "enabled": true
+    },
+    {
+      "setId": "dp7",
+      "jsonPath": "cards/en/dp7.json",
+      "expectedCards": 106,
+      "enabled": true
+    },
+    {
+      "setId": "dpp",
+      "jsonPath": "cards/en/dpp.json",
+      "expectedCards": 56,
+      "enabled": true
+    },
+    {
+      "setId": "dv1",
+      "jsonPath": "cards/en/dv1.json",
+      "expectedCards": 21,
+      "enabled": true
+    },
+    {
+      "setId": "ecard1",
+      "jsonPath": "cards/en/ecard1.json",
+      "expectedCards": 165,
+      "enabled": true
+    },
+    {
+      "setId": "ecard2",
+      "jsonPath": "cards/en/ecard2.json",
+      "expectedCards": 182,
+      "enabled": true
+    },
+    {
+      "setId": "ecard3",
+      "jsonPath": "cards/en/ecard3.json",
+      "expectedCards": 182,
+      "enabled": true
+    },
+    {
+      "setId": "ex1",
+      "jsonPath": "cards/en/ex1.json",
+      "expectedCards": 109,
+      "enabled": true
+    },
+    {
+      "setId": "ex10",
+      "jsonPath": "cards/en/ex10.json",
+      "expectedCards": 145,
+      "enabled": true
+    },
+    {
+      "setId": "ex11",
+      "jsonPath": "cards/en/ex11.json",
+      "expectedCards": 114,
+      "enabled": true
+    },
+    {
+      "setId": "ex12",
+      "jsonPath": "cards/en/ex12.json",
+      "expectedCards": 93,
+      "enabled": true
+    },
+    {
+      "setId": "ex13",
+      "jsonPath": "cards/en/ex13.json",
+      "expectedCards": 111,
+      "enabled": true
+    },
+    {
+      "setId": "ex14",
+      "jsonPath": "cards/en/ex14.json",
+      "expectedCards": 100,
+      "enabled": true
+    },
+    {
+      "setId": "ex15",
+      "jsonPath": "cards/en/ex15.json",
+      "expectedCards": 101,
+      "enabled": true
+    },
+    {
+      "setId": "ex16",
+      "jsonPath": "cards/en/ex16.json",
+      "expectedCards": 108,
+      "enabled": true
+    },
+    {
+      "setId": "ex2",
+      "jsonPath": "cards/en/ex2.json",
+      "expectedCards": 100,
+      "enabled": true
+    },
+    {
+      "setId": "ex3",
+      "jsonPath": "cards/en/ex3.json",
+      "expectedCards": 100,
+      "enabled": true
+    },
+    {
+      "setId": "ex4",
+      "jsonPath": "cards/en/ex4.json",
+      "expectedCards": 97,
+      "enabled": true
+    },
+    {
+      "setId": "ex5",
+      "jsonPath": "cards/en/ex5.json",
+      "expectedCards": 102,
+      "enabled": true
+    },
+    {
+      "setId": "ex6",
+      "jsonPath": "cards/en/ex6.json",
+      "expectedCards": 116,
+      "enabled": true
+    },
+    {
+      "setId": "ex7",
+      "jsonPath": "cards/en/ex7.json",
+      "expectedCards": 111,
+      "enabled": true
+    },
+    {
+      "setId": "ex8",
+      "jsonPath": "cards/en/ex8.json",
+      "expectedCards": 108,
+      "enabled": true
+    },
+    {
+      "setId": "ex9",
+      "jsonPath": "cards/en/ex9.json",
+      "expectedCards": 107,
+      "enabled": true
+    },
+    {
+      "setId": "fut20",
+      "jsonPath": "cards/en/fut20.json",
+      "expectedCards": 5,
+      "enabled": true
+    },
+    {
+      "setId": "g1",
+      "jsonPath": "cards/en/g1.json",
+      "expectedCards": 117,
+      "enabled": true
+    },
+    {
+      "setId": "gym1",
+      "jsonPath": "cards/en/gym1.json",
+      "expectedCards": 132,
+      "enabled": true
+    },
+    {
+      "setId": "gym2",
+      "jsonPath": "cards/en/gym2.json",
+      "expectedCards": 132,
+      "enabled": true
+    },
+    {
+      "setId": "hgss1",
+      "jsonPath": "cards/en/hgss1.json",
+      "expectedCards": 124,
+      "enabled": true
+    },
+    {
+      "setId": "hgss2",
+      "jsonPath": "cards/en/hgss2.json",
+      "expectedCards": 96,
+      "enabled": true
+    },
+    {
+      "setId": "hgss3",
+      "jsonPath": "cards/en/hgss3.json",
+      "expectedCards": 91,
+      "enabled": true
+    },
+    {
+      "setId": "hgss4",
+      "jsonPath": "cards/en/hgss4.json",
+      "expectedCards": 103,
+      "enabled": true
+    },
+    {
+      "setId": "hsp",
+      "jsonPath": "cards/en/hsp.json",
+      "expectedCards": 25,
+      "enabled": true
+    },
+    {
+      "setId": "mcd11",
+      "jsonPath": "cards/en/mcd11.json",
+      "expectedCards": 12,
+      "enabled": true
+    },
+    {
+      "setId": "mcd12",
+      "jsonPath": "cards/en/mcd12.json",
+      "expectedCards": 12,
+      "enabled": true
+    },
+    {
+      "setId": "mcd14",
+      "jsonPath": "cards/en/mcd14.json",
+      "expectedCards": 12,
+      "enabled": true
+    },
+    {
+      "setId": "mcd15",
+      "jsonPath": "cards/en/mcd15.json",
+      "expectedCards": 12,
+      "enabled": true
+    },
+    {
+      "setId": "mcd16",
+      "jsonPath": "cards/en/mcd16.json",
+      "expectedCards": 12,
+      "enabled": true
+    },
+    {
+      "setId": "mcd17",
+      "jsonPath": "cards/en/mcd17.json",
+      "expectedCards": 12,
+      "enabled": true
+    },
+    {
+      "setId": "mcd18",
+      "jsonPath": "cards/en/mcd18.json",
+      "expectedCards": 12,
+      "enabled": true
+    },
+    {
+      "setId": "mcd19",
+      "jsonPath": "cards/en/mcd19.json",
+      "expectedCards": 12,
+      "enabled": true
+    },
+    {
+      "setId": "mcd21",
+      "jsonPath": "cards/en/mcd21.json",
+      "expectedCards": 25,
+      "enabled": true
+    },
+    {
+      "setId": "mcd22",
+      "jsonPath": "cards/en/mcd22.json",
+      "expectedCards": 15,
+      "enabled": true
+    },
+    {
+      "setId": "me1",
+      "jsonPath": "cards/en/me1.json",
+      "expectedCards": 188,
+      "enabled": true
+    },
+    {
+      "setId": "me2",
+      "jsonPath": "cards/en/me2.json",
+      "expectedCards": 130,
+      "enabled": true
+    },
+    {
+      "setId": "me2pt5",
+      "jsonPath": "cards/en/me2pt5.json",
+      "expectedCards": 295,
+      "enabled": true
+    },
+    {
+      "setId": "me3",
+      "jsonPath": "cards/en/me3.json",
+      "expectedCards": 124,
+      "enabled": true
+    },
+    {
+      "setId": "me4",
+      "jsonPath": "cards/en/me4.json",
+      "expectedCards": 122,
+      "enabled": true
+    },
+    {
+      "setId": "neo1",
+      "jsonPath": "cards/en/neo1.json",
+      "expectedCards": 111,
+      "enabled": true
+    },
+    {
+      "setId": "neo2",
+      "jsonPath": "cards/en/neo2.json",
+      "expectedCards": 75,
+      "enabled": true
+    },
+    {
+      "setId": "neo3",
+      "jsonPath": "cards/en/neo3.json",
+      "expectedCards": 66,
+      "enabled": true
+    },
+    {
+      "setId": "neo4",
+      "jsonPath": "cards/en/neo4.json",
+      "expectedCards": 113,
+      "enabled": true
+    },
+    {
+      "setId": "np",
+      "jsonPath": "cards/en/np.json",
+      "expectedCards": 40,
+      "enabled": true
+    },
+    {
+      "setId": "pgo",
+      "jsonPath": "cards/en/pgo.json",
+      "expectedCards": 88,
+      "enabled": true
+    },
+    {
+      "setId": "pl1",
+      "jsonPath": "cards/en/pl1.json",
+      "expectedCards": 133,
+      "enabled": true
+    },
+    {
+      "setId": "pl2",
+      "jsonPath": "cards/en/pl2.json",
+      "expectedCards": 120,
+      "enabled": true
+    },
+    {
+      "setId": "pl3",
+      "jsonPath": "cards/en/pl3.json",
+      "expectedCards": 153,
+      "enabled": true
+    },
+    {
+      "setId": "pl4",
+      "jsonPath": "cards/en/pl4.json",
+      "expectedCards": 111,
+      "enabled": true
+    },
+    {
+      "setId": "pop1",
+      "jsonPath": "cards/en/pop1.json",
+      "expectedCards": 17,
+      "enabled": true
+    },
+    {
+      "setId": "pop2",
+      "jsonPath": "cards/en/pop2.json",
+      "expectedCards": 17,
+      "enabled": true
+    },
+    {
+      "setId": "pop3",
+      "jsonPath": "cards/en/pop3.json",
+      "expectedCards": 17,
+      "enabled": true
+    },
+    {
+      "setId": "pop4",
+      "jsonPath": "cards/en/pop4.json",
+      "expectedCards": 17,
+      "enabled": true
+    },
+    {
+      "setId": "pop5",
+      "jsonPath": "cards/en/pop5.json",
+      "expectedCards": 17,
+      "enabled": true
+    },
+    {
+      "setId": "pop6",
+      "jsonPath": "cards/en/pop6.json",
+      "expectedCards": 17,
+      "enabled": true
+    },
+    {
+      "setId": "pop7",
+      "jsonPath": "cards/en/pop7.json",
+      "expectedCards": 17,
+      "enabled": true
+    },
+    {
+      "setId": "pop8",
+      "jsonPath": "cards/en/pop8.json",
+      "expectedCards": 17,
+      "enabled": true
+    },
+    {
+      "setId": "pop9",
+      "jsonPath": "cards/en/pop9.json",
+      "expectedCards": 17,
+      "enabled": true
+    },
+    {
+      "setId": "rsv10pt5",
+      "jsonPath": "cards/en/rsv10pt5.json",
+      "expectedCards": 173,
+      "enabled": true
+    },
+    {
+      "setId": "ru1",
+      "jsonPath": "cards/en/ru1.json",
+      "expectedCards": 16,
+      "enabled": true
+    },
+    {
+      "setId": "si1",
+      "jsonPath": "cards/en/si1.json",
+      "expectedCards": 18,
+      "enabled": true
+    },
+    {
+      "setId": "sm1",
+      "jsonPath": "cards/en/sm1.json",
+      "expectedCards": 173,
+      "enabled": true
+    },
+    {
+      "setId": "sm10",
+      "jsonPath": "cards/en/sm10.json",
+      "expectedCards": 238,
+      "enabled": true
+    },
+    {
+      "setId": "sm11",
+      "jsonPath": "cards/en/sm11.json",
+      "expectedCards": 261,
+      "enabled": true
+    },
+    {
+      "setId": "sm115",
+      "jsonPath": "cards/en/sm115.json",
+      "expectedCards": 69,
+      "enabled": true
+    },
+    {
+      "setId": "sm12",
+      "jsonPath": "cards/en/sm12.json",
+      "expectedCards": 272,
+      "enabled": true
+    },
+    {
+      "setId": "sm2",
+      "jsonPath": "cards/en/sm2.json",
+      "expectedCards": 180,
+      "enabled": true
+    },
+    {
+      "setId": "sm3",
+      "jsonPath": "cards/en/sm3.json",
+      "expectedCards": 177,
+      "enabled": true
+    },
+    {
+      "setId": "sm35",
+      "jsonPath": "cards/en/sm35.json",
+      "expectedCards": 81,
+      "enabled": true
+    },
+    {
+      "setId": "sm4",
+      "jsonPath": "cards/en/sm4.json",
+      "expectedCards": 126,
+      "enabled": true
+    },
+    {
+      "setId": "sm5",
+      "jsonPath": "cards/en/sm5.json",
+      "expectedCards": 178,
+      "enabled": true
+    },
+    {
+      "setId": "sm6",
+      "jsonPath": "cards/en/sm6.json",
+      "expectedCards": 150,
+      "enabled": true
+    },
+    {
+      "setId": "sm7",
+      "jsonPath": "cards/en/sm7.json",
+      "expectedCards": 187,
+      "enabled": true
+    },
+    {
+      "setId": "sm75",
+      "jsonPath": "cards/en/sm75.json",
+      "expectedCards": 80,
+      "enabled": true
+    },
+    {
+      "setId": "sm8",
+      "jsonPath": "cards/en/sm8.json",
+      "expectedCards": 240,
+      "enabled": true
+    },
+    {
+      "setId": "sm9",
+      "jsonPath": "cards/en/sm9.json",
+      "expectedCards": 198,
+      "enabled": true
+    },
+    {
+      "setId": "sma",
+      "jsonPath": "cards/en/sma.json",
+      "expectedCards": 94,
+      "enabled": true
+    },
+    {
+      "setId": "smp",
+      "jsonPath": "cards/en/smp.json",
+      "expectedCards": 251,
+      "enabled": true
+    },
+    {
+      "setId": "sv1",
+      "jsonPath": "cards/en/sv1.json",
+      "expectedCards": 258,
+      "enabled": true
+    },
+    {
+      "setId": "sv10",
+      "jsonPath": "cards/en/sv10.json",
+      "expectedCards": 244,
+      "enabled": true
+    },
+    {
+      "setId": "sv2",
+      "jsonPath": "cards/en/sv2.json",
+      "expectedCards": 279,
       "enabled": true
     },
     {
       "setId": "sv3",
       "jsonPath": "cards/en/sv3.json",
       "expectedCards": 230,
+      "enabled": true
+    },
+    {
+      "setId": "sv3pt5",
+      "jsonPath": "cards/en/sv3pt5.json",
+      "expectedCards": 207,
+      "enabled": true
+    },
+    {
+      "setId": "sv4",
+      "jsonPath": "cards/en/sv4.json",
+      "expectedCards": 266,
+      "enabled": true
+    },
+    {
+      "setId": "sv4pt5",
+      "jsonPath": "cards/en/sv4pt5.json",
+      "expectedCards": 245,
+      "enabled": true
+    },
+    {
+      "setId": "sv5",
+      "jsonPath": "cards/en/sv5.json",
+      "expectedCards": 218,
+      "enabled": true
+    },
+    {
+      "setId": "sv6",
+      "jsonPath": "cards/en/sv6.json",
+      "expectedCards": 226,
+      "enabled": true
+    },
+    {
+      "setId": "sv6pt5",
+      "jsonPath": "cards/en/sv6pt5.json",
+      "expectedCards": 99,
+      "enabled": true
+    },
+    {
+      "setId": "sv7",
+      "jsonPath": "cards/en/sv7.json",
+      "expectedCards": 175,
+      "enabled": true
+    },
+    {
+      "setId": "sv8",
+      "jsonPath": "cards/en/sv8.json",
+      "expectedCards": 252,
+      "enabled": true
+    },
+    {
+      "setId": "sv8pt5",
+      "jsonPath": "cards/en/sv8pt5.json",
+      "expectedCards": 180,
+      "enabled": true
+    },
+    {
+      "setId": "sv9",
+      "jsonPath": "cards/en/sv9.json",
+      "expectedCards": 190,
+      "enabled": true
+    },
+    {
+      "setId": "sve",
+      "jsonPath": "cards/en/sve.json",
+      "expectedCards": 16,
+      "enabled": true
+    },
+    {
+      "setId": "svp",
+      "jsonPath": "cards/en/svp.json",
+      "expectedCards": 165,
+      "enabled": true
+    },
+    {
+      "setId": "swsh1",
+      "jsonPath": "cards/en/swsh1.json",
+      "expectedCards": 216,
+      "enabled": true
+    },
+    {
+      "setId": "swsh10",
+      "jsonPath": "cards/en/swsh10.json",
+      "expectedCards": 216,
+      "enabled": true
+    },
+    {
+      "setId": "swsh10tg",
+      "jsonPath": "cards/en/swsh10tg.json",
+      "expectedCards": 30,
+      "enabled": true
+    },
+    {
+      "setId": "swsh11",
+      "jsonPath": "cards/en/swsh11.json",
+      "expectedCards": 217,
+      "enabled": true
+    },
+    {
+      "setId": "swsh11tg",
+      "jsonPath": "cards/en/swsh11tg.json",
+      "expectedCards": 30,
+      "enabled": true
+    },
+    {
+      "setId": "swsh12",
+      "jsonPath": "cards/en/swsh12.json",
+      "expectedCards": 215,
+      "enabled": true
+    },
+    {
+      "setId": "swsh12pt5",
+      "jsonPath": "cards/en/swsh12pt5.json",
+      "expectedCards": 160,
+      "enabled": true
+    },
+    {
+      "setId": "swsh12pt5gg",
+      "jsonPath": "cards/en/swsh12pt5gg.json",
+      "expectedCards": 70,
+      "enabled": true
+    },
+    {
+      "setId": "swsh12tg",
+      "jsonPath": "cards/en/swsh12tg.json",
+      "expectedCards": 30,
+      "enabled": true
+    },
+    {
+      "setId": "swsh2",
+      "jsonPath": "cards/en/swsh2.json",
+      "expectedCards": 209,
+      "enabled": true
+    },
+    {
+      "setId": "swsh3",
+      "jsonPath": "cards/en/swsh3.json",
+      "expectedCards": 201,
+      "enabled": true
+    },
+    {
+      "setId": "swsh35",
+      "jsonPath": "cards/en/swsh35.json",
+      "expectedCards": 80,
+      "enabled": true
+    },
+    {
+      "setId": "swsh4",
+      "jsonPath": "cards/en/swsh4.json",
+      "expectedCards": 203,
+      "enabled": true
+    },
+    {
+      "setId": "swsh45",
+      "jsonPath": "cards/en/swsh45.json",
+      "expectedCards": 73,
+      "enabled": true
+    },
+    {
+      "setId": "swsh45sv",
+      "jsonPath": "cards/en/swsh45sv.json",
+      "expectedCards": 122,
+      "enabled": true
+    },
+    {
+      "setId": "swsh5",
+      "jsonPath": "cards/en/swsh5.json",
+      "expectedCards": 183,
+      "enabled": true
+    },
+    {
+      "setId": "swsh6",
+      "jsonPath": "cards/en/swsh6.json",
+      "expectedCards": 233,
+      "enabled": true
+    },
+    {
+      "setId": "swsh7",
+      "jsonPath": "cards/en/swsh7.json",
+      "expectedCards": 237,
+      "enabled": true
+    },
+    {
+      "setId": "swsh8",
+      "jsonPath": "cards/en/swsh8.json",
+      "expectedCards": 284,
+      "enabled": true
+    },
+    {
+      "setId": "swsh9",
+      "jsonPath": "cards/en/swsh9.json",
+      "expectedCards": 186,
+      "enabled": true
+    },
+    {
+      "setId": "swsh9tg",
+      "jsonPath": "cards/en/swsh9tg.json",
+      "expectedCards": 30,
+      "enabled": true
+    },
+    {
+      "setId": "swshp",
+      "jsonPath": "cards/en/swshp.json",
+      "expectedCards": 304,
+      "enabled": true
+    },
+    {
+      "setId": "tk1a",
+      "jsonPath": "cards/en/tk1a.json",
+      "expectedCards": 10,
+      "enabled": true
+    },
+    {
+      "setId": "tk1b",
+      "jsonPath": "cards/en/tk1b.json",
+      "expectedCards": 10,
+      "enabled": true
+    },
+    {
+      "setId": "tk2a",
+      "jsonPath": "cards/en/tk2a.json",
+      "expectedCards": 12,
+      "enabled": true
+    },
+    {
+      "setId": "tk2b",
+      "jsonPath": "cards/en/tk2b.json",
+      "expectedCards": 12,
+      "enabled": true
+    },
+    {
+      "setId": "xy0",
+      "jsonPath": "cards/en/xy0.json",
+      "expectedCards": 39,
+      "enabled": true
+    },
+    {
+      "setId": "xy1",
+      "jsonPath": "cards/en/xy1.json",
+      "expectedCards": 146,
+      "enabled": true
+    },
+    {
+      "setId": "xy10",
+      "jsonPath": "cards/en/xy10.json",
+      "expectedCards": 129,
+      "enabled": true
+    },
+    {
+      "setId": "xy11",
+      "jsonPath": "cards/en/xy11.json",
+      "expectedCards": 116,
+      "enabled": true
+    },
+    {
+      "setId": "xy12",
+      "jsonPath": "cards/en/xy12.json",
+      "expectedCards": 113,
+      "enabled": true
+    },
+    {
+      "setId": "xy2",
+      "jsonPath": "cards/en/xy2.json",
+      "expectedCards": 110,
+      "enabled": true
+    },
+    {
+      "setId": "xy3",
+      "jsonPath": "cards/en/xy3.json",
+      "expectedCards": 114,
+      "enabled": true
+    },
+    {
+      "setId": "xy4",
+      "jsonPath": "cards/en/xy4.json",
+      "expectedCards": 124,
+      "enabled": true
+    },
+    {
+      "setId": "xy5",
+      "jsonPath": "cards/en/xy5.json",
+      "expectedCards": 164,
+      "enabled": true
+    },
+    {
+      "setId": "xy6",
+      "jsonPath": "cards/en/xy6.json",
+      "expectedCards": 112,
+      "enabled": true
+    },
+    {
+      "setId": "xy7",
+      "jsonPath": "cards/en/xy7.json",
+      "expectedCards": 101,
+      "enabled": true
+    },
+    {
+      "setId": "xy8",
+      "jsonPath": "cards/en/xy8.json",
+      "expectedCards": 165,
+      "enabled": true
+    },
+    {
+      "setId": "xy9",
+      "jsonPath": "cards/en/xy9.json",
+      "expectedCards": 126,
+      "enabled": true
+    },
+    {
+      "setId": "xyp",
+      "jsonPath": "cards/en/xyp.json",
+      "expectedCards": 216,
+      "enabled": true
+    },
+    {
+      "setId": "zsv10pt5",
+      "jsonPath": "cards/en/zsv10pt5.json",
+      "expectedCards": 172,
       "enabled": true
     }
   ]
