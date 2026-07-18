@@ -1,7 +1,7 @@
 {
   "source": "pokemon_tcg_data",
   "datasetRepository": "PokemonTCG/pokemon-tcg-data",
-  "datasetVersion": "operator-pinned-local-checkout",
+  "datasetVersion": "0af6250a22495e4a3e9f60ff45fc3fedc2e0563d",
   "sets": [
     {
       "setId": "sv3pt5",

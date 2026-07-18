@@ -1,6 +1,8 @@
 import { isAbsolute, normalize, sep } from 'node:path';
 import { isValidSetId } from './import-args.ts';
 
+export const POKEMON_TCG_DATA_REPOSITORY = 'PokemonTCG/pokemon-tcg-data';
+
 export type LocalCatalogManifestSet = {
   setId: string;
   jsonPath: string;
@@ -42,11 +44,11 @@ export function parseLocalCatalogManifestFromText(text: string): LocalCatalogMan
   }
   if (!isRecord(parsed)) throw new LocalCatalogManifestError('Lokaal catalogusmanifest heeft een ongeldig formaat.');
   if (parsed.source !== 'pokemon_tcg_data') throw new LocalCatalogManifestError('Lokaal catalogusmanifest moet source pokemon_tcg_data gebruiken.');
-  if (typeof parsed.datasetRepository !== 'string' || parsed.datasetRepository.trim().length === 0) {
-    throw new LocalCatalogManifestError('Lokaal catalogusmanifest mist een geldige datasetRepository.');
+  if (parsed.datasetRepository !== POKEMON_TCG_DATA_REPOSITORY) {
+    throw new LocalCatalogManifestError(`Lokaal catalogusmanifest moet datasetRepository ${POKEMON_TCG_DATA_REPOSITORY} gebruiken.`);
   }
-  if (typeof parsed.datasetVersion !== 'string' || parsed.datasetVersion.trim().length === 0) {
-    throw new LocalCatalogManifestError('Lokaal catalogusmanifest mist een niet-lege datasetVersion of Git-commit.');
+  if (typeof parsed.datasetVersion !== 'string' || !/^[0-9a-f]{40}$/.test(parsed.datasetVersion)) {
+    throw new LocalCatalogManifestError('Lokaal catalogusmanifest moet datasetVersion als volledige Git-commit SHA van 40 hexadecimale tekens bevatten.');
   }
   if (!Array.isArray(parsed.sets)) throw new LocalCatalogManifestError('Lokaal catalogusmanifest moet een sets-array bevatten.');
 
