@@ -39,8 +39,8 @@ function baseReport(outputPath: string, values: Pick<ManifestInventoryReport, 's
   return { source: 'pokemon_tcg_data', datasetRepository: POKEMON_TCG_DATA_REPOSITORY, datasetVersion: PINNED_DATASET_VERSION, manifestWritten: false, manifestOutputPath: outputPath, ...values };
 }
 
-export function inventoryLocalDataset(inputRoot: string, outputPath: string, runGit: GitRunner = git): { manifest?: LocalCatalogManifest; report: ManifestInventoryReport } {
-  try { validateLocalDatasetCheckout(inputRoot, runGit); } catch (error) {
+export function inventoryLocalDataset(inputRoot: string, outputPath: string, runGit?: GitRunner): { manifest?: LocalCatalogManifest; report: ManifestInventoryReport } {
+  try { validateLocalDatasetCheckout(inputRoot, PINNED_DATASET_VERSION, runGit); } catch (error) {
     return { report: baseReport(outputPath, { status: 'FAIL', setsIndexed: 0, setsValid: 0, setsFailed: 0, indexedCardsTotal: 0, receivedCardsTotal: 0, errors: [asError(`checkout-validatie mislukt: ${error instanceof Error ? error.message : 'onbekende fout'}`, 'Git checkout')] }) };
   }
 

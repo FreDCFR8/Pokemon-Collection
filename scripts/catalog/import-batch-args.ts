@@ -84,6 +84,8 @@ export function parseCatalogBatchArgs(argv: readonly string[]): CatalogBatchOpti
 
   if (setIds !== undefined) assertValidSetList(setIds, '--sets');
   if (resume && !checkpointPath) throw new CatalogBatchArgumentError('--resume vereist --checkpoint.');
+  if (source !== 'pokemon_tcg_data' && (checkpointPath || resume)) throw new CatalogBatchArgumentError('--checkpoint en --resume zijn alleen toegestaan met source pokemon_tcg_data.');
+  if (mode === 'write-approved' && (checkpointPath || resume)) throw new CatalogBatchArgumentError('Checkpoint/resume is alleen toegestaan voor de lokale dry-run.');
   if (source === 'pokemon_tcg_data') {
     if (mode === 'write-approved') throw new CatalogBatchArgumentError('Write-approved is geblokkeerd: bron pokemon_tcg_data is strikt read-only.');
     if (!manifestPath) throw new CatalogBatchArgumentError('Bron pokemon_tcg_data vereist --manifest.');

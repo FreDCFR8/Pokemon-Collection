@@ -48,6 +48,10 @@ test('blocks local write attempts and incomplete local batch arguments', () => {
     ['--source', 'pokemon_tcg_data', '--manifest', 'm.json'],
     ['--manifest', 'm.json'],
     ['--input-root', 'data'],
+    ['--checkpoint', 'checkpoint.json'],
+    ['--source', 'pokemon_tcg_api', '--checkpoint', 'checkpoint.json'],
+    ['--source', 'pokemon_tcg_api', '--resume', '--checkpoint', 'checkpoint.json'],
+    ['--source', 'pokemon_tcg_data', '--mode', 'write-approved', '--manifest', 'm.json', '--input-root', 'data', '--checkpoint', 'checkpoint.json'],
   ]) rejects(args);
 });
 

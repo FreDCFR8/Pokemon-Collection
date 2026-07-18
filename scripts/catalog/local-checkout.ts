@@ -9,8 +9,10 @@ export type GitRunner = (inputRoot: string, args: string[]) => string;
 export class LocalDatasetCheckoutError extends Error {}
 
 function git(inputRoot: string, args: string[]): string {
-  const binary = process.env.CATALOG_GIT_BINARY ?? 'git';
-  return execFileSync(binary, ['-C', inputRoot, ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], ...(binary.endsWith('.cmd') ? { shell: true } : {}) }).trim();
+  const configuredRunner = process.env.CATALOG_GIT_BINARY;
+  const command = configuredRunner ? process.execPath : 'git';
+  const commandArgs = configuredRunner ? [configuredRunner, '-C', inputRoot, ...args] : ['-C', inputRoot, ...args];
+  return execFileSync(command, commandArgs, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
 }
 
 function normalizeOrigin(value: string): string {
@@ -20,14 +22,14 @@ function normalizeOrigin(value: string): string {
   return normalized;
 }
 
-export function validateLocalDatasetCheckout(inputRoot: string, runGit: GitRunner = git): void {
+export function validateLocalDatasetCheckout(inputRoot: string, expectedDatasetVersion: string, runGit: GitRunner = git): void {
   if (!existsSync(inputRoot)) throw new LocalDatasetCheckoutError(`input-root bestaat niet: ${inputRoot}`);
   try {
     if (runGit(inputRoot, ['rev-parse', '--is-inside-work-tree']) !== 'true') throw new Error('geen Git-worktree');
     const origin = normalizeOrigin(runGit(inputRoot, ['remote', 'get-url', 'origin']));
     if (origin.toLowerCase() !== `https://github.com/${POKEMON_TCG_DATA_REPOSITORY.toLowerCase()}`) throw new Error(`origin verwijst naar ${origin}, verwacht ${POKEMON_TCG_DATA_REPOSITORY}`);
     const head = runGit(inputRoot, ['rev-parse', 'HEAD']);
-    if (head !== PINNED_DATASET_VERSION) throw new Error(`HEAD is ${head}, verwacht exact ${PINNED_DATASET_VERSION}`);
+    if (head !== expectedDatasetVersion) throw new Error(`HEAD is ${head}, verwacht exact ${expectedDatasetVersion}`);
     if (runGit(inputRoot, ['status', '--porcelain=v1']) !== '') throw new Error('de dataset-worktree is niet schoon');
   } catch (error) {
     throw new LocalDatasetCheckoutError(`Ongeldige lokale dataset-checkout: ${error instanceof Error ? error.message : 'onbekende Git-fout'}`);

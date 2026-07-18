@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -9,16 +9,16 @@ const datasetVersion = '0af6250a22495e4a3e9f60ff45fc3fedc2e0563d';
 
 function makeTmp(): string { return mkdtempSync(join(tmpdir(), 'pokemon-batch-')); }
 
-function writeLocalFixture(dir: string, received: Record<string, number>): { manifest: string; root: string; stub: string; report: string; gitDir: string } {
+function writeLocalFixture(dir: string, received: Record<string, number>): { manifest: string; root: string; stub: string; report: string; gitRunner: string } {
   const root = join(dir, 'data'); mkdirSync(root, { recursive: true });
   for (const setId of ['sv3pt5', 'sv3']) writeFileSync(join(root, `${setId}.json`), '[]');
   const manifest = join(dir, 'manifest.json');
   writeFileSync(manifest, JSON.stringify({ source: 'pokemon_tcg_data', datasetRepository: 'PokemonTCG/pokemon-tcg-data', datasetVersion, sets: [{ setId: 'sv3pt5', jsonPath: 'sv3pt5.json', expectedCards: 207, enabled: true }, { setId: 'sv3', jsonPath: 'sv3.json', expectedCards: 230, enabled: true }] }));
   const stub = join(dir, 'stub-import-set.ts');
-  writeFileSync(stub, `const args = process.argv.slice(2);\nconst set = args[args.indexOf('--set') + 1];\nconst input = args[args.indexOf('--input') + 1];\nif (!args.includes('--source') || !args.includes('pokemon_tcg_data') || !input) process.exit(3);\nconst counts = ${JSON.stringify(received)};\nconst failed = process.env.BATCH_STUB_FAIL_SET === set;\nconsole.log('Catalog import dry run');\nconsole.log('Source: pokemon_tcg_data');\nconsole.log('Set: ' + set);\nconsole.log('Mode: DRY RUN');\nconsole.log('Expected cards: ' + counts[set]);\nconsole.log('Received cards: ' + counts[set]);\nconsole.log('Theoretisch geplande writes: 0');\nconsole.log('Result: ' + (failed ? 'FAIL' : 'PASS'));\nconsole.log('Database writes: 0');\nprocess.exit(failed ? 1 : 0);\n`);
-  const gitDir = join(dir, 'fake-git'); mkdirSync(gitDir);
-  writeFileSync(join(gitDir, 'git.cmd'), '@echo off\nif "%3"=="rev-parse" if "%4"=="--is-inside-work-tree" echo true\nif "%3"=="remote" echo https://github.com/PokemonTCG/pokemon-tcg-data\nif "%3"=="status" exit /b 0\nif "%3"=="rev-parse" if "%4"=="HEAD" echo 0af6250a22495e4a3e9f60ff45fc3fedc2e0563d\n');
-  return { manifest, root, stub, report: join(dir, 'report.json'), gitDir };
+  writeFileSync(stub, `const args = process.argv.slice(2);\nconst set = args[args.indexOf('--set') + 1];\nconst input = args[args.indexOf('--input') + 1];\nif (!args.includes('--source') || !args.includes('pokemon_tcg_data') || !input) process.exit(3);\nconst counts = ${JSON.stringify(received)};\nconst failed = process.env.BATCH_STUB_FAIL_SET === set;\nconst plannedWrites = process.env.BATCH_STUB_PLANNED_WRITES ?? '0';\nconst databaseWrites = process.env.BATCH_STUB_DATABASE_WRITES ?? '0';\nconsole.log('Catalog import dry run');\nconsole.log('Source: pokemon_tcg_data');\nconsole.log('Set: ' + set);\nconsole.log('Mode: DRY RUN');\nconsole.log('Expected cards: ' + counts[set]);\nconsole.log('Received cards: ' + counts[set]);\nconsole.log('Theoretisch geplande writes: ' + plannedWrites);\nconsole.log('Result: ' + (failed ? 'FAIL' : 'PASS'));\nconsole.log('Database writes: ' + databaseWrites);\nprocess.exit(failed ? 1 : 0);\n`);
+  const gitRunner = join(dir, 'fake-git.mjs');
+  writeFileSync(gitRunner, `const args = process.argv.slice(2);\nconst command = args[2];\nif (command === 'rev-parse' && args[3] === '--is-inside-work-tree') console.log('true');\nelse if (command === 'remote') console.log('https://github.com/PokemonTCG/pokemon-tcg-data');\nelse if (command === 'rev-parse' && args[3] === 'HEAD') console.log('0af6250a22495e4a3e9f60ff45fc3fedc2e0563d');\nelse if (command === 'status') {}\nelse process.exit(2);\n`);
+  return { manifest, root, stub, report: join(dir, 'report.json'), gitRunner };
 }
 
 function writeApiFixture(dir: string, failureStep?: 'write' | 'idempotency'): { config: string; stub: string; report: string; state: string } {
@@ -32,7 +32,7 @@ function writeApiFixture(dir: string, failureStep?: 'write' | 'idempotency'): { 
 }
 
 function runLocalBatch(paths: ReturnType<typeof writeLocalFixture>, extra: string[] = [], envOverrides: Record<string, string> = {}) {
-  return spawnSync(process.execPath, ['--experimental-strip-types', 'scripts/catalog/import-batch.ts', '--source', 'pokemon_tcg_data', '--manifest', paths.manifest, '--input-root', paths.root, ...extra], { encoding: 'utf8', env: { ...process.env, CATALOG_GIT_BINARY: join(paths.gitDir, 'git.cmd'), CATALOG_IMPORT_SET_SCRIPT: paths.stub, ...envOverrides } });
+  return spawnSync(process.execPath, ['--experimental-strip-types', 'scripts/catalog/import-batch.ts', '--source', 'pokemon_tcg_data', '--manifest', paths.manifest, '--input-root', paths.root, ...extra], { encoding: 'utf8', env: { ...process.env, CATALOG_GIT_BINARY: paths.gitRunner, SUPABASE_URL: 'https://test-project.supabase.co', CATALOG_IMPORT_SET_SCRIPT: paths.stub, ...envOverrides } });
 }
 
 function runApiBatch(paths: ReturnType<typeof writeApiFixture>, extra: string[] = []) {
@@ -71,6 +71,24 @@ test('local dry-run reports zero database writes and JSON report contains no sen
   assert.equal(report.results[0].databaseWrites, 0);
 });
 
+test('planned writes greater than zero remain valid while database writes stay zero', () => {
+  const paths = writeLocalFixture(makeTmp(), { sv3pt5: 207, sv3: 230 });
+  const result = runLocalBatch(paths, ['--report', paths.report], { BATCH_STUB_PLANNED_WRITES: '7' });
+  assert.equal(result.status, 0, result.stderr);
+  const report = JSON.parse(readFileSync(paths.report, 'utf8'));
+  assert.equal(report.plannedWritesTotal, 14);
+  assert.equal(report.databaseWritesTotal, 0);
+  assert.equal(report.status, 'PASS');
+});
+
+test('reported local database writes greater than zero fail the set and batch', () => {
+  const paths = writeLocalFixture(makeTmp(), { sv3pt5: 207, sv3: 230 });
+  const result = runLocalBatch(paths, [], { BATCH_STUB_DATABASE_WRITES: '1' });
+  assert.equal(result.status, 1);
+  assert.match(result.stdout, /Lokale dry-run rapporteert databasewrites != 0/);
+  assert.match(result.stdout, /sv3 \/ dry-run/);
+});
+
 test('checkpoint is created before execution and resume skips passed sets', () => {
   const paths = writeLocalFixture(makeTmp(), { sv3pt5: 207, sv3: 230 });
   const checkpoint = join(makeTmp(), 'checkpoint.json');
@@ -98,6 +116,57 @@ test('resume rejects a manifest fingerprint mismatch before subprocesses', () =>
   assert.equal(resumed.status, 1);
   assert.match(resumed.stderr, /manifestHash/);
   assert.doesNotMatch(resumed.stdout, /Catalog import dry run/);
+});
+
+test('manifest datasetVersion must match checkout before checkpoint creation', () => {
+  const paths = writeLocalFixture(makeTmp(), { sv3pt5: 207, sv3: 230 });
+  const checkpoint = join(makeTmp(), 'checkpoint.json');
+  const manifest = JSON.parse(readFileSync(paths.manifest, 'utf8'));
+  manifest.datasetVersion = '1'.repeat(40);
+  writeFileSync(paths.manifest, JSON.stringify(manifest));
+  const result = runLocalBatch(paths, ['--checkpoint', checkpoint]);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /HEAD.*verwacht exact/);
+  assert.equal(existsSync(checkpoint), false);
+  assert.doesNotMatch(result.stdout, /Catalog import dry run/);
+});
+
+test('missing or invalid SUPABASE_URL blocks before checkpoint creation and subprocesses', () => {
+  for (const url of ['', 'ftp://test-project.supabase.co']) {
+    const paths = writeLocalFixture(makeTmp(), { sv3pt5: 207, sv3: 230 });
+    const checkpoint = join(makeTmp(), 'checkpoint.json');
+    const result = runLocalBatch(paths, ['--checkpoint', checkpoint], { SUPABASE_URL: url });
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /SUPABASE_URL/);
+    assert.equal(existsSync(checkpoint), false);
+    assert.doesNotMatch(result.stdout, /Catalog import dry run/);
+  }
+});
+
+test('resume rejects a different Supabase project before subprocesses', () => {
+  const paths = writeLocalFixture(makeTmp(), { sv3pt5: 207, sv3: 230 });
+  const checkpoint = join(makeTmp(), 'checkpoint.json');
+  const first = runLocalBatch(paths, ['--checkpoint', checkpoint], { BATCH_STUB_FAIL_SET: 'sv3pt5' });
+  assert.equal(first.status, 1, first.stderr);
+  const resumed = runLocalBatch(paths, ['--checkpoint', checkpoint, '--resume'], { SUPABASE_URL: 'https://other-project.supabase.co' });
+  assert.equal(resumed.status, 1);
+  assert.match(resumed.stderr, /supabaseProjectIdentity/);
+  assert.doesNotMatch(resumed.stdout, /Catalog import dry run/);
+});
+
+test('resume reruns pending and running sets', () => {
+  for (const status of ['pending', 'running'] as const) {
+    const paths = writeLocalFixture(makeTmp(), { sv3pt5: 207, sv3: 230 });
+    const checkpoint = join(makeTmp(), 'checkpoint.json');
+    const first = runLocalBatch(paths, ['--checkpoint', checkpoint], { BATCH_STUB_FAIL_SET: 'sv3pt5' });
+    assert.equal(first.status, 1, first.stderr);
+    const saved = JSON.parse(readFileSync(checkpoint, 'utf8'));
+    saved.sets[1] = { setId: 'sv3', expectedCards: 230, status };
+    writeFileSync(checkpoint, JSON.stringify(saved));
+    const resumed = runLocalBatch(paths, ['--checkpoint', checkpoint, '--resume']);
+    assert.equal(resumed.status, 0, resumed.stderr);
+    assert.match(resumed.stdout, /sv3 \/ dry-run/);
+  }
 });
 
 test('dry-run PASS plus write FAIL makes the API set summary and report fail', () => {

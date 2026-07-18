@@ -310,7 +310,7 @@ async function main(): Promise<number> {
 
     if (options.source === 'pokemon_tcg_data') {
       const local = selectedLocalSets(options);
-      validateLocalDatasetCheckout(options.inputRoot!);
+      validateLocalDatasetCheckout(options.inputRoot!, local.datasetVersion);
       datasetRepository = local.datasetRepository;
       datasetVersion = local.datasetVersion;
       console.log(`Dataset repository: ${datasetRepository}`);
@@ -323,7 +323,7 @@ async function main(): Promise<number> {
         if (options.resume) {
           if (!checkpointExists(options.checkpointPath)) throw new Error(`--resume vereist een bestaand checkpoint: ${options.checkpointPath}`);
           checkpoint = readCheckpoint(options.checkpointPath);
-          assertCheckpointIdentity(checkpoint, identity);
+          assertCheckpointIdentity(checkpoint, identity, local.sets.map((set) => ({ setId: set.setId, expectedCards: set.expectedCards })));
         } else {
           if (checkpointExists(options.checkpointPath)) throw new Error(`Checkpoint bestaat al; gebruik --resume om het te hervatten: ${options.checkpointPath}`);
           checkpoint = initialCheckpoint(identity, local.sets);
