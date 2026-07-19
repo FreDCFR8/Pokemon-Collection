@@ -193,7 +193,11 @@ function validateStepOutput(params: { step: StepName; exitCode: number; output: 
   const plannedWrites = diagnostic.plannedDatabaseWrites;
   const databaseWrites = diagnostic.databaseWrites;
 
-  if (params.exitCode !== 0) errors.push(`exitcode ${params.exitCode}`);
+  if (params.exitCode !== 0) {
+    errors.push(`exitcode ${params.exitCode}`);
+    const subprocessReasons = Object.values(diagnostic.examples).flat().map((example) => example.reason).filter((reason): reason is string => typeof reason === 'string' && reason.length > 0);
+    if (subprocessReasons.length > 0) errors.push(`subprocessfout: ${[...new Set(subprocessReasons)].join(' | ')}`);
+  }
   if (diagnostic.status !== (params.exitCode === 0 ? 'PASS' : 'FAIL')) {
     errors.push('JSON-status komt niet overeen met exitcode.');
     unexpectedRunnerFailure.add('status/exitcode mismatch');
