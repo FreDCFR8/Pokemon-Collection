@@ -26,7 +26,7 @@ function writeLocalFixture(dir: string, received: Record<string, number>): { man
     "const databaseWrites = process.env.BATCH_STUB_DATABASE_WRITES ?? '0';",
     "if (process.env.BATCH_STUB_CHECKPOINT_PATH && process.env.BATCH_STUB_SNAPSHOT_PATH) writeFileSync(process.env.BATCH_STUB_SNAPSHOT_PATH, readFileSync(process.env.BATCH_STUB_CHECKPOINT_PATH));",
     "if (process.env.BATCH_STUB_EXECUTION_MARKER) writeFileSync(process.env.BATCH_STUB_EXECUTION_MARKER, new Date().toISOString());",
-    "const diagnostic = {schemaVersion: 1, setId: set, expectedCards: Number(process.env.BATCH_STUB_EXPECTED_CARDS ?? counts[set]), receivedCards: counts[set], status: failed ? 'FAIL' : 'PASS', setMappingStatus: 'already_reliable', setCode: set, setMapping: {status: 'already_reliable', reliableSetCode: set, candidates: [], evidence: []}, externalReferenceMatches: counts[set], fallbackCandidates: 0, newCards: 0, ambiguousItems: 0, conflicts: 0, unresolvedWithoutSetMapping: 0, metadataUnchanged: counts[set], metadataChanged: 0, blockedItems: 0, plannedDatabaseWrites: Number(plannedWrites), databaseWrites: Number(databaseWrites), failureReasons: failed ? ['missing_set_mapping'] : [], examples: {}};",
+    "const diagnostic = {schemaVersion: 1, setId: set, expectedCards: Number(process.env.BATCH_STUB_EXPECTED_CARDS ?? counts[set]), receivedCards: Number(process.env.BATCH_STUB_RECEIVED_CARDS ?? counts[set]), status: failed ? 'FAIL' : 'PASS', setMappingStatus: 'already_reliable', setCode: set, setMapping: {status: 'already_reliable', reliableSetCode: set, candidates: [], evidence: []}, externalReferenceMatches: counts[set], fallbackCandidates: 0, newCards: 0, ambiguousItems: 0, conflicts: 0, unresolvedWithoutSetMapping: 0, metadataUnchanged: counts[set], metadataChanged: 0, blockedItems: 0, plannedDatabaseWrites: Number(plannedWrites), databaseWrites: Number(databaseWrites), failureReasons: failed ? ['missing_set_mapping'] : [], examples: {}};",
     "writeFileSync(resultPath, JSON.stringify(diagnostic));",
     "console.log('Database writes: ' + databaseWrites);",
     "process.exit(failed ? 1 : 0);",
@@ -162,6 +162,21 @@ test('wrong diagnostic expectedCards fails closed against the local manifest', (
   const result = runLocalBatch(paths, ['--sets', 'sv3'], { BATCH_STUB_EXPECTED_CARDS: '229' });
   assert.notEqual(result.status, 0);
   assert.match(result.stdout, /failureCode=unexpected_runner_failure/);
+});
+
+test('PASS received mismatch becomes one valid FAIL diagnostic in checkpoint and report', () => {
+  const paths = writeLocalFixture(makeTmp(), { sv3pt5: 207, sv3: 230 });
+  const checkpoint = join(makeTmp(), 'checkpoint.json');
+  const result = runLocalBatch(paths, ['--sets', 'sv3', '--checkpoint', checkpoint, '--report', paths.report], { BATCH_STUB_RECEIVED_CARDS: '229' });
+  assert.equal(result.status, 1);
+  const saved = JSON.parse(readFileSync(checkpoint, 'utf8'));
+  const report = JSON.parse(readFileSync(paths.report, 'utf8'));
+  const checkpointDiagnostic = saved.sets[0].diagnostic;
+  const reportDiagnostic = report.results[0].diagnostic;
+  assert.equal(checkpointDiagnostic.status, 'FAIL');
+  assert.deepEqual(checkpointDiagnostic.failureReasons, ['input_validation_failure']);
+  assert.deepEqual(reportDiagnostic.failureReasons, checkpointDiagnostic.failureReasons);
+  assert.doesNotThrow(() => JSON.parse(readFileSync(checkpoint, 'utf8')));
 });
 
 test('resume rejects a manifest fingerprint mismatch before subprocesses', () => {

@@ -48,6 +48,25 @@ export type SingleSetDiagnosticResult = {
   examples: Partial<Record<FailureCode, DiagnosticExample[]>>;
 };
 
+export function mappingFailureReasons(status: SetMappingStatus): FailureCode[] {
+  if (status === 'already_reliable') return [];
+  if (status === 'ambiguous_candidate' || status === 'conflicting_candidate') return ['ambiguous_set_mapping', 'missing_set_mapping'];
+  return ['missing_set_mapping'];
+}
+
+export function addDiagnosticFailure(result: SingleSetDiagnosticResult, reason: FailureCode): SingleSetDiagnosticResult {
+  const updated: SingleSetDiagnosticResult = { ...result, status: 'FAIL', failureReasons: [...new Set([...result.failureReasons, reason])] };
+  assertValidDiagnosticResult(updated);
+  return updated;
+}
+
+export type DiagnosticOutcome = 'content_pass' | 'content_blocked' | 'runner_failure';
+
+export function classifyDiagnosticOutcome(result: Pick<SingleSetDiagnosticResult, 'status' | 'failureReasons'>): DiagnosticOutcome {
+  if (result.failureReasons.includes('unexpected_runner_failure')) return 'runner_failure';
+  return result.status === 'PASS' && result.failureReasons.length === 0 ? 'content_pass' : 'content_blocked';
+}
+
 function isObject(value: unknown): value is Record<string, unknown> { return typeof value === 'object' && value !== null && !Array.isArray(value); }
 function isNonNegativeInteger(value: unknown): value is number { return typeof value === 'number' && Number.isInteger(value) && value >= 0; }
 function isString(value: unknown, max = 200): value is string { return typeof value === 'string' && value.length <= max && !/[\r\n]/.test(value); }
@@ -77,7 +96,8 @@ function assertMapping(value: unknown, status: SetMappingStatus, setCode: string
   if (value.status !== status || !Array.isArray(value.candidates) || !Array.isArray(value.evidence)) throw new Error('Ongeldige setMappingstructuur.');
   if (value.candidates.length > MAX_CANDIDATES || value.evidence.length > MAX_EVIDENCE) throw new Error('Setmapping bevat te grote candidate/evidence-lijsten.');
   if (value.evidence.some((item) => !isString(item, 200))) throw new Error('Setmapping bevat ongeldige evidence.');
-  if (status === 'already_reliable' && (!setCode || value.reliableSetCode !== setCode)) throw new Error('already_reliable vereist een betrouwbare setCode.');
+  if (status === 'already_reliable' && (!setCode || value.reliableSetCode !== setCode)) throw new Error('already_reliable vereist gelijke setCode en reliableSetCode.');
+  if (status !== 'already_reliable' && (setCode !== undefined || value.reliableSetCode !== undefined)) throw new Error(`${status} mag geen betrouwbare setCode bevatten.`);
   if (value.reliableSetCode !== undefined && !isString(value.reliableSetCode, 32)) throw new Error('Ongeldige reliableSetCode.');
   const candidates = value.candidates.map((item) => {
     if (!isObject(item)) throw new Error('Setmappingkandidaat heeft een ongeldig formaat.');
@@ -87,6 +107,10 @@ function assertMapping(value: unknown, status: SetMappingStatus, setCode: string
     if (!isNonNegativeInteger(item.incomingCardCount) || !isNonNegativeInteger(item.overlappingUniqueCardNumbers) || item.overlappingUniqueCardNumbers > item.incomingCardCount || typeof item.coveragePercentage !== 'number' || item.coveragePercentage < 0 || item.coveragePercentage > 100) throw new Error('Setmappingkandidaat bevat ongeldige dekking.');
     return item as SetMappingCandidate;
   });
+  if (status === 'exact_candidate' && candidates.length !== 1) throw new Error('exact_candidate vereist exact één kandidaat.');
+  if (status === 'ambiguous_candidate' && candidates.length < 2) throw new Error('ambiguous_candidate vereist minstens twee kandidaten.');
+  if (status === 'no_candidate' && candidates.length !== 0) throw new Error('no_candidate mag geen kandidaten bevatten.');
+  if (status === 'conflicting_candidate' && candidates.length < 2) throw new Error('conflicting_candidate vereist minstens twee kandidaten.');
   return { status, ...(value.reliableSetCode !== undefined ? { reliableSetCode: value.reliableSetCode as string } : {}), candidates, evidence: value.evidence as string[] };
 }
 

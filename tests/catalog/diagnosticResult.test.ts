@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { FAILURE_CODES, parseDiagnosticResultText, writeDiagnosticResult, type SingleSetDiagnosticResult } from '../../scripts/catalog/diagnostic-result.ts';
+import { classifyDiagnosticOutcome, FAILURE_CODES, mappingFailureReasons, parseDiagnosticResultText, writeDiagnosticResult, type SingleSetDiagnosticResult } from '../../scripts/catalog/diagnostic-result.ts';
 
 function fixture(overrides: Partial<SingleSetDiagnosticResult> = {}): SingleSetDiagnosticResult {
   return {
@@ -45,6 +45,22 @@ test('malformed or incomplete subprocess results fail closed', () => {
   assert.throws(() => parseDiagnosticResultText(JSON.stringify({ ...fixture(), failureReasons: [] })), /FAIL vereist/);
   assert.throws(() => parseDiagnosticResultText(JSON.stringify({ ...fixture(), setMapping: { ...fixture().setMapping, evidence: Array.from({ length: 21 }, () => 'evidence') } })), /te grote/);
   assert.throws(() => parseDiagnosticResultText(JSON.stringify({ ...fixture(), setMapping: { ...fixture().setMapping, candidates: [{ set_code: 'sv10', evidenceCodes: [], incomingCardCount: 1, overlappingUniqueCardNumbers: 1, coveragePercentage: 100, extra: true }] } })), /onbekende velden/);
+});
+
+test('mapping statuses have fail-closed semantics', () => {
+  const candidate = { set_code: 'sv10', name: 'Destined Rivals', series: 'Scarlet & Violet', source: 'manual_review', source_id: null, evidenceCodes: ['exact_set_code'], incomingCardCount: 216, overlappingUniqueCardNumbers: 216, coveragePercentage: 100 };
+  const exact = fixture({ setName: 'Destined Rivals', status: 'FAIL', setMappingStatus: 'exact_candidate', setMapping: { status: 'exact_candidate', candidates: [candidate], evidence: ['candidate_evidence_only'] }, failureReasons: mappingFailureReasons('exact_candidate') });
+  assert.equal(exact.setId, 'sv10');
+  assert.equal(exact.setMapping.candidates[0].source, 'manual_review');
+  assert.deepEqual(exact.failureReasons, ['missing_set_mapping']);
+  assert.doesNotThrow(() => parseDiagnosticResultText(JSON.stringify(exact)));
+  assert.equal(classifyDiagnosticOutcome(exact), 'content_blocked');
+  assert.equal(classifyDiagnosticOutcome({ status: 'FAIL', failureReasons: ['unexpected_runner_failure'] }), 'runner_failure');
+  assert.deepEqual(mappingFailureReasons('ambiguous_candidate'), ['ambiguous_set_mapping', 'missing_set_mapping']);
+  assert.throws(() => parseDiagnosticResultText(JSON.stringify({ ...exact, setMapping: { ...exact.setMapping, reliableSetCode: 'sv10' } })), /geen betrouwbare setCode/);
+  assert.throws(() => parseDiagnosticResultText(JSON.stringify({ ...fixture(), setMappingStatus: 'no_candidate', setMapping: { status: 'no_candidate', candidates: [candidate], evidence: [] } })), /no_candidate/);
+  assert.throws(() => parseDiagnosticResultText(JSON.stringify({ ...exact, setMappingStatus: 'ambiguous_candidate', setMapping: { ...exact.setMapping, status: 'ambiguous_candidate', candidates: [candidate] }, failureReasons: mappingFailureReasons('ambiguous_candidate') })), /ambiguous_candidate/);
+  assert.throws(() => parseDiagnosticResultText(JSON.stringify({ ...fixture({ status: 'PASS', failureReasons: [], setMappingStatus: 'already_reliable', setCode: 'sv10', setMapping: { status: 'already_reliable', reliableSetCode: 'other', candidates: [], evidence: [] } }) })), /gelijke setCode/);
 });
 
 test('diagnostic output is atomic and contains no console payload', () => {

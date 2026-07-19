@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { loadPokemonTcgDataJson } from './local-json.ts';
 import { parseCardDetails, type CardDetails } from './card-details.ts';
 import { assertWriteAuthorized, getWritePlanTitle, parseCatalogImportArgs, type CatalogImportOptions } from './import-args.ts';
-import { writeDiagnosticResult, type DiagnosticExample, type FailureCode, type SetMappingCandidate, type SetMappingStatus, type SingleSetDiagnosticResult } from './diagnostic-result.ts';
+import { mappingFailureReasons, writeDiagnosticResult, type DiagnosticExample, type FailureCode, type SetMappingCandidate, type SetMappingStatus, type SingleSetDiagnosticResult } from './diagnostic-result.ts';
 
 const SOURCE = 'pokemon_tcg_api';
 const API_BASE_URL = 'https://api.pokemontcg.io/v2';
@@ -1122,24 +1122,22 @@ function diagnosticExamples(matching: MatchingReport): Partial<Record<FailureCod
 }
 
 function buildDiagnosticResult(params: { set: PokemonSet; receivedCards: number; validation: ValidationResult; matching: MatchingReport; writePlan: WritePlan; passed: boolean; databaseWrites: number }): SingleSetDiagnosticResult {
-  const reasons = new Set<FailureCode>();
+  const reasons = new Set<FailureCode>(mappingFailureReasons(params.matching.setMappingStatus));
   if (params.validation.errors.length > 0) reasons.add('input_validation_failure');
   if (params.validation.duplicateIds.length > 0) reasons.add('card_identity_conflict');
-  if (params.matching.setMappingStatus === 'no_candidate') reasons.add('missing_set_mapping');
-  if (params.matching.setMappingStatus === 'ambiguous_candidate') reasons.add('ambiguous_set_mapping');
-  if (params.matching.setMappingStatus === 'conflicting_candidate') reasons.add('ambiguous_set_mapping');
   if (params.matching.ambiguous > 0) reasons.add('ambiguous_fallback_candidate');
   if (params.matching.conflicts > 0) reasons.add('external_reference_conflict');
   if (params.matching.conflictExamples.some((item) => item.reason === 'fallback_metadata_mismatch')) reasons.add('fallback_metadata_mismatch');
   if (params.matching.metadataChanged > 0) reasons.add('card_identity_conflict');
-  if (params.writePlan.blockedItems > 0 && reasons.size === 0) reasons.add('unexpected_runner_failure');
+  if (!params.passed && reasons.size === 0) reasons.add('unexpected_runner_failure');
+  const status = params.passed && reasons.size === 0 ? 'PASS' : 'FAIL';
   return {
     schemaVersion: 1,
     setId: params.set.id,
     setName: params.set.name,
     expectedCards: params.set.total,
     receivedCards: params.receivedCards,
-    status: params.passed ? 'PASS' : 'FAIL',
+    status,
     ...(params.matching.setCode ? { setCode: params.matching.setCode } : {}),
     setMappingStatus: params.matching.setMappingStatus,
     setMapping: {

@@ -7,7 +7,7 @@ import { parseCatalogBatchArgs, parseCatalogBatchConfigFromText, type CatalogBat
 import { parseLocalCatalogManifestFromText, type LocalCatalogManifestSet } from './local-manifest.ts';
 import { validateLocalDatasetCheckout } from './local-checkout.ts';
 import { assertCheckpointIdentity, CHECKPOINT_SCHEMA_VERSION, checkpointExists, readCheckpoint, sha256File, supabaseProjectIdentity, writeAtomicJson, type CatalogBatchCheckpoint, type CheckpointIdentity, type CheckpointSet } from './checkpoint.ts';
-import { readDiagnosticResult, type SingleSetDiagnosticResult } from './diagnostic-result.ts';
+import { addDiagnosticFailure, assertValidDiagnosticResult, classifyDiagnosticOutcome, readDiagnosticResult, type SingleSetDiagnosticResult } from './diagnostic-result.ts';
 
 type StepName = 'dry-run' | 'write' | 'idempotency';
 
@@ -135,10 +135,8 @@ function validateStepOutput(params: { step: StepName; exitCode: number; output: 
     }
   }
 
-  if (unexpectedRunnerFailure.size > 0 && !diagnostic.failureReasons.includes('unexpected_runner_failure')) {
-    diagnostic.failureReasons = [...diagnostic.failureReasons, 'unexpected_runner_failure'];
-    diagnostic.status = 'FAIL';
-  }
+  const finalDiagnostic = unexpectedRunnerFailure.size > 0 ? addDiagnosticFailure(diagnostic, 'unexpected_runner_failure') : diagnostic;
+  assertValidDiagnosticResult(finalDiagnostic);
 
   return {
     step: params.step,
@@ -150,7 +148,7 @@ function validateStepOutput(params: { step: StepName; exitCode: number; output: 
     ...(receivedCards !== undefined ? { receivedCards } : {}),
     ...(plannedWrites !== undefined ? { plannedWrites } : {}),
     ...(databaseWrites !== undefined ? { databaseWrites } : {}),
-    diagnostic,
+    diagnostic: finalDiagnostic,
   };
 }
 
@@ -342,9 +340,9 @@ function reportClassifications(results: SetResult[]): { failureReasonsTotal: Rec
     operationalSetsProcessed += 1;
     if (step.diagnostic?.setMappingStatus) setMappingStatusTotal[step.diagnostic.setMappingStatus] = (setMappingStatusTotal[step.diagnostic.setMappingStatus] ?? 0) + 1;
     const reasons = step.diagnostic?.failureReasons ?? (step.error?.includes('failureCode=unexpected_runner_failure') ? ['unexpected_runner_failure'] : []);
-    const runnerFailure = reasons.includes('unexpected_runner_failure');
-    if (runnerFailure) runnerFailureSets += 1;
-    else if (setPassed(result)) contentPassSets += 1;
+    const outcome = step.diagnostic ? classifyDiagnosticOutcome(step.diagnostic) : reasons.includes('unexpected_runner_failure') ? 'runner_failure' : setPassed(result) ? 'content_pass' : 'content_blocked';
+    if (outcome === 'runner_failure') runnerFailureSets += 1;
+    else if (outcome === 'content_pass') contentPassSets += 1;
     else contentBlockedSets += 1;
     for (const reason of reasons) failureReasonsTotal[reason] = (failureReasonsTotal[reason] ?? 0) + 1;
   }
@@ -409,15 +407,14 @@ async function main(): Promise<number> {
         }
         result.dryRun = runImportSet(set.setId, false, set.inputPath, undefined, { name: set.name, series: set.series }, set.expectedCards);
         if (result.dryRun.receivedCards !== set.expectedCards) {
-          result.dryRun.passed = false;
-          if (result.dryRun.diagnostic) result.dryRun.diagnostic.failureReasons = [...new Set([...result.dryRun.diagnostic.failureReasons, 'input_validation_failure'])];
-          result.dryRun.error = `${result.dryRun.error ? `${result.dryRun.error} ` : ''}Expected/received mismatch: manifest=${set.expectedCards}, importer=${result.dryRun.receivedCards ?? 'unknown'}.`;
+          const diagnostic = result.dryRun.diagnostic ? addDiagnosticFailure(result.dryRun.diagnostic, 'input_validation_failure') : undefined;
+          result.dryRun = { ...result.dryRun, passed: false, ...(diagnostic ? { diagnostic } : {}), error: `${result.dryRun.error ? `${result.dryRun.error} ` : ''}Expected/received mismatch: manifest=${set.expectedCards}, importer=${result.dryRun.receivedCards ?? 'unknown'}.` };
         }
         if (result.dryRun.databaseWrites !== 0) {
-          result.dryRun.passed = false;
-          if (result.dryRun.diagnostic) result.dryRun.diagnostic.failureReasons = [...new Set([...result.dryRun.diagnostic.failureReasons, 'unexpected_runner_failure'])];
-          result.dryRun.error = `${result.dryRun.error ? `${result.dryRun.error} ` : ''}Lokale dry-run rapporteert databasewrites != 0.`;
+          const diagnostic = result.dryRun.diagnostic ? addDiagnosticFailure(result.dryRun.diagnostic, 'unexpected_runner_failure') : undefined;
+          result.dryRun = { ...result.dryRun, passed: false, ...(diagnostic ? { diagnostic } : {}), error: `${result.dryRun.error ? `${result.dryRun.error} ` : ''}Lokale dry-run rapporteert databasewrites != 0.` };
         }
+        if (result.dryRun.diagnostic) assertValidDiagnosticResult(result.dryRun.diagnostic);
         printStep(set.setId, result.dryRun);
         if (checkpoint) {
           const updated = checkpointSetFromResult(result, set.expectedCards);
