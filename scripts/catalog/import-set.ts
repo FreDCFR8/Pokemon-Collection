@@ -1441,6 +1441,12 @@ export function buildCanonicalSetAnalysis(params: { setId: string; setName: stri
     if (classifiedIds.has(item.external_id)) continue;
     actions.push({ action: item.reason?.includes('conflict') || params.matching.conflicts > 0 ? 'conflict' : 'blocked', externalSource: SOURCE, externalId: item.external_id, setId: params.setId, cardNumber: item.number, reason: item.reason ?? 'unresolved_card' });
   }
+  const actionCounts = new Map<string, number>();
+  for (const action of actions) {
+    if (Object.values(action).some((value) => value === undefined)) throw new UserFacingError(`Canonical writeplan bevat undefined-velden voor ${action.externalId}.`);
+    actionCounts.set(action.externalId, (actionCounts.get(action.externalId) ?? 0) + 1);
+  }
+  if ([...actionCounts.values()].some((count) => count !== 1)) throw new UserFacingError('Canonical writeplan bevat niet exact één actie per kaart.');
   const plannedCatalogInserts = actions.filter((action) => action.action === 'insertCardAndReference').length;
   const plannedReferenceInserts = actions.filter((action) => action.action === 'insertCardAndReference' || action.action === 'insertReference').length;
   return { setId: params.setId, setCatalogId, setCode: params.matching.setCode, expectedCards: params.expectedCards, receivedCards: params.matching.classifications.length + params.matching.ambiguous + params.matching.conflicts + params.matching.unresolvedWithoutSetMapping, actions: actions.sort((a, b) => a.externalId.localeCompare(b.externalId)), plannedCatalogInserts, plannedReferenceInserts, blockedItems: actions.filter((action) => action.action === 'blocked').length, conflicts: actions.filter((action) => action.action === 'conflict').length };

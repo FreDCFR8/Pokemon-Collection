@@ -19,7 +19,7 @@ Het writeplan bevat datasetcommit, manifestHash, Batch 1-setlijst, kaarttotalen,
 
 ## Validatie
 
-- `npm.cmd test`: 274 tests geslaagd
+- `npm.cmd test`: 276 tests geslaagd
 - `npm.cmd run build`: geslaagd
 - `git diff --check`: geslaagd
 - databasewrites tijdens deze correctie: `0`
@@ -27,4 +27,4 @@ Het writeplan bevat datasetcommit, manifestHash, Batch 1-setlijst, kaarttotalen,
 - externe Pokémon-API-calls: `0`
 - write-run uitgevoerd: `0`
 
-De bw9-regressietests controleren planroundtrip, hashintegriteit, ontbrekende setidentiteit en het ontbreken van een onveilige `existingIdentical`-actie. Een echte Supabase-backed write-run is bewust niet uitgevoerd.
+De bw9-regressietests controleren planroundtrip, hashintegriteit, ontbrekende setidentiteit en het ontbreken van een onveilige `existingIdentical`-actie. De nieuwe regressies controleren één blocked-actie per kaart voor ontbrekende `setCatalogId`, ontbrekende `setCode` en meerdere kaarten. Een echte Supabase-backed write-run is bewust niet uitgevoerd.
