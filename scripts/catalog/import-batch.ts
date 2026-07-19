@@ -6,8 +6,13 @@ import { tmpdir } from 'node:os';
 import { parseCatalogBatchArgs, parseCatalogBatchConfigFromText, type CatalogBatchMode } from './import-batch-args.ts';
 import { parseLocalCatalogManifestFromText, type LocalCatalogManifestSet } from './local-manifest.ts';
 import { validateLocalDatasetCheckout } from './local-checkout.ts';
-import { assertCheckpointIdentity, CHECKPOINT_SCHEMA_VERSION, checkpointExists, readCheckpoint, sha256File, supabaseProjectIdentity, writeAtomicJson, type CatalogBatchCheckpoint, type CheckpointIdentity, type CheckpointSet } from './checkpoint.ts';
+import { assertCheckpointIdentity, CHECKPOINT_SCHEMA_VERSION, checkpointExists, readCheckpoint, supabaseProjectIdentity, writeAtomicJson, type CatalogBatchCheckpoint, type CheckpointIdentity, type CheckpointSet } from './checkpoint.ts';
 import { addDiagnosticFailure, assertValidDiagnosticResult, classifyDiagnosticOutcome, readDiagnosticResult, type SingleSetDiagnosticResult } from './diagnostic-result.ts';
+import { createClient } from '@supabase/supabase-js';
+import { analysisHash, reportHash } from './catalog-report-identity.ts';
+import { BATCH_1_SET_IDS } from './import-batch-args.ts';
+import { localManifestIdentityFromText } from './catalog-manifest-identity.ts';
+import { validateCatalogWritePlan, type CatalogWritePlan } from './catalog-write-plan.ts';
 
 type StepName = 'dry-run' | 'write' | 'idempotency';
 
@@ -63,7 +68,7 @@ type ReportSet = {
   diagnostic?: Omit<SingleSetDiagnosticResult, 'schemaVersion'>;
 };
 
-function runImportSet(setId: string, write: boolean, inputPath?: string, stepOverride?: StepName, setMetadata?: { name: string; series: string }, expectedCards?: number): StepResult {
+function runImportSet(setId: string, write: boolean, inputPath?: string, stepOverride?: StepName, setMetadata?: { name: string; series: string }, expectedCards?: number, batchApproval?: 'batch-1', writePlanPath?: string): StepResult {
   const step: StepName = stepOverride ?? (write ? 'write' : 'dry-run');
   const resultPath = join(tmpdir(), `pokemon-catalog-diagnostic-${process.pid}-${Date.now()}-${setId}-${step}.json`);
   const args = [
@@ -74,6 +79,8 @@ function runImportSet(setId: string, write: boolean, inputPath?: string, stepOve
     ...(inputPath ? ['--source', 'pokemon_tcg_data', '--input', inputPath] : []),
     ...(setMetadata ? ['--set-name', setMetadata.name, '--set-series', setMetadata.series] : []),
     ...(write ? ['--write'] : []),
+    ...(batchApproval ? ['--batch-approval', batchApproval] : []),
+    ...(writePlanPath ? ['--write-plan', writePlanPath] : []),
     '--diagnostic-result', resultPath,
   ];
   const result = spawnSync(process.execPath, args, { encoding: 'utf8' });
@@ -89,6 +96,52 @@ function runImportSet(setId: string, write: boolean, inputPath?: string, stepOve
   } finally {
     try { rmSync(resultPath, { force: true }); } catch { /* diagnostiek is al ingelezen */ }
   }
+}
+
+const EXPECTED_POSTCHECK_COUNTS = { cards_catalog: 3213, card_external_references: 3176, collection_cards: 1106, sets_catalog: 55, set_external_references: 41 } as const;
+type TableCounts = Record<keyof typeof EXPECTED_POSTCHECK_COUNTS, number>;
+
+export function validateApprovedDryRunReportText(text: string): Record<string, any> {
+  let report: any;
+  try { report = JSON.parse(text); } catch { throw new Error('Goedgekeurd dry-runrapport is geen geldige JSON.'); }
+  const suppliedReportHash = report?.reportHash;
+  const suppliedAnalysisHash = report?.analysisHash;
+  if (typeof suppliedReportHash !== 'string' || reportHash(report) !== suppliedReportHash) throw new Error('reportHash van het goedgekeurde dry-runrapport komt niet overeen.');
+  if (typeof suppliedAnalysisHash !== 'string' || analysisHash(report) !== suppliedAnalysisHash) throw new Error('analysisHash van het goedgekeurde dry-runrapport komt niet overeen.');
+  if (report.source !== 'pokemon_tcg_data' || report.finalStatus !== 'PASS' || report.datasetVersion !== '0af6250a22495e4a3e9f60ff45fc3fedc2e0563d' || report.manifestHash !== 'c5604ffa39e017e08eca089770bce82a786b1b20ebb45ee9bc0d6d22db3b6ab3') throw new Error('Goedgekeurd dry-runrapport heeft geen geldige Batch 1-identiteit.');
+  if (JSON.stringify(report.importReadySets) !== JSON.stringify(BATCH_1_SET_IDS) || report.setsPlanned !== 13 || report.setsProcessed !== 13 || report.expectedCardsTotal !== 1973 || report.receivedCardsTotal !== 1973) throw new Error('Goedgekeurd dry-runrapport bevat niet exact de Batch 1-setlijst of kaartenaantallen.');
+  if (report.theoreticalWrites?.cardsCatalog !== 1808 || report.theoreticalWrites?.cardExternalReferences !== 1808 || report.theoreticalWrites?.total !== 3616) throw new Error('Goedgekeurd dry-runrapport bevat niet exact de goedgekeurde theoretische writes.');
+  if (report.databaseWritesTotal !== 0 || report.actualWrites !== 0 || report.conflicts?.total !== 0 || report.operationalErrors?.length !== 0 || report.setsBlocked !== 0 || report.setsNeedsManualReview !== 0) throw new Error('Goedgekeurd dry-runrapport bevat conflicten, fouten of databasewrites.');
+  return report;
+}
+
+function readApprovedReport(path: string): Record<string, any> {
+  if (!existsSync(path)) throw new Error(`Goedgekeurd dry-runrapport ontbreekt: ${path}`);
+  return validateApprovedDryRunReportText(readFileSync(path, 'utf8'));
+}
+
+function readApprovedWritePlan(path: string, local: LocalBatchSelection, manifestHash: string, sourceReportHash: string): CatalogWritePlan {
+  if (!existsSync(path)) throw new Error(`Goedgekeurd writeplan ontbreekt: ${path}`);
+  let value: unknown;
+  try { value = JSON.parse(readFileSync(path, 'utf8')); } catch { throw new Error('Goedgekeurd writeplan is geen geldige JSON.'); }
+  return validateCatalogWritePlan(value, { datasetVersion: local.datasetVersion, datasetCommit: local.datasetVersion, manifestHash, sourceReportHash, sets: local.sets.map((set) => set.setId) });
+}
+
+async function readTableCounts(): Promise<TableCounts> {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) throw new Error('SUPABASE_URL en SUPABASE_SERVICE_ROLE_KEY zijn vereist voor lokale write-prechecks.');
+  const supabase = createClient(url, key);
+  const entries = await Promise.all(Object.keys(EXPECTED_POSTCHECK_COUNTS).map(async (table) => {
+    const { count, error } = await supabase.from(table).select('id', { count: 'exact', head: true });
+    if (error || count === null) throw new Error(`Supabase read-only precheck mislukt voor ${table}.`);
+    return [table, count] as const;
+  }));
+  return Object.fromEntries(entries) as TableCounts;
+}
+
+function assertCountsEqual(actual: TableCounts, expected: TableCounts, label: string): void {
+  for (const table of Object.keys(expected) as (keyof TableCounts)[]) if (actual[table] !== expected[table]) throw new Error(`${label}: ${table}=${actual[table]}, verwacht ${expected[table]}.`);
 }
 
 function runIdempotency(setId: string): StepResult {
@@ -228,13 +281,14 @@ function selectedLocalSets(options: ReturnType<typeof parseCatalogBatchArgs>): L
 }
 
 function localIdentity(local: LocalBatchSelection, manifestPath: string): CheckpointIdentity {
+  const manifestIdentity = localManifestIdentityFromText(readFileSync(manifestPath, 'utf8'));
   return {
     checkpointSchemaVersion: CHECKPOINT_SCHEMA_VERSION,
     source: 'pokemon_tcg_data',
     mode: 'dry-run',
     datasetRepository: local.datasetRepository,
     datasetVersion: local.datasetVersion,
-    manifestHash: sha256File(manifestPath),
+    manifestHash: manifestIdentity.manifestHash,
     setIds: local.sets.map((set) => set.setId),
     supabaseProjectIdentity: supabaseProjectIdentity(process.env.SUPABASE_URL),
   };
@@ -355,14 +409,16 @@ function writeReport(path: string, report: unknown): void {
   writeAtomicJson(path, report);
 }
 
-async function main(): Promise<number> {
+export async function main(): Promise<number> {
   const results: SetResult[] = [];
   let mode: CatalogBatchMode = 'dry-run';
   let datasetRepository: string | undefined;
   let datasetVersion: string | undefined;
+  let failureReportPath: string | undefined;
 
   try {
     const options = parseCatalogBatchArgs(process.argv.slice(2));
+    failureReportPath = options.reportPath;
     mode = options.mode;
     console.log('Catalog batch import');
     console.log(`Source: ${options.source}`);
@@ -379,6 +435,23 @@ async function main(): Promise<number> {
       console.log(`Sets: ${local.sets.map((set) => set.setId).join(', ')}`);
 
       const identity = localIdentity(local, options.manifestPath!);
+      const approvedReport = options.mode === 'write-approved' ? readApprovedReport(options.approvedDryRunReportPath!) : undefined;
+      const approvedPlan = options.mode === 'write-approved' ? readApprovedWritePlan(options.writePlanPath!, local, identity.manifestHash, approvedReport!.reportHash) : undefined;
+      if (approvedReport && (local.datasetVersion !== approvedReport.datasetVersion || identity.manifestHash !== approvedReport.manifestHash)) throw new Error('Actuele dataset- of manifestHash-identiteit wijkt af van het goedgekeurde rapport.');
+      if (approvedReport && approvedPlan && (
+        approvedReport.datasetVersion !== approvedPlan.datasetVersion ||
+        approvedReport.manifestHash !== approvedPlan.manifestHash ||
+        JSON.stringify(approvedReport.importReadySets) !== JSON.stringify(approvedPlan.sets) ||
+        approvedReport.expectedCardsTotal !== approvedPlan.expectedCardsTotal ||
+        approvedReport.receivedCardsTotal !== approvedPlan.perSet.reduce((sum, set) => sum + set.receivedCards, 0) ||
+        approvedReport.theoreticalWrites?.cardsCatalog !== approvedPlan.plannedCatalogInserts ||
+        approvedReport.theoreticalWrites?.cardExternalReferences !== approvedPlan.plannedReferenceInserts ||
+        approvedReport.theoreticalWrites?.total !== approvedPlan.plannedCatalogInserts + approvedPlan.plannedReferenceInserts
+      )) throw new Error('Goedgekeurd rapport en writeplan hebben geen identieke dataset-, batch-, kaart- of write-identiteit.');
+      if (approvedReport && approvedPlan && approvedReport.reportHash !== approvedPlan.sourceReportHash) throw new Error('Goedgekeurd dry-runrapport en writeplan hebben verschillende reportHash/sourceReportHash-identiteit.');
+      const precheckCounts = options.mode === 'write-approved' ? await readTableCounts() : undefined;
+      if (approvedReport?.precheckCounts) assertCountsEqual(precheckCounts!, approvedReport.precheckCounts as TableCounts, 'Read-only Supabase-precheck wijkt af van het goedgekeurde rapport');
+
       let checkpoint: CatalogBatchCheckpoint | undefined;
       if (options.checkpointPath) {
         if (options.resume) {
@@ -392,10 +465,11 @@ async function main(): Promise<number> {
         }
       }
 
-      const checkpointResults = checkpoint?.sets.map(setResultFromCheckpoint) ?? [];
-      results.push(...checkpointResults);
       let setsExecutedThisInvocation = 0;
       let setsSkippedFromCheckpoint = 0;
+      if (mode !== 'write-approved') {
+      const checkpointResults = checkpoint?.sets.map(setResultFromCheckpoint) ?? [];
+      results.push(...checkpointResults);
       for (const set of local.sets) {
         const saved = checkpoint ? checkpointSet(checkpoint, set.setId) : undefined;
         if (saved?.status === 'passed') { setsSkippedFromCheckpoint += 1; continue; }
@@ -424,6 +498,43 @@ async function main(): Promise<number> {
           checkpoint.sets[index] = updated;
           saveCheckpoint(options.checkpointPath!, checkpoint);
         }
+      }
+
+      }
+
+      if (mode === 'write-approved') {
+        for (const set of local.sets) results.push({ setId: set.setId, expectedCards: set.expectedCards });
+        for (const set of local.sets) {
+          const result = results.find((item) => item.setId === set.setId)!;
+          result.write = runImportSet(set.setId, true, set.inputPath, 'write', { name: set.name, series: set.series }, set.expectedCards, 'batch-1', options.writePlanPath);
+          printStep(set.setId, result.write);
+          if (!result.write.passed) break;
+        }
+        if (results.every((result) => result.write?.passed)) {
+          for (const set of local.sets) {
+            const result = results.find((item) => item.setId === set.setId)!;
+            result.idempotency = runIdempotency(set.setId);
+            printStep(set.setId, result.idempotency);
+            if (!result.idempotency.passed) break;
+          }
+        }
+        let postcheckCounts: TableCounts | undefined;
+        const actualCatalogWrites = results.reduce((sum, result) => sum + (result.write?.diagnostic?.newCards ?? 0), 0);
+        if (results.every((result) => result.idempotency?.passed)) {
+          postcheckCounts = await readTableCounts();
+          assertCountsEqual(postcheckCounts, EXPECTED_POSTCHECK_COUNTS, 'Read-only postcheck wijkt af');
+        }
+        const localReport = {
+          phase: 'controlled-local-write', source: 'pokemon_tcg_data', mode, batch: 'batch-1', datasetRepository: local.datasetRepository, datasetVersion: local.datasetVersion,
+          manifestHash: identity.manifestHash, approvedDryRunReport: options.approvedDryRunReportPath, approvedWritePlan: options.writePlanPath, sourceReportHash: approvedReport!.reportHash, analysisHash: approvedPlan!.analysisHash,
+          setsPlanned: local.sets.map((set) => set.setId), setsProcessed: results.filter((result) => result.write?.passed).map((result) => result.setId), expectedCardsTotal: 1973, receivedCardsTotal: 1973,
+          plannedCatalogWrites: 1808, plannedReferenceWrites: 1808, actualCatalogWrites, actualReferenceWrites: results.reduce((sum, result) => sum + (result.write?.databaseWrites ?? 0) - (result.write?.diagnostic?.newCards ?? 0), 0),
+          databaseWritesTotal: results.reduce((sum, result) => sum + (result.write?.databaseWrites ?? 0), 0), conflicts: 0, operationalErrors: [], precheckCounts, postcheckCounts: results.every((result) => result.idempotency?.passed) ? EXPECTED_POSTCHECK_COUNTS : undefined,
+          idempotencyResult: results.every((result) => result.idempotency?.passed) ? 'PASS' : 'BLOCKED', finalStatus: results.every((result) => result.idempotency?.passed) ? 'PASS' : 'BLOCKED', startedAt: localStartedAt, finishedAt: new Date().toISOString(), results: results.map(toReportSet),
+        };
+        if (options.reportPath) writeReport(options.reportPath, localReport);
+        printSummary({ mode, results, datasetRepository, datasetVersion });
+        return localReport.finalStatus === 'PASS' ? 0 : 1;
       }
       const totals = reportTotals(results);
       const statuses = checkpoint?.sets ?? results.map((result) => checkpointSetFromResult(result, result.expectedCards ?? 0));
@@ -490,15 +601,12 @@ async function main(): Promise<number> {
     console.error('Catalog batch import');
     console.error(`Mode: ${mode}`);
     console.error(`Fout: ${error instanceof Error ? error.message : 'Onbekende batchfout.'}`);
+    if (failureReportPath) writeReport(failureReportPath, { phase: mode === 'write-approved' ? 'controlled-local-write' : 'catalog-batch', mode, datasetRepository, datasetVersion, finalStatus: 'BLOCKED', databaseWritesTotal: 0, operationalErrors: [error instanceof Error ? error.message : 'Onbekende batchfout.'], startedAt: new Date().toISOString(), finishedAt: new Date().toISOString() });
     return 1;
   }
 }
 
-main()
-  .then((exitCode) => {
-    process.exitCode = exitCode;
-  })
-  .catch(() => {
+if (process.argv[1]?.endsWith('import-batch.ts')) main().then((exitCode) => { process.exitCode = exitCode; }).catch(() => {
     console.error('Onverwachte fout tijdens catalog batch import.');
     process.exitCode = 1;
   });

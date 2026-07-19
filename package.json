@@ -10,6 +10,7 @@
     "catalog:import": "node --experimental-strip-types scripts/catalog/import-set.ts",
     "catalog:import:batch": "node --experimental-strip-types scripts/catalog/import-batch.ts",
     "catalog:manifest:generate": "node --experimental-strip-types scripts/catalog/generate-local-manifest.ts",
+    "catalog:rebaseline:read-only": "node --experimental-strip-types scripts/catalog/rebaseline-read-only.ts",
     "catalog:set-mappings:plan": "node --experimental-strip-types scripts/catalog/set-mapping-plan.ts",
     "catalog:set-mappings:apply": "node --experimental-strip-types scripts/catalog/apply-set-mappings.ts",
     "catalog:set-mappings:validate": "node --experimental-strip-types scripts/catalog/validate-set-mappings.ts",

@@ -1,10 +1,12 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { loadPokemonTcgDataJson } from './local-json.ts';
 import { classifyFallbackCandidates } from './fallback-classification.ts';
 import { parseCardDetails, type CardDetails } from './card-details.ts';
 import { assertWriteAuthorized, getWritePlanTitle, parseCatalogImportArgs, type CatalogImportOptions } from './import-args.ts';
 import { failureCodesForConflictReasons, mappingFailureReasons, writeDiagnosticResult, type DiagnosticExample, type FailureCode, type SetMappingCandidate, type SetMappingStatus, type SingleSetDiagnosticResult } from './diagnostic-result.ts';
+import { validateCatalogWritePlan, type CatalogWritePlan } from './catalog-write-plan.ts';
 
 const SOURCE = 'pokemon_tcg_api';
 const API_BASE_URL = 'https://api.pokemontcg.io/v2';
@@ -45,7 +47,8 @@ type CatalogIdentityRow = {
   external_id: string | null;
 };
 
-type SetCatalogRow = {
+export type SetCatalogRow = {
+  id?: string;
   set_code: string;
   source: string | null;
   source_id: string | null;
@@ -63,7 +66,7 @@ type MatchExample = {
   reason?: string;
 };
 
-type MatchingReport = {
+export type MatchingReport = {
   externalReferencesQueried: number;
   catalogCardsQueried: number;
   fallbackCandidatesQueried: number;
@@ -83,6 +86,7 @@ type MatchingReport = {
   metadataChangedExamples: MatchExample[];
   fallbackAvailable: boolean;
   setCode?: string;
+  setCatalogId?: string;
   classifications: CardClassification[];
   errors: string[];
   setMappingStatus: SetMappingStatus;
@@ -127,6 +131,25 @@ type WritePlan = {
   errors: string[];
 };
 
+export type CanonicalCardAction =
+  | { action: 'existingIdentical'; externalSource: string; externalId: string; setId: string; setCode: string; setCatalogId: string; cardCatalogId: string; cardNumber: string; name: string; rarity: string | null; image_small: string | null; image_large: string | null }
+  | { action: 'insertReference'; externalSource: string; externalId: string; setId: string; setCode: string; setCatalogId: string; cardNumber: string; referenceInsert: PlannedReferenceInsert }
+  | { action: 'insertCardAndReference'; externalSource: string; externalId: string; setId: string; setCode: string; setCatalogId: string; cardNumber: string; catalogInsert: PlannedCatalogInsert; referenceInsert: PlannedReferenceInsert }
+  | { action: 'blocked' | 'conflict'; externalSource: string; externalId: string; setId: string; cardNumber: string; reason: string };
+
+export type CanonicalSetAnalysis = {
+  setId: string;
+  setCatalogId?: string;
+  setCode?: string;
+  expectedCards: number;
+  receivedCards: number;
+  actions: CanonicalCardAction[];
+  plannedCatalogInserts: number;
+  plannedReferenceInserts: number;
+  blockedItems: number;
+  conflicts: number;
+};
+
 type WriteStats = {
   cardsCatalogInserted: number;
   referencesInsertedForNewCards: number;
@@ -158,7 +181,7 @@ type PokemonSet = {
   updatedAt: string;
 };
 
-type PokemonCard = {
+export type PokemonCard = {
   id: string;
   name: string;
   number: string;
@@ -469,11 +492,20 @@ async function readRows<T>(query: PromiseLike<{ data: T[] | null; error: { messa
   return data ?? [];
 }
 
-async function fetchSetCatalogMapping(supabase: SupabaseClient, externalSetId: string): Promise<SetCatalogRow[]> {
-  return readRows<SetCatalogRow>(
-    supabase.from('sets_catalog').select('set_code,source,source_id,name,series').eq('source', SOURCE).eq('source_id', externalSetId),
+/**
+ * Canonical set resolution used by both analysis and writing.
+ * A source_id match is preferred, but an unambiguous canonical set_code is
+ * also valid for legacy rows that predate source provenance.  This is the
+ * important boundary: callers must never invent a second set-mapping rule.
+ */
+async function fetchSetCatalogMapping(supabase: SupabaseClient, incomingSet: PokemonSet): Promise<SetCatalogRow[]> {
+  const rows = await readRows<SetCatalogRow>(
+    supabase.from('sets_catalog').select('id,set_code,source,source_id,name,series'),
     'sets_catalog setmapping',
   );
+  const sourceMatches = rows.filter((row) => row.source === SOURCE && row.source_id === incomingSet.id);
+  if (sourceMatches.length > 0) return sourceMatches;
+  return rows.filter((row) => row.set_code === incomingSet.id);
 }
 
 async function fetchSetCatalogCandidates(supabase: SupabaseClient, incomingSet: PokemonSet): Promise<SetCatalogRow[]> {
@@ -601,11 +633,11 @@ function compareMetadata(externalCard: PokemonCard, catalogCard: CatalogCardRow,
   return differences;
 }
 
-async function matchCards(supabase: SupabaseClient, incomingSet: PokemonSet, externalCards: PokemonCard[]): Promise<MatchingReport> {
+export async function matchCards(supabase: SupabaseClient, incomingSet: PokemonSet, externalCards: PokemonCard[], registeredSetMappings?: SetCatalogRow[]): Promise<MatchingReport> {
   const setId = incomingSet.id;
   const errors: string[] = [];
   const externalIds = uniqueSorted(externalCards.map((card) => card.id).filter(Boolean));
-  const setMappings = await fetchSetCatalogMapping(supabase, setId);
+  const setMappings = registeredSetMappings ?? await fetchSetCatalogMapping(supabase, incomingSet);
   const candidateRows = await fetchSetCatalogCandidates(supabase, incomingSet);
   const setCode = setMappings.length === 1 ? setMappings[0].set_code : undefined;
   const unresolvedReason = setMappings.length === 0 ? 'missing_set_mapping' : setMappings.length > 1 ? 'multiple_set_mappings' : undefined;
@@ -689,6 +721,7 @@ async function matchCards(supabase: SupabaseClient, incomingSet: PokemonSet, ext
     metadataChangedExamples: [],
     fallbackAvailable: Boolean(setCode),
     setCode,
+    setCatalogId: setMappings.length === 1 ? setMappings[0].id : undefined,
     classifications: [],
     errors,
     setMappingStatus: setMappings.length === 1 ? 'already_reliable' : setMappings.length > 1 ? 'conflicting_candidate' : mappingCandidates.length === 1 ? 'exact_candidate' : mappingCandidates.length > 1 ? 'ambiguous_candidate' : 'no_candidate',
@@ -1223,8 +1256,16 @@ async function main(): Promise<number> {
       : await fetchCards(setId, set.total, apiKey!, stats);
     const validation = validate(set, cards);
     const uniqueExternalIds = new Set(cards.cards.map((card) => card.id).filter(Boolean)).size;
-    const matching = await matchCards(supabase, set, cards.cards);
-    const writePlan = buildWritePlan(matching, set.name, new Date().toISOString(), cards.cards.length);
+    let matching: MatchingReport;
+    let writePlan: WritePlan;
+    if (options.writePlanPath) {
+      let approved: CatalogWritePlan;
+      try { approved = JSON.parse(readFileSync(options.writePlanPath, 'utf8')) as CatalogWritePlan; } catch { throw new UserFacingError('Goedgekeurd writeplan is geen geldige JSON.'); }
+      ({ matching, writePlan } = approvedSetPlan(approved, setId));
+    } else {
+      matching = await matchCards(supabase, set, cards.cards);
+      writePlan = buildWritePlan(matching, set.name, new Date().toISOString(), cards.cards.length);
+    }
     const allErrors = [...validation.errors, ...matching.errors, ...writePlan.errors];
     if (writePlan.blockedItems > 0 && !allErrors.includes('Minstens één item kon niet eenduidig in het writeplan worden opgenomen.')) {
       allErrors.push('Minstens één item kon niet eenduidig in het writeplan worden opgenomen.');
@@ -1359,13 +1400,66 @@ async function main(): Promise<number> {
   }
 }
 
-main()
-  .then((exitCode) => {
-    process.exitCode = exitCode;
-  })
-  .catch(() => {
-    console.error('Onverwachte fout tijdens catalog import.');
-    console.error('Result: FAIL');
-    console.error('Database writes: 0');
-    process.exitCode = 1;
-  });
+if (process.argv[1]?.endsWith('import-set.ts') && !process.env.NODE_TEST_CONTEXT) {
+  main()
+    .then((exitCode) => {
+      process.exitCode = exitCode;
+    })
+    .catch(() => {
+      console.error('Onverwachte fout tijdens catalog import.');
+      console.error('Result: FAIL');
+      console.error('Database writes: 0');
+      process.exitCode = 1;
+    });
+}
+
+export function buildCanonicalSetAnalysis(params: { setId: string; setName: string; expectedCards: number; matching: MatchingReport; importedAt?: string }): CanonicalSetAnalysis {
+  const importedAt = params.importedAt ?? '1970-01-01T00:00:00.000Z';
+  const actions: CanonicalCardAction[] = [];
+  const setCatalogId = params.matching.setCatalogId;
+  const classifications = new Map(params.matching.classifications.map((item) => [item.externalCard.id, item]));
+  for (const externalCard of [...params.matching.classifications.map((item) => item.externalCard)].sort((a, b) => a.id.localeCompare(b.id))) {
+    const classification = classifications.get(externalCard.id)!;
+    if (!setCatalogId || !params.matching.setCode) {
+      actions.push({ action: 'blocked', externalSource: SOURCE, externalId: externalCard.id, setId: params.setId, cardNumber: externalCard.number, reason: 'missing_set_catalog_identity' });
+      continue;
+    }
+    if (classification.kind === 'existing') {
+      actions.push({ action: 'existingIdentical', externalSource: SOURCE, externalId: externalCard.id, setId: params.setId, setCode: params.matching.setCode, setCatalogId, cardCatalogId: classification.catalogCard.id, cardNumber: externalCard.number, name: externalCard.name, rarity: externalCard.rarity ?? null, image_small: externalCard.images?.small ?? null, image_large: externalCard.images?.large ?? null });
+      continue;
+    }
+    if (classification.kind === 'fallback') {
+      actions.push({ action: 'insertReference', externalSource: SOURCE, externalId: externalCard.id, setId: params.setId, setCode: params.matching.setCode, setCatalogId, cardNumber: externalCard.number, referenceInsert: { card_catalog_id: classification.catalogCard.id, source: SOURCE, external_id: externalCard.id, source_url: null, last_seen_at: importedAt } });
+      continue;
+    }
+    const id = createHash('sha256').update(`pokemon-catalog-card:${SOURCE}:${externalCard.id}`, 'utf8').digest('hex').replace(/^(....)(....)(....)(....)(.*)$/, '$1-$2-4$3-8$4-$5').slice(0, 36);
+    const catalogInsert: PlannedCatalogInsert = { id, external_source: SOURCE, external_id: externalCard.id, pokemon: normalizeRequired(externalCard.name), set_name: normalizeRequired(params.setName), number: normalizeRequired(externalCard.number), rarity: normalizeOptional(externalCard.rarity), image_small: normalizeOptional(externalCard.images?.small), image_large: normalizeOptional(externalCard.images?.large), card_details: externalCard.details, set_code: params.matching.setCode };
+    actions.push({ action: 'insertCardAndReference', externalSource: SOURCE, externalId: externalCard.id, setId: params.setId, setCode: params.matching.setCode, setCatalogId, cardNumber: externalCard.number, catalogInsert, referenceInsert: { card_catalog_id: id, source: SOURCE, external_id: externalCard.id, source_url: null, last_seen_at: importedAt } });
+  }
+  const classifiedIds = new Set(actions.map((action) => action.externalId));
+  for (const item of params.matching.ambiguousExamples.concat(params.matching.conflictExamples, params.matching.unresolvedWithoutSetMappingExamples)) {
+    if (classifiedIds.has(item.external_id)) continue;
+    actions.push({ action: item.reason?.includes('conflict') || params.matching.conflicts > 0 ? 'conflict' : 'blocked', externalSource: SOURCE, externalId: item.external_id, setId: params.setId, cardNumber: item.number, reason: item.reason ?? 'unresolved_card' });
+  }
+  const actionCounts = new Map<string, number>();
+  for (const action of actions) {
+    if (Object.values(action).some((value) => value === undefined)) throw new UserFacingError(`Canonical writeplan bevat undefined-velden voor ${action.externalId}.`);
+    actionCounts.set(action.externalId, (actionCounts.get(action.externalId) ?? 0) + 1);
+  }
+  if ([...actionCounts.values()].some((count) => count !== 1)) throw new UserFacingError('Canonical writeplan bevat niet exact één actie per kaart.');
+  const plannedCatalogInserts = actions.filter((action) => action.action === 'insertCardAndReference').length;
+  const plannedReferenceInserts = actions.filter((action) => action.action === 'insertCardAndReference' || action.action === 'insertReference').length;
+  return { setId: params.setId, setCatalogId, setCode: params.matching.setCode, expectedCards: params.expectedCards, receivedCards: params.matching.classifications.length + params.matching.ambiguous + params.matching.conflicts + params.matching.unresolvedWithoutSetMapping, actions: actions.sort((a, b) => a.externalId.localeCompare(b.externalId)), plannedCatalogInserts, plannedReferenceInserts, blockedItems: actions.filter((action) => action.action === 'blocked').length, conflicts: actions.filter((action) => action.action === 'conflict').length };
+}
+
+function approvedSetPlan(plan: CatalogWritePlan, setId: string): { matching: MatchingReport; writePlan: WritePlan } {
+  validateCatalogWritePlan(plan, { datasetVersion: plan.datasetVersion, datasetCommit: plan.datasetCommit, manifestHash: plan.manifestHash, sourceReportHash: plan.sourceReportHash, sets: plan.sets });
+  if (plan.finalStatus !== 'PASS' || plan.conflicts.length !== 0 || plan.blockedItems.length !== 0) throw new UserFacingError('Goedgekeurd writeplan is niet PASS of bevat geblokkeerde items.');
+  const set = plan.perSet.find((item) => item.setId === setId);
+  if (!set || set.receivedCards !== set.expectedCards || set.conflicts !== 0 || set.blockedItems !== 0 || !set.setCode) throw new UserFacingError(`Goedgekeurd writeplan bevat geen uitvoerbaar plan voor ${setId}.`);
+  const catalogRows = set.actions.filter((action) => action.action === 'insertCardAndReference').map((action) => action.catalogInsert);
+  const newReferences = set.actions.filter((action) => action.action === 'insertCardAndReference').map((action) => action.referenceInsert);
+  const existingReferences = set.actions.filter((action) => action.action === 'insertReference').map((action) => action.referenceInsert);
+  const matching: MatchingReport = { externalReferencesQueried: set.actions.filter((action) => action.action === 'existingIdentical').length, catalogCardsQueried: set.actions.filter((action) => action.action === 'existingIdentical').length, fallbackCandidatesQueried: 0, matchedByExternalReference: set.actions.filter((action) => action.action === 'existingIdentical').length, safeFallbackCandidates: existingReferences.length, newCards: catalogRows.length, ambiguous: 0, conflicts: 0, unresolvedWithoutSetMapping: 0, metadataUnchanged: set.actions.filter((action) => action.action === 'existingIdentical' || action.action === 'insertReference').length, metadataChanged: 0, candidateExamples: [], newExamples: [], ambiguousExamples: [], conflictExamples: [], unresolvedWithoutSetMappingExamples: [], metadataChangedExamples: [], fallbackAvailable: true, setCode: set.setCode, setCatalogId: set.setCatalogId, classifications: [], errors: [], setMappingStatus: 'already_reliable', setMappingEvidence: ['approved_writeplan'], setMappingCandidates: [] };
+  return { matching, writePlan: { existingMatches: matching.matchedByExternalReference, newCatalogRows: catalogRows, referencesForNewCards: newReferences, referencesForExistingCandidates: existingReferences, blockedItems: 0, plannedDatabaseWrites: catalogRows.length + newReferences.length + existingReferences.length, errors: [] } };
+}
