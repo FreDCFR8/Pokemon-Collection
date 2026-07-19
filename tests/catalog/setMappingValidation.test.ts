@@ -57,14 +57,19 @@ class ReadOnlyQuery {
   private readonly lists = new Map<string, unknown[]>();
   private readonly table: string;
   private readonly resolver: (table: string, filters: Map<string, unknown>, lists: Map<string, unknown[]>) => unknown[];
-  constructor(table: string, resolver: (table: string, filters: Map<string, unknown>, lists: Map<string, unknown[]>) => unknown[]) { this.table = table; this.resolver = resolver; }
+  private readonly operations: string[];
+  constructor(table: string, resolver: (table: string, filters: Map<string, unknown>, lists: Map<string, unknown[]>) => unknown[], operations: string[]) { this.table = table; this.resolver = resolver; this.operations = operations; }
   select(): this { return this; }
   eq(column: string, value: unknown): this { this.filters.set(column, value); return this; }
-  in(column: string, values: unknown[]): this { this.lists.set(column, values); return this; }
+  in(column: string, values: unknown[]): this { if (values.length === 0) this.operations.push(`empty-in:${column}`); this.lists.set(column, values); return this; }
+  insert(): never { this.operations.push(`insert:${this.table}`); throw new Error('querybuilder insert must never be called'); }
+  update(): never { this.operations.push(`update:${this.table}`); throw new Error('querybuilder update must never be called'); }
+  upsert(): never { this.operations.push(`upsert:${this.table}`); throw new Error('querybuilder upsert must never be called'); }
+  delete(): never { this.operations.push(`delete:${this.table}`); throw new Error('querybuilder delete must never be called'); }
   then(resolve: (value: { data: unknown[]; error: null }) => unknown, reject?: (reason: unknown) => unknown): Promise<unknown> { try { return Promise.resolve(resolve({ data: this.resolver(this.table, this.filters, this.lists), error: null })); } catch (error) { return reject ? Promise.resolve(reject(error)) : Promise.reject(error); } }
 }
 
-function fixture(overrides: { name?: string; expected?: number; received?: number; foreignOnly?: boolean } = {}) {
+function fixture(overrides: { name?: string; expected?: number; received?: number; foreignOnly?: boolean; referenceMode?: 'none' | 'valid' | 'wrong-set' | 'wrong-number' | 'dangling' | 'multiple'; databaseError?: boolean } = {}) {
   const root = mkdtempSync(join(tmpdir(), 'setmapping-')); mkdirSync(join(root, 'cards', 'en'), { recursive: true });
   const card = { id: 'sv10-1', name: 'Test Card', number: '1', images: {} };
   writeFileSync(join(root, 'cards', 'en', 'custom.json'), JSON.stringify([card]));
@@ -74,15 +79,29 @@ function fixture(overrides: { name?: string; expected?: number; received?: numbe
   writeFileSync(sourceReportPath, JSON.stringify({ source: 'pokemon_tcg_data', results: [{ setId: 'sv10', expectedCards: overrides.expected ?? 1, diagnostic: { setName: overrides.name ?? 'Manifest Name', receivedCards: overrides.received ?? 1, setMappingStatus: 'exact_candidate', setMapping: { status: 'exact_candidate', candidates: [{ set_code: 'sv10', name: 'Wrong Candidate Name', series: 'Wrong Candidate Series', source: 'wrong', source_id: 'wrong' }], evidence: [] } } }] }));
   const operations: string[] = [];
   const rows = (table: string, filters: Map<string, unknown>, lists: Map<string, unknown[]>): unknown[] => {
+    if (overrides.databaseError && table === 'sets_catalog') throw new Error('simulated database read failure');
     if (table === 'sets_catalog') {
       if (filters.get('source_id') === 'sv10') return [{ set_code: 'sv10', name: 'Manifest Name', series: 'Manifest Series', source: 'pokemon_tcg_api', source_id: 'sv10' }];
       return [{ set_code: 'sv10', name: 'Manifest Name', series: 'Manifest Series', source: 'pokemon_tcg_api', source_id: 'sv10' }];
     }
-    if (table === 'cards_catalog') return lists.has('id') ? [{ id: 'card-1', set_code: 'sv10', number: '1' }] : [{ id: 'card-1', set_code: 'sv10', number: '1' }];
-    if (table === 'card_external_references') return overrides.foreignOnly ? [] : [{ id: 'ref-1', source: 'pokemon_tcg_api', external_id: 'sv10-1', card_catalog_id: 'card-1' }];
+    if (table === 'cards_catalog') {
+      if (lists.has('id')) {
+        if (overrides.referenceMode === 'dangling' || overrides.referenceMode === 'none' || overrides.foreignOnly) return [];
+        if (overrides.referenceMode === 'wrong-set') return [{ id: 'card-1', set_code: 'other-set', number: '1' }];
+        if (overrides.referenceMode === 'wrong-number') return [{ id: 'card-1', set_code: 'sv10', number: '999' }];
+        return [{ id: 'card-1', set_code: 'sv10', number: '1' }];
+      }
+      return [{ id: 'card-1', set_code: 'sv10', number: '1' }];
+    }
+    if (table === 'card_external_references') {
+      if (overrides.foreignOnly || overrides.referenceMode === 'none') return [];
+      if (overrides.referenceMode === 'dangling') return [{ id: 'ref-1', source: 'pokemon_tcg_api', external_id: 'sv10-1', card_catalog_id: null }];
+      if (overrides.referenceMode === 'multiple') return [{ id: 'ref-1', source: 'pokemon_tcg_api', external_id: 'sv10-1', card_catalog_id: 'card-1' }, { id: 'ref-2', source: 'pokemon_tcg_api', external_id: 'sv10-1', card_catalog_id: 'card-1' }];
+      return [{ id: 'ref-1', source: 'pokemon_tcg_api', external_id: 'sv10-1', card_catalog_id: 'card-1' }];
+    }
     return [];
   };
-  const supabase = { from(table: string) { operations.push(`select:${table}`); return new ReadOnlyQuery(table, rows); }, insert() { operations.push('insert'); throw new Error('insert must never be called'); }, update() { operations.push('update'); throw new Error('update must never be called'); }, upsert() { operations.push('upsert'); throw new Error('upsert must never be called'); }, delete() { operations.push('delete'); throw new Error('delete must never be called'); }, rpc() { operations.push('rpc'); throw new Error('mutating rpc must never be called'); } } as unknown as import('@supabase/supabase-js').SupabaseClient;
+  const supabase = { from(table: string) { operations.push(`select:${table}`); return new ReadOnlyQuery(table, rows, operations); }, insert() { operations.push('insert'); throw new Error('insert must never be called'); }, update() { operations.push('update'); throw new Error('update must never be called'); }, upsert() { operations.push('upsert'); throw new Error('upsert must never be called'); }, delete() { operations.push('delete'); throw new Error('delete must never be called'); }, rpc() { operations.push('rpc'); throw new Error('mutating rpc must never be called'); } } as unknown as import('@supabase/supabase-js').SupabaseClient;
   return { root, manifestPath, sourceReportPath, supabase, operations };
 }
 
@@ -92,8 +111,11 @@ test('runValidation gebruikt exact manifest.jsonPath en alleen read-methoden', a
   assert.equal(report.candidates[0].manifestJsonPath, 'cards/en/custom.json');
   assert.equal(report.candidates[0].manifestSetName, 'Manifest Name');
   assert.equal(report.candidates[0].manifestSeries, 'Manifest Series');
+  assert.equal(report.status, 'PASS');
+  assert.deepEqual(report.operationalErrors, []);
   assert.equal(report.databaseWritesTotal, 0);
   assert.equal(item.operations.some((operation) => ['insert', 'update', 'upsert', 'delete', 'rpc'].includes(operation)), false);
+  assert.equal(item.operations.some((operation) => operation.startsWith('empty-in:')), false);
 });
 
 test('source report mismatch wordt inhoudelijk geblokkeerd', async () => {
@@ -103,6 +125,24 @@ test('source report mismatch wordt inhoudelijk geblokkeerd', async () => {
   assert.ok(reasons.includes('source_report_set_name_mismatch'));
   assert.ok(reasons.includes('source_report_expected_cards_mismatch'));
   assert.ok(reasons.includes('received_cards_mismatch'));
+  assert.equal(report.candidates[0].validation.classification, 'blocked');
+  assert.equal(report.status, 'PASS');
+});
+
+test('databaseleesfout geeft FAIL en blijft inhoudelijk geblokkeerd', async () => {
+  const item = fixture({ databaseError: true });
+  const report = await runValidation({ manifestPath: item.manifestPath, inputRoot: item.root, sourceReportPath: item.sourceReportPath, reportPath: 'reports/out.json', supabase: item.supabase, expectedCandidateCount: 1 });
+  assert.equal(report.status, 'FAIL');
+  assert.equal(report.operationalErrors.length, 1);
+  assert.equal(report.candidates[0].validation.classification, 'blocked');
+  assert.equal(report.databaseWritesTotal, 0);
+});
+
+test('inhoudelijk geblokkeerde kandidaat zonder operationele fout geeft PASS', async () => {
+  const item = fixture({ name: 'Wrong Report Name' });
+  const report = await runValidation({ manifestPath: item.manifestPath, inputRoot: item.root, sourceReportPath: item.sourceReportPath, reportPath: 'reports/out.json', supabase: item.supabase, expectedCandidateCount: 1 });
+  assert.equal(report.status, 'PASS');
+  assert.equal(report.operationalErrors.length, 0);
   assert.equal(report.candidates[0].validation.classification, 'blocked');
 });
 
@@ -120,6 +160,39 @@ test('referentie van andere bron wordt niet als conflict geteld', async () => {
   assert.equal(report.candidates[0].existingExternalCardReferences, 0);
   assert.equal(report.candidates[0].conflictingExternalCardReferences, 0);
   assert.equal(report.candidates[0].validation.reasonCodes.includes('card_reference_conflict'), false);
+});
+
+test('nul referenties slaan de lege linked-card query over', async () => {
+  const item = fixture({ referenceMode: 'none' });
+  const report = await runValidation({ manifestPath: item.manifestPath, inputRoot: item.root, sourceReportPath: item.sourceReportPath, reportPath: 'reports/out.json', supabase: item.supabase, expectedCandidateCount: 1 });
+  assert.equal(item.operations.some((operation) => operation === 'empty-in:id'), false);
+  assert.equal(report.operationalErrors.length, 0);
+  assert.equal(report.candidates[0].existingExternalCardReferences, 0);
+  assert.equal(report.candidates[0].conflictingExternalCardReferences, 0);
+});
+
+for (const [mode, reason] of [['wrong-set', 'card_reference_wrong_set'], ['wrong-number', 'card_reference_wrong_number'], ['dangling', 'dangling_card_reference'], ['multiple', 'multiple_card_references']] as const) {
+  test(`validateOne detecteert ${mode} kaartreferentie`, async () => {
+    const item = fixture({ referenceMode: mode });
+    const report = await runValidation({ manifestPath: item.manifestPath, inputRoot: item.root, sourceReportPath: item.sourceReportPath, reportPath: 'reports/out.json', supabase: item.supabase, expectedCandidateCount: 1 });
+    const record = report.candidates[0];
+    assert.equal(report.status, 'PASS');
+    assert.ok(record.validation.reasonCodes.includes(reason));
+    assert.ok(record.validation.reasonCodes.includes('card_reference_conflict'));
+    assert.equal(record.conflictingExternalCardReferences, 1);
+    assert.equal(record.validation.classification, 'blocked');
+    assert.equal(record.cardReferenceExamples[0].external_id, 'sv10-1');
+    assert.equal(record.cardReferenceExamples[0].expected_number, '1');
+    assert.ok(record.cardReferenceExamples[0].actual_set_code !== undefined || record.cardReferenceExamples[0].actual_number !== undefined || record.cardReferenceExamples[0].card_catalog_id === null);
+  });
+}
+
+test('geldige kaartreferentie veroorzaakt geen conflict', async () => {
+  const item = fixture({ referenceMode: 'valid' });
+  const report = await runValidation({ manifestPath: item.manifestPath, inputRoot: item.root, sourceReportPath: item.sourceReportPath, reportPath: 'reports/out.json', supabase: item.supabase, expectedCandidateCount: 1 });
+  assert.equal(report.candidates[0].conflictingExternalCardReferences, 0);
+  assert.equal(report.candidates[0].validation.reasonCodes.includes('card_reference_conflict'), false);
+  assert.equal(report.candidates[0].validation.classification, 'safe_for_mapping_review');
 });
 
 test('gelijke inhoud vanuit verschillende tijdelijke directories heeft dezelfde rapporthash', async () => {
