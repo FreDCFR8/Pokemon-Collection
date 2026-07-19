@@ -36,7 +36,9 @@ test('v2 dry-runstructuur heeft de goedgekeurde reportHash', { skip: !existsSync
   const report = JSON.parse(text) as Record<string, any>;
   assert.equal(report.schemaVersion, 1);
   assert.equal(report.phase, 'Phase 7B-2F9E-B');
+  assert.equal(report.source, 'pokemon_tcg_data');
   assert.equal(report.finalStatus, 'PASS');
+  assert.equal(report.source, 'pokemon_tcg_data');
   assert.equal(report.databaseWritesTotal, 0);
   assert.equal(reportHashFromText(text), '405e6ca2e33b67ab45790adb7a0b1e75bf9f845220d9106195e4c3e848770fd2');
   assert.equal(reportHash(report), report.reportHash);
@@ -79,6 +81,21 @@ test('read-only rapportbestand doorstaat write-runner-validatie zonder databasew
   } finally {
     rmSync(path, { force: true });
   }
+});
+
+test('goedgekeurd dry-runrapport vereist exact pokemon_tcg_data als source', { skip: !existsSync(v4ReportPath) }, () => {
+  const source = JSON.parse(readFileSync(v4ReportPath, 'utf8')) as Record<string, any>;
+  for (const value of ['', 'pokemon_tcg_api']) {
+    const changed = { ...source, source: value };
+    changed.analysisHash = analysisHash(changed);
+    changed.reportHash = reportHash(changed);
+    assert.throws(() => validateApprovedDryRunReportText(JSON.stringify(changed)), /geldige Batch 1-identiteit/);
+  }
+  const missing = { ...source };
+  delete missing.source;
+  missing.analysisHash = analysisHash(missing);
+  missing.reportHash = reportHash(missing);
+  assert.throws(() => validateApprovedDryRunReportText(JSON.stringify(missing)), /geldige Batch 1-identiteit/);
 });
 
 test('inhoudelijke wijziging blokkeert op analysisHash', { skip: !existsSync(v4ReportPath) }, () => {

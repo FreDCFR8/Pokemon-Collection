@@ -2,6 +2,14 @@ import { isValidSetId, type CatalogImportSource } from './import-args.ts';
 
 export const DEFAULT_CATALOG_BATCH_CONFIG_PATH = 'config/catalog/import-sets.json';
 export const BATCH_1_SET_IDS = ['bw9', 'cel25', 'me1', 'me2', 'me2pt5', 'me3', 'me4', 'pgo', 'rsv10pt5', 'sm1', 'sm12', 'sm2', 'sm35'] as const;
+export const BATCH_2_SET_IDS = ['sm7', 'sm8', 'sv1', 'sv10', 'sv3', 'sv3pt5', 'sv4', 'sv4pt5', 'sv6pt5', 'sv8', 'sv8pt5', 'swsh1', 'swsh10'] as const;
+export const BATCH_3_SET_IDS = ['swsh11', 'swsh12', 'swsh12pt5', 'swsh2', 'swsh3', 'swsh35', 'swsh4', 'swsh45', 'swsh5', 'swsh6', 'swsh7', 'xy11'] as const;
+export const IMPORT_READY_SET_IDS = [...BATCH_1_SET_IDS, ...BATCH_2_SET_IDS, ...BATCH_3_SET_IDS] as const;
+
+export function exactBatchSetList(setIds: readonly string[], batch: 1 | 2 | 3): boolean {
+  const expected = batch === 1 ? BATCH_1_SET_IDS : batch === 2 ? BATCH_2_SET_IDS : BATCH_3_SET_IDS;
+  return setIds.length === expected.length && setIds.every((setId, index) => setId === expected[index]);
+}
 
 export type CatalogBatchMode = 'dry-run' | 'write-approved';
 

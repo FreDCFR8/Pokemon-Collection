@@ -4,8 +4,17 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import test from 'node:test';
+import { classifyPrecheck, EXPECTED_POSTCHECK_COUNTS } from '../../scripts/catalog/import-batch.ts';
 
 const datasetVersion = '0af6250a22495e4a3e9f60ff45fc3fedc2e0563d';
+
+test('write-approved precheck onderscheidt nulmeting, volledig toegepaste en gedeeltelijke batch', () => {
+  const initial = { cards_catalog: 1405, card_external_references: 1368, collection_cards: 1106, sets_catalog: 55, set_external_references: 41 } as const;
+  assert.equal(classifyPrecheck(initial, initial), 'initial');
+  assert.equal(classifyPrecheck(EXPECTED_POSTCHECK_COUNTS, initial), 'alreadyApplied');
+  assert.equal(classifyPrecheck({ ...initial, cards_catalog: 2000, card_external_references: 1900 }, initial), 'partial');
+  assert.throws(() => classifyPrecheck({ ...EXPECTED_POSTCHECK_COUNTS, cards_catalog: 3214 }, initial), /Onverwachte actuele database-count/);
+});
 
 function makeTmp(): string { return mkdtempSync(join(tmpdir(), 'pokemon-batch-')); }
 

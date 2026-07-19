@@ -1,0 +1,37 @@
+{
+  "phase": "Phase 7B-2F9E-A/B",
+  "reportType": "read-only-batch-1-reconciliation",
+  "source": "user-provided-post-write-state",
+  "databaseWrites": 0,
+  "initialDatabaseCounts": {
+    "cards_catalog": 1405,
+    "card_external_references": 1368,
+    "collection_cards": 1106,
+    "sets_catalog": 55,
+    "set_external_references": 41
+  },
+  "currentDatabaseCounts": {
+    "cards_catalog": 3213,
+    "card_external_references": 3176,
+    "collection_cards": 1106,
+    "sets_catalog": 55,
+    "set_external_references": 41
+  },
+  "expectedPostWriteCounts": {
+    "cards_catalog": 3213,
+    "card_external_references": 3176,
+    "collection_cards": 1106,
+    "sets_catalog": 55,
+    "set_external_references": 41
+  },
+  "plannedWrites": 3616,
+  "actualWrites": 3616,
+  "alreadyApplied": 3616,
+  "idempotencyStatus": "PASS",
+  "reconciliationStatus": "PASS",
+  "finalStatus": "PASS",
+  "lifecycle": "RECONCILIATION_COMPLETE",
+  "operationalErrors": [],
+  "contentBlockades": [],
+  "verificationNote": "Read-only report based on the supplied verified Batch 1 evidence; no database query was executed in this audit."
+}

@@ -13,6 +13,7 @@ import { analysisHash, reportHash } from './catalog-report-identity.ts';
 import { BATCH_1_SET_IDS } from './import-batch-args.ts';
 import { localManifestIdentityFromText } from './catalog-manifest-identity.ts';
 import { validateCatalogWritePlan, type CatalogWritePlan } from './catalog-write-plan.ts';
+import { deriveImportLifecycle, type ImportLifecycleState } from './import-lifecycle.ts';
 
 type StepName = 'dry-run' | 'write' | 'idempotency';
 
@@ -36,6 +37,7 @@ type SetResult = {
   write?: StepResult;
   idempotency?: StepResult;
   error?: string;
+  lifecycle?: ImportLifecycleState;
 };
 
 type LocalBatchSelection = {
@@ -65,10 +67,11 @@ type ReportSet = {
   databaseWrites?: number;
   error?: string;
   steps: ReportStep[];
+  lifecycle: ImportLifecycleState;
   diagnostic?: Omit<SingleSetDiagnosticResult, 'schemaVersion'>;
 };
 
-function runImportSet(setId: string, write: boolean, inputPath?: string, stepOverride?: StepName, setMetadata?: { name: string; series: string }, expectedCards?: number, batchApproval?: 'batch-1', writePlanPath?: string): StepResult {
+function runImportSet(setId: string, write: boolean, inputPath?: string, stepOverride?: StepName, setMetadata?: { name: string; series: string }, expectedCards?: number, batchApproval?: 'batch-1', writePlanPath?: string, reconcile = false): StepResult {
   const step: StepName = stepOverride ?? (write ? 'write' : 'dry-run');
   const resultPath = join(tmpdir(), `pokemon-catalog-diagnostic-${process.pid}-${Date.now()}-${setId}-${step}.json`);
   const args = [
@@ -81,6 +84,7 @@ function runImportSet(setId: string, write: boolean, inputPath?: string, stepOve
     ...(write ? ['--write'] : []),
     ...(batchApproval ? ['--batch-approval', batchApproval] : []),
     ...(writePlanPath ? ['--write-plan', writePlanPath] : []),
+    ...(reconcile ? ['--reconcile'] : []),
     '--diagnostic-result', resultPath,
   ];
   const result = spawnSync(process.execPath, args, { encoding: 'utf8' });
@@ -98,7 +102,7 @@ function runImportSet(setId: string, write: boolean, inputPath?: string, stepOve
   }
 }
 
-const EXPECTED_POSTCHECK_COUNTS = { cards_catalog: 3213, card_external_references: 3176, collection_cards: 1106, sets_catalog: 55, set_external_references: 41 } as const;
+export const EXPECTED_POSTCHECK_COUNTS = { cards_catalog: 3213, card_external_references: 3176, collection_cards: 1106, sets_catalog: 55, set_external_references: 41 } as const;
 type TableCounts = Record<keyof typeof EXPECTED_POSTCHECK_COUNTS, number>;
 
 export function validateApprovedDryRunReportText(text: string): Record<string, any> {
@@ -108,7 +112,7 @@ export function validateApprovedDryRunReportText(text: string): Record<string, a
   const suppliedAnalysisHash = report?.analysisHash;
   if (typeof suppliedReportHash !== 'string' || reportHash(report) !== suppliedReportHash) throw new Error('reportHash van het goedgekeurde dry-runrapport komt niet overeen.');
   if (typeof suppliedAnalysisHash !== 'string' || analysisHash(report) !== suppliedAnalysisHash) throw new Error('analysisHash van het goedgekeurde dry-runrapport komt niet overeen.');
-  if (report.source !== 'pokemon_tcg_data' || report.finalStatus !== 'PASS' || report.datasetVersion !== '0af6250a22495e4a3e9f60ff45fc3fedc2e0563d' || report.manifestHash !== 'c5604ffa39e017e08eca089770bce82a786b1b20ebb45ee9bc0d6d22db3b6ab3') throw new Error('Goedgekeurd dry-runrapport heeft geen geldige Batch 1-identiteit.');
+  if (!Object.prototype.hasOwnProperty.call(report, 'source') || typeof report.source !== 'string' || report.source !== 'pokemon_tcg_data' || report.finalStatus !== 'PASS' || report.datasetVersion !== '0af6250a22495e4a3e9f60ff45fc3fedc2e0563d' || report.manifestHash !== 'c5604ffa39e017e08eca089770bce82a786b1b20ebb45ee9bc0d6d22db3b6ab3') throw new Error('Goedgekeurd dry-runrapport heeft geen geldige Batch 1-identiteit.');
   if (JSON.stringify(report.importReadySets) !== JSON.stringify(BATCH_1_SET_IDS) || report.setsPlanned !== 13 || report.setsProcessed !== 13 || report.expectedCardsTotal !== 1973 || report.receivedCardsTotal !== 1973) throw new Error('Goedgekeurd dry-runrapport bevat niet exact de Batch 1-setlijst of kaartenaantallen.');
   if (report.theoreticalWrites?.cardsCatalog !== 1808 || report.theoreticalWrites?.cardExternalReferences !== 1808 || report.theoreticalWrites?.total !== 3616) throw new Error('Goedgekeurd dry-runrapport bevat niet exact de goedgekeurde theoretische writes.');
   if (report.databaseWritesTotal !== 0 || report.actualWrites !== 0 || report.conflicts?.total !== 0 || report.operationalErrors?.length !== 0 || report.setsBlocked !== 0 || report.setsNeedsManualReview !== 0) throw new Error('Goedgekeurd dry-runrapport bevat conflicten, fouten of databasewrites.');
@@ -144,7 +148,32 @@ function assertCountsEqual(actual: TableCounts, expected: TableCounts, label: st
   for (const table of Object.keys(expected) as (keyof TableCounts)[]) if (actual[table] !== expected[table]) throw new Error(`${label}: ${table}=${actual[table]}, verwacht ${expected[table]}.`);
 }
 
-function runIdempotency(setId: string): StepResult {
+type PrecheckDisposition = 'initial' | 'alreadyApplied' | 'partial';
+
+function approvedInitialCounts(value: unknown): TableCounts {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Goedgekeurd dry-runrapport mist een geldige oorspronkelijke database-nulmeting.');
+  const counts = value as Partial<TableCounts>;
+  for (const table of Object.keys(EXPECTED_POSTCHECK_COUNTS) as (keyof TableCounts)[]) if (!Number.isInteger(counts[table]) || (counts[table] as number) < 0) throw new Error(`Goedgekeurd dry-runrapport mist een geldige oorspronkelijke count voor ${table}.`);
+  return counts as TableCounts;
+}
+
+export function classifyPrecheck(current: TableCounts, initial: TableCounts): PrecheckDisposition {
+  if (Object.keys(EXPECTED_POSTCHECK_COUNTS).every((table) => current[table as keyof TableCounts] === initial[table as keyof TableCounts])) return 'initial';
+  if (Object.keys(EXPECTED_POSTCHECK_COUNTS).every((table) => current[table as keyof TableCounts] === EXPECTED_POSTCHECK_COUNTS[table as keyof TableCounts])) return 'alreadyApplied';
+  for (const table of Object.keys(EXPECTED_POSTCHECK_COUNTS) as (keyof TableCounts)[]) if (current[table] < initial[table] || current[table] > EXPECTED_POSTCHECK_COUNTS[table]) throw new Error(`Onverwachte actuele database-count voor ${table}: ${current[table]} buiten [${initial[table]}, ${EXPECTED_POSTCHECK_COUNTS[table]}].`);
+  return 'partial';
+}
+
+function alreadyAppliedStep(setId: string, expectedCards: number): StepResult {
+  const diagnostic: SingleSetDiagnosticResult = { schemaVersion: 1, setId, status: 'PASS', expectedCards, receivedCards: expectedCards, setMappingStatus: 'already_reliable', setMapping: { status: 'already_reliable', candidates: [], evidence: ['already_applied_precheck'] }, externalReferenceMatches: expectedCards, fallbackCandidatesQueried: 0, safeFallbackCandidates: 0, newCards: 0, ambiguousItems: 0, conflicts: 0, unresolvedWithoutSetMapping: 0, metadataUnchanged: expectedCards, metadataChanged: 0, blockedItems: 0, plannedDatabaseWrites: 0, databaseWrites: 0, failureReasons: [], examples: {} };
+  return { step: 'write', exitCode: 0, output: 'Write overgeslagen: batch al volledig toegepast; databaseWrites=0', passed: true, expectedCards, receivedCards: expectedCards, plannedWrites: 0, databaseWrites: 0, diagnostic };
+}
+
+function runIdempotency(setId: string, inputPath: string, setMetadata: { name: string; series: string }, expectedCards: number, writePlanPath: string): StepResult {
+  return runImportSet(setId, false, inputPath, 'idempotency', setMetadata, expectedCards, undefined, writePlanPath);
+}
+
+function runApiIdempotency(setId: string): StepResult {
   return runImportSet(setId, false, undefined, 'idempotency');
 }
 
@@ -380,6 +409,7 @@ function toReportSet(result: SetResult): ReportSet {
     ...(error ? { error } : {}),
     ...(displayStep?.diagnostic ? { diagnostic: displayStep.diagnostic } : {}),
     steps: executedSteps(result).map(toReportStep),
+    lifecycle: result.lifecycle ?? deriveImportLifecycle({ writeStarted: Boolean(result.write), writeCompleted: result.write?.passed === true, reconciliationCompleted: result.idempotency?.passed === true, actualWrites: result.write?.databaseWrites ?? 0 }),
   };
 }
 
@@ -450,7 +480,8 @@ export async function main(): Promise<number> {
       )) throw new Error('Goedgekeurd rapport en writeplan hebben geen identieke dataset-, batch-, kaart- of write-identiteit.');
       if (approvedReport && approvedPlan && approvedReport.reportHash !== approvedPlan.sourceReportHash) throw new Error('Goedgekeurd dry-runrapport en writeplan hebben verschillende reportHash/sourceReportHash-identiteit.');
       const precheckCounts = options.mode === 'write-approved' ? await readTableCounts() : undefined;
-      if (approvedReport?.precheckCounts) assertCountsEqual(precheckCounts!, approvedReport.precheckCounts as TableCounts, 'Read-only Supabase-precheck wijkt af van het goedgekeurde rapport');
+      const initialDatabaseCounts = options.mode === 'write-approved' ? approvedInitialCounts(approvedReport?.precheckCounts) : undefined;
+      const precheckDisposition = options.mode === 'write-approved' ? classifyPrecheck(precheckCounts!, initialDatabaseCounts!) : undefined;
 
       let checkpoint: CatalogBatchCheckpoint | undefined;
       if (options.checkpointPath) {
@@ -506,14 +537,16 @@ export async function main(): Promise<number> {
         for (const set of local.sets) results.push({ setId: set.setId, expectedCards: set.expectedCards });
         for (const set of local.sets) {
           const result = results.find((item) => item.setId === set.setId)!;
-          result.write = runImportSet(set.setId, true, set.inputPath, 'write', { name: set.name, series: set.series }, set.expectedCards, 'batch-1', options.writePlanPath);
+          result.write = precheckDisposition === 'alreadyApplied'
+            ? alreadyAppliedStep(set.setId, set.expectedCards)
+            : runImportSet(set.setId, true, set.inputPath, 'write', { name: set.name, series: set.series }, set.expectedCards, 'batch-1', options.writePlanPath, precheckDisposition === 'partial');
           printStep(set.setId, result.write);
           if (!result.write.passed) break;
         }
         if (results.every((result) => result.write?.passed)) {
           for (const set of local.sets) {
             const result = results.find((item) => item.setId === set.setId)!;
-            result.idempotency = runIdempotency(set.setId);
+            result.idempotency = runIdempotency(set.setId, set.inputPath, { name: set.name, series: set.series }, set.expectedCards, options.writePlanPath!);
             printStep(set.setId, result.idempotency);
             if (!result.idempotency.passed) break;
           }
@@ -524,13 +557,17 @@ export async function main(): Promise<number> {
           postcheckCounts = await readTableCounts();
           assertCountsEqual(postcheckCounts, EXPECTED_POSTCHECK_COUNTS, 'Read-only postcheck wijkt af');
         }
+        for (const result of results) result.lifecycle = deriveImportLifecycle({ writeStarted: Boolean(result.write), writeCompleted: result.write?.passed === true, reconciliationCompleted: result.idempotency?.passed === true, actualWrites: result.write?.databaseWrites ?? 0 });
         const localReport = {
           phase: 'controlled-local-write', source: 'pokemon_tcg_data', mode, batch: 'batch-1', datasetRepository: local.datasetRepository, datasetVersion: local.datasetVersion,
           manifestHash: identity.manifestHash, approvedDryRunReport: options.approvedDryRunReportPath, approvedWritePlan: options.writePlanPath, sourceReportHash: approvedReport!.reportHash, analysisHash: approvedPlan!.analysisHash,
+          initialDatabaseCounts, currentDatabaseCounts: precheckCounts, alreadyApplied: { status: precheckDisposition === 'alreadyApplied' ? 'complete' : precheckDisposition === 'partial' ? 'partial' : 'none', catalogRecords: precheckDisposition === 'alreadyApplied' ? approvedPlan!.plannedCatalogInserts : Math.max(0, precheckCounts!.cards_catalog - initialDatabaseCounts!.cards_catalog), referenceRecords: precheckDisposition === 'alreadyApplied' ? approvedPlan!.plannedReferenceInserts : Math.max(0, precheckCounts!.card_external_references - initialDatabaseCounts!.card_external_references) },
           setsPlanned: local.sets.map((set) => set.setId), setsProcessed: results.filter((result) => result.write?.passed).map((result) => result.setId), expectedCardsTotal: 1973, receivedCardsTotal: 1973,
           plannedCatalogWrites: 1808, plannedReferenceWrites: 1808, actualCatalogWrites, actualReferenceWrites: results.reduce((sum, result) => sum + (result.write?.databaseWrites ?? 0) - (result.write?.diagnostic?.newCards ?? 0), 0),
-          databaseWritesTotal: results.reduce((sum, result) => sum + (result.write?.databaseWrites ?? 0), 0), conflicts: 0, operationalErrors: [], precheckCounts, postcheckCounts: results.every((result) => result.idempotency?.passed) ? EXPECTED_POSTCHECK_COUNTS : undefined,
-          idempotencyResult: results.every((result) => result.idempotency?.passed) ? 'PASS' : 'BLOCKED', finalStatus: results.every((result) => result.idempotency?.passed) ? 'PASS' : 'BLOCKED', startedAt: localStartedAt, finishedAt: new Date().toISOString(), results: results.map(toReportSet),
+          actualWrites: results.reduce((sum, result) => sum + (result.write?.databaseWrites ?? 0), 0),
+          databaseWritesTotal: results.reduce((sum, result) => sum + (result.write?.databaseWrites ?? 0), 0), conflicts: 0, operationalErrors: [], contentBlockades: results.filter((result) => result.lifecycle === 'FAILED_BEFORE_WRITE').map((result) => result.setId), precheckCounts, expectedPostWriteCounts: EXPECTED_POSTCHECK_COUNTS, postcheckCounts: results.every((result) => result.idempotency?.passed) ? EXPECTED_POSTCHECK_COUNTS : undefined,
+          plannedWrites: approvedPlan!.plannedCatalogInserts + approvedPlan!.plannedReferenceInserts, alreadyAppliedRecords: approvedPlan!.plannedCatalogInserts + approvedPlan!.plannedReferenceInserts - results.reduce((sum, result) => sum + (result.write?.databaseWrites ?? 0), 0),
+          idempotencyStatus: results.every((result) => result.idempotency?.passed) ? 'PASS' : 'BLOCKED', reconciliationStatus: results.every((result) => result.idempotency?.passed) ? 'PASS' : 'BLOCKED', idempotencyResult: results.every((result) => result.idempotency?.passed) ? 'PASS' : 'BLOCKED', idempotencyChecks: { passed: results.filter((result) => result.idempotency?.passed).length, total: local.sets.length }, lifecycle: results.some((result) => result.lifecycle === 'FAILED_AFTER_WRITE') ? 'FAILED_AFTER_WRITE' : results.every((result) => result.idempotency?.passed) ? 'RECONCILIATION_COMPLETE' : 'FAILED_BEFORE_WRITE', finalStatus: results.every((result) => result.idempotency?.passed) ? 'PASS' : 'BLOCKED', startedAt: localStartedAt, finishedAt: new Date().toISOString(), results: results.map(toReportSet),
         };
         if (options.reportPath) writeReport(options.reportPath, localReport);
         printSummary({ mode, results, datasetRepository, datasetVersion });
@@ -579,7 +616,7 @@ export async function main(): Promise<number> {
           printStep(setId, result.write);
           if (!result.write.passed) break;
 
-          result.idempotency = runIdempotency(setId);
+          result.idempotency = runApiIdempotency(setId);
           printStep(setId, result.idempotency);
           if (!result.idempotency.passed) break;
         }

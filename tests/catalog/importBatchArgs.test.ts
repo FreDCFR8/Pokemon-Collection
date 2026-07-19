@@ -5,6 +5,7 @@ import {
   parseCatalogBatchArgs,
   parseCatalogBatchConfigFromText,
 } from '../../scripts/catalog/import-batch-args.ts';
+import { parseCatalogImportArgs } from '../../scripts/catalog/import-args.ts';
 
 const parses = (args: string[]) => parseCatalogBatchArgs(args);
 const rejects = (args: string[]) => assert.throws(() => parses(args));
@@ -39,6 +40,14 @@ test('parses controlled local manifest batch arguments', () => {
     reportPath: 'tmp/report.json',
     setIds: ['sv3pt5', 'sv3'],
   });
+});
+
+test('parses local idempotency as read-only and requires the approved writeplan', () => {
+  const args = ['--source', 'pokemon_tcg_data', '--input', 'bw9.json', '--set', 'bw9', '--set-name', 'Fixture', '--set-series', 'Series', '--idempotency', '--write-plan', 'batch-1.json'];
+  assert.deepEqual(parseCatalogImportArgs(args), {
+    setId: 'bw9', write: false, source: 'pokemon_tcg_data', inputPath: 'bw9.json', setName: 'Fixture', setSeries: 'Series', idempotency: true, writePlanPath: 'batch-1.json',
+  });
+  assert.throws(() => parseCatalogImportArgs(['--source', 'pokemon_tcg_data', '--input', 'bw9.json', '--set', 'bw9', '--set-name', 'Fixture', '--set-series', 'Series', '--idempotency']), /write-plan/);
 });
 
 test('blocks local write attempts and incomplete local batch arguments', () => {
