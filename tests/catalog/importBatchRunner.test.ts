@@ -15,7 +15,7 @@ function writeLocalFixture(dir: string, received: Record<string, number>): { man
   const manifest = join(dir, 'manifest.json');
   writeFileSync(manifest, JSON.stringify({ source: 'pokemon_tcg_data', datasetRepository: 'PokemonTCG/pokemon-tcg-data', datasetVersion, sets: [{ setId: 'sv3pt5', jsonPath: 'sv3pt5.json', expectedCards: 207, enabled: true }, { setId: 'sv3', jsonPath: 'sv3.json', expectedCards: 230, enabled: true }] }));
   const stub = join(dir, 'stub-import-set.ts');
-  writeFileSync(stub, `const args = process.argv.slice(2);\nconst set = args[args.indexOf('--set') + 1];\nconst input = args[args.indexOf('--input') + 1];\nif (!args.includes('--source') || !args.includes('pokemon_tcg_data') || !input) process.exit(3);\nconst counts = ${JSON.stringify(received)};\nconst failed = process.env.BATCH_STUB_FAIL_SET === set;\nconst plannedWrites = process.env.BATCH_STUB_PLANNED_WRITES ?? '0';\nconst databaseWrites = process.env.BATCH_STUB_DATABASE_WRITES ?? '0';\nconsole.log('Catalog import dry run');\nconsole.log('Source: pokemon_tcg_data');\nconsole.log('Set: ' + set);\nconsole.log('Mode: DRY RUN');\nconsole.log('Expected cards: ' + counts[set]);\nconsole.log('Received cards: ' + counts[set]);\nconsole.log('Theoretisch geplande writes: ' + plannedWrites);\nconsole.log('Result: ' + (failed ? 'FAIL' : 'PASS'));\nconsole.log('Database writes: ' + databaseWrites);\nprocess.exit(failed ? 1 : 0);\n`);
+  writeFileSync(stub, `const args = process.argv.slice(2);\nconst set = args[args.indexOf('--set') + 1];\nconst input = args[args.indexOf('--input') + 1];\nif (!args.includes('--source') || !args.includes('pokemon_tcg_data') || !input) process.exit(3);\nconst counts = ${JSON.stringify(received)};\nconst failed = process.env.BATCH_STUB_FAIL_SET === set;\nconst plannedWrites = process.env.BATCH_STUB_PLANNED_WRITES ?? '0';\nconst databaseWrites = process.env.BATCH_STUB_DATABASE_WRITES ?? '0';\nif (process.env.BATCH_STUB_CHECKPOINT_PATH && process.env.BATCH_STUB_SNAPSHOT_PATH) { const fs = await import('node:fs'); fs.writeFileSync(process.env.BATCH_STUB_SNAPSHOT_PATH, fs.readFileSync(process.env.BATCH_STUB_CHECKPOINT_PATH)); }\nif (process.env.BATCH_STUB_EXECUTION_MARKER) { const fs = await import('node:fs'); fs.writeFileSync(process.env.BATCH_STUB_EXECUTION_MARKER, new Date().toISOString()); }\nconsole.log('Catalog import dry run');\nconsole.log('Source: pokemon_tcg_data');\nconsole.log('Set: ' + set);\nconsole.log('Mode: DRY RUN');\nconsole.log('Expected cards: ' + counts[set]);\nconsole.log('Received cards: ' + counts[set]);\nconsole.log('Theoretisch geplande writes: ' + plannedWrites);\nconsole.log('Result: ' + (failed ? 'FAIL' : 'PASS'));\nconsole.log('Database writes: ' + databaseWrites);\nprocess.exit(failed ? 1 : 0);\n`);
   const gitRunner = join(dir, 'fake-git.mjs');
   writeFileSync(gitRunner, `const args = process.argv.slice(2);\nconst command = args[2];\nif (command === 'rev-parse' && args[3] === '--is-inside-work-tree') console.log('true');\nelse if (command === 'remote') console.log('https://github.com/PokemonTCG/pokemon-tcg-data');\nelse if (command === 'rev-parse' && args[3] === 'HEAD') console.log('0af6250a22495e4a3e9f60ff45fc3fedc2e0563d');\nelse if (command === 'status') {}\nelse process.exit(2);\n`);
   return { manifest, root, stub, report: join(dir, 'report.json'), gitRunner };
@@ -71,6 +71,17 @@ test('local dry-run reports zero database writes and JSON report contains no sen
   assert.equal(report.results[0].databaseWrites, 0);
 });
 
+test('local batch records startedAt before set execution without a checkpoint', () => {
+  const paths = writeLocalFixture(makeTmp(), { sv3pt5: 207, sv3: 230 });
+  const marker = join(makeTmp(), 'execution-time.txt');
+  const result = runLocalBatch(paths, ['--report', paths.report], { BATCH_STUB_EXECUTION_MARKER: marker });
+  assert.equal(result.status, 0, result.stderr);
+  const report = JSON.parse(readFileSync(paths.report, 'utf8'));
+  const executionTime = Date.parse(readFileSync(marker, 'utf8'));
+  assert.ok(Date.parse(report.startedAt) <= executionTime);
+  assert.ok(Date.parse(report.updatedAt) >= Date.parse(report.startedAt));
+});
+
 test('planned writes greater than zero remain valid while database writes stay zero', () => {
   const paths = writeLocalFixture(makeTmp(), { sv3pt5: 207, sv3: 230 });
   const result = runLocalBatch(paths, ['--report', paths.report], { BATCH_STUB_PLANNED_WRITES: '7' });
@@ -95,12 +106,14 @@ test('checkpoint is created before execution and resume skips passed sets', () =
   const first = runLocalBatch(paths, ['--checkpoint', checkpoint], { BATCH_STUB_FAIL_SET: 'sv3pt5' });
   assert.equal(first.status, 1, first.stderr);
   const saved = JSON.parse(readFileSync(checkpoint, 'utf8'));
+  const originalStartedAt = saved.startedAt;
   assert.deepEqual(saved.sets.map((set: { setId: string; status: string }) => [set.setId, set.status]), [['sv3pt5', 'failed'], ['sv3', 'passed']]);
   const resumed = runLocalBatch(paths, ['--checkpoint', checkpoint, '--resume', '--report', paths.report]);
   assert.equal(resumed.status, 0, resumed.stderr);
   assert.match(resumed.stdout, /sv3pt5 \/ dry-run/);
   assert.doesNotMatch(resumed.stdout, /sv3 \/ dry-run/);
   const report = JSON.parse(readFileSync(paths.report, 'utf8'));
+  assert.equal(report.startedAt, originalStartedAt);
   assert.equal(report.setsExecutedThisInvocation, 1);
   assert.equal(report.setsSkippedFromCheckpoint, 1);
   assert.equal(report.databaseWritesTotal, 0);
@@ -116,6 +129,21 @@ test('resume rejects a manifest fingerprint mismatch before subprocesses', () =>
   assert.equal(resumed.status, 1);
   assert.match(resumed.stderr, /manifestHash/);
   assert.doesNotMatch(resumed.stdout, /Catalog import dry run/);
+});
+
+test('rerunning a failed set clears old result data before subprocess execution', () => {
+  const paths = writeLocalFixture(makeTmp(), { sv3pt5: 207, sv3: 230 });
+  const checkpoint = join(makeTmp(), 'checkpoint.json');
+  const snapshot = join(makeTmp(), 'running.json');
+  const first = runLocalBatch(paths, ['--checkpoint', checkpoint], { BATCH_STUB_FAIL_SET: 'sv3pt5' });
+  assert.equal(first.status, 1, first.stderr);
+  const old = JSON.parse(readFileSync(checkpoint, 'utf8')).sets[0];
+  assert.equal(old.status, 'failed');
+  assert.equal(old.receivedCards, 207);
+  const resumed = runLocalBatch(paths, ['--checkpoint', checkpoint, '--resume'], { BATCH_STUB_FAIL_SET: 'sv3pt5', BATCH_STUB_CHECKPOINT_PATH: checkpoint, BATCH_STUB_SNAPSHOT_PATH: snapshot });
+  assert.equal(resumed.status, 1);
+  const running = JSON.parse(readFileSync(snapshot, 'utf8')).sets[0];
+  assert.deepEqual(running, { setId: 'sv3pt5', expectedCards: 207, status: 'running' });
 });
 
 test('manifest datasetVersion must match checkout before checkpoint creation', () => {

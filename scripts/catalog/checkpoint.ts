@@ -35,6 +35,13 @@ export type CatalogBatchCheckpoint = CheckpointIdentity & {
 
 export class CheckpointError extends Error {}
 
+export type AtomicJsonDependencies = {
+  writeFile?: typeof writeFileSync;
+  renameFile?: typeof renameSync;
+  unlinkFile?: typeof unlinkSync;
+  tempPath?: (path: string) => string;
+};
+
 export function sha256File(path: string): string {
   return createHash('sha256').update(readFileSync(path)).digest('hex');
 }
@@ -48,13 +55,16 @@ export function supabaseProjectIdentity(urlValue: string | undefined): string {
   return `${url.protocol}//${url.host}${url.pathname.replace(/\/$/, '')}`;
 }
 
-export function writeAtomicJson(path: string, value: unknown): void {
-  const tempPath = `${path}.tmp-${process.pid}-${Date.now()}`;
+export function writeAtomicJson(path: string, value: unknown, dependencies: AtomicJsonDependencies = {}): void {
+  const tempPath = dependencies.tempPath?.(path) ?? `${path}.tmp-${process.pid}-${Date.now()}`;
+  const writeFile = dependencies.writeFile ?? writeFileSync;
+  const renameFile = dependencies.renameFile ?? renameSync;
+  const unlinkFile = dependencies.unlinkFile ?? unlinkSync;
   try {
-    writeFileSync(tempPath, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
-    renameSync(tempPath, path);
+    writeFile(tempPath, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
+    renameFile(tempPath, path);
   } finally {
-    try { unlinkSync(tempPath); } catch {}
+    try { unlinkFile(tempPath); } catch {}
   }
 }
 

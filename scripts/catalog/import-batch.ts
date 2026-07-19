@@ -219,6 +219,13 @@ function initialCheckpoint(identity: CheckpointIdentity, sets: LocalBatchSelecti
   return { ...identity, startedAt: now, updatedAt: now, sets: sets.map((set) => ({ setId: set.setId, expectedCards: set.expectedCards, status: 'pending' })) };
 }
 
+function markCheckpointSetRunning(checkpoint: CatalogBatchCheckpoint, setId: string): void {
+  const index = checkpoint.sets.findIndex((set) => set.setId === setId);
+  if (index < 0) throw new Error(`Checkpoint mist set ${setId}.`);
+  const current = checkpoint.sets[index];
+  checkpoint.sets[index] = { setId: current.setId, expectedCards: current.expectedCards, status: 'running' };
+}
+
 function saveCheckpoint(path: string, checkpoint: CatalogBatchCheckpoint): void {
   writeAtomicJson(path, { ...checkpoint, updatedAt: new Date().toISOString() });
 }
@@ -309,6 +316,7 @@ async function main(): Promise<number> {
     console.log(`Mode: ${mode}`);
 
     if (options.source === 'pokemon_tcg_data') {
+      const localStartedAt = new Date().toISOString();
       const local = selectedLocalSets(options);
       validateLocalDatasetCheckout(options.inputRoot!, local.datasetVersion);
       datasetRepository = local.datasetRepository;
@@ -326,7 +334,7 @@ async function main(): Promise<number> {
           assertCheckpointIdentity(checkpoint, identity, local.sets.map((set) => ({ setId: set.setId, expectedCards: set.expectedCards })));
         } else {
           if (checkpointExists(options.checkpointPath)) throw new Error(`Checkpoint bestaat al; gebruik --resume om het te hervatten: ${options.checkpointPath}`);
-          checkpoint = initialCheckpoint(identity, local.sets);
+          checkpoint = initialCheckpoint(identity, local.sets, localStartedAt);
           saveCheckpoint(options.checkpointPath, checkpoint);
         }
       }
@@ -343,8 +351,7 @@ async function main(): Promise<number> {
         if (existingIndex >= 0) results[existingIndex] = result; else results.push(result);
         setsExecutedThisInvocation += 1;
         if (checkpoint) {
-          saved!.status = 'running';
-          delete saved!.error;
+          markCheckpointSetRunning(checkpoint, set.setId);
           saveCheckpoint(options.checkpointPath!, checkpoint);
         }
         result.dryRun = runImportSet(set.setId, false, set.inputPath);
@@ -374,7 +381,7 @@ async function main(): Promise<number> {
         datasetVersion: local.datasetVersion,
         manifestHash: identity.manifestHash,
         supabaseProjectIdentity: identity.supabaseProjectIdentity,
-        startedAt: checkpoint?.startedAt ?? new Date().toISOString(),
+        startedAt: checkpoint?.startedAt ?? localStartedAt,
         updatedAt: new Date().toISOString(),
         setsPlanned: local.sets.length,
         setsExecutedThisInvocation,

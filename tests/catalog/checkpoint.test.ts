@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -37,6 +37,16 @@ test('atomic write cleans the temporary file when replacement cannot complete', 
   const dir = mkdtempSync(join(tmpdir(), 'pokemon-checkpoint-')); const path = join(dir, 'checkpoint.json'); mkdirSync(path);
   assert.throws(() => writeAtomicJson(path, identity));
   assert.equal(readdirSync(dir).some((name) => name.startsWith('checkpoint.json.tmp-')), false);
+});
+
+test('atomic replacement preserves an existing checkpoint when rename fails', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'pokemon-checkpoint-')); const path = join(dir, 'checkpoint.json'); const tempPath = `${path}.tmp-test`;
+  const existing = JSON.stringify(validCheckpoint(), null, 2) + '\n';
+  const replacement = { replacement: true };
+  writeFileSync(path, existing, 'utf8');
+  assert.throws(() => writeAtomicJson(path, replacement, { tempPath: () => tempPath, renameFile: () => { throw new Error('simulated rename failure'); } }));
+  assert.equal(readFileSync(path, 'utf8'), existing);
+  assert.equal(existsSync(tempPath), false);
 });
 
 function validCheckpoint(): CatalogBatchCheckpoint {
