@@ -45,6 +45,7 @@ export type SingleSetDiagnosticResult = {
   blockedItems: number;
   plannedDatabaseWrites: number;
   databaseWrites: number;
+  diagnosticCodes?: string[];
   failureReasons: FailureCode[];
   examples: Partial<Record<FailureCode, DiagnosticExample[]>>;
 };
@@ -132,12 +133,13 @@ function assertMapping(value: unknown, status: SetMappingStatus, setCode: string
 
 export function assertValidDiagnosticResult(value: unknown): asserts value is SingleSetDiagnosticResult {
   if (!isObject(value)) throw new Error('Subprocessresultaat moet een JSON-object zijn.');
-  assertAllowed(value, ['schemaVersion', 'setId', 'setName', 'expectedCards', 'receivedCards', 'status', 'setCode', 'setMappingStatus', 'setMapping', 'externalReferenceMatches', 'fallbackCandidatesQueried', 'safeFallbackCandidates', 'newCards', 'ambiguousItems', 'conflicts', 'unresolvedWithoutSetMapping', 'metadataUnchanged', 'metadataChanged', 'blockedItems', 'plannedDatabaseWrites', 'databaseWrites', 'failureReasons', 'examples'], 'subprocessresultaat');
+  assertAllowed(value, ['schemaVersion', 'setId', 'setName', 'expectedCards', 'receivedCards', 'status', 'setCode', 'setMappingStatus', 'setMapping', 'externalReferenceMatches', 'fallbackCandidatesQueried', 'safeFallbackCandidates', 'newCards', 'ambiguousItems', 'conflicts', 'unresolvedWithoutSetMapping', 'metadataUnchanged', 'metadataChanged', 'blockedItems', 'plannedDatabaseWrites', 'databaseWrites', 'diagnosticCodes', 'failureReasons', 'examples'], 'subprocessresultaat');
   if (value.schemaVersion !== DIAGNOSTIC_SCHEMA_VERSION || typeof value.setId !== 'string' || !isValidSetId(value.setId) || (value.setName !== undefined && !isString(value.setName)) || (value.setCode !== undefined && (!isString(value.setCode, 32) || !isValidSetId(value.setCode))) || (value.status !== 'PASS' && value.status !== 'FAIL') || !['already_reliable', 'exact_candidate', 'ambiguous_candidate', 'no_candidate', 'conflicting_candidate'].includes(String(value.setMappingStatus))) throw new Error('Subprocessresultaat bevat ongeldige identiteit of status.');
   for (const key of ['receivedCards', 'externalReferenceMatches', 'fallbackCandidatesQueried', 'safeFallbackCandidates', 'newCards', 'ambiguousItems', 'conflicts', 'unresolvedWithoutSetMapping', 'metadataUnchanged', 'metadataChanged', 'blockedItems', 'plannedDatabaseWrites', 'databaseWrites']) if (!isNonNegativeInteger(value[key])) throw new Error(`Ongeldige diagnostische teller: ${key}.`);
   if ((value.safeFallbackCandidates as number) > (value.fallbackCandidatesQueried as number)) throw new Error('safeFallbackCandidates mag niet groter zijn dan fallbackCandidatesQueried.');
   if (value.expectedCards !== undefined && !isNonNegativeInteger(value.expectedCards)) throw new Error('Ongeldige expectedCards.');
   if (!Array.isArray(value.failureReasons) || value.failureReasons.length > FAILURE_CODES.length || value.failureReasons.some((code) => !isFailureCode(code)) || new Set(value.failureReasons).size !== value.failureReasons.length) throw new Error('Ongeldige failureReasons.');
+  if (value.diagnosticCodes !== undefined && (!Array.isArray(value.diagnosticCodes) || value.diagnosticCodes.length > 20 || value.diagnosticCodes.some((code) => !isString(code, 80)) || new Set(value.diagnosticCodes).size !== value.diagnosticCodes.length)) throw new Error('Ongeldige diagnosticCodes.');
   if (value.status === 'PASS' && value.failureReasons.length !== 0) throw new Error('PASS mag geen failureReasons bevatten.');
   if (value.status === 'FAIL' && value.failureReasons.length === 0) throw new Error('FAIL vereist minstens één failureReason.');
   const setMappingStatus = value.setMappingStatus as SetMappingStatus;

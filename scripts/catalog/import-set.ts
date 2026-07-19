@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { loadPokemonTcgDataJson } from './local-json.ts';
 import { classifyFallbackCandidates } from './fallback-classification.ts';
-import { parseCardDetails, type CardDetails } from './card-details.ts';
+import { hasCardDetails, parseCardDetails, type CardDetails } from './card-details.ts';
 import { assertWriteAuthorized, getWritePlanTitle, parseCatalogImportArgs, type CatalogImportOptions } from './import-args.ts';
 import { failureCodesForConflictReasons, mappingFailureReasons, writeDiagnosticResult, type DiagnosticExample, type FailureCode, type SetMappingCandidate, type SetMappingStatus, type SingleSetDiagnosticResult } from './diagnostic-result.ts';
 import { validateCatalogWritePlan, type CatalogWritePlan } from './catalog-write-plan.ts';
@@ -641,25 +641,27 @@ function expectedCatalogId(action: CanonicalCardAction): string {
   throw new UserFacingError(`Idempotency blokkeerde kaartactie ${action.externalId}: blocked/conflict.`);
 }
 
-function assertCatalogCardMatches(card: CatalogCardRow | undefined, expected: { action: CanonicalCardAction; incoming: PokemonCard; setCode: string; setName?: string }): void {
+export function assertCatalogCardMatches(card: CatalogCardRow | undefined, expected: { action: CanonicalCardAction; incoming: PokemonCard; setCode: string; setName?: string }): string[] {
   if (!card) throw new UserFacingError(`Idempotency vond geen cards_catalog-record voor ${expected.incoming.id}.`);
   const { action, incoming } = expected;
   const expectedId = expectedCatalogId(action);
+  const existingDetailsMissing = action.action === 'existingIdentical' && !hasCardDetails(card.card_details ?? {});
   const mismatches = [
     card.id !== expectedId ? `UUID=${card.id}` : undefined,
     action.action === 'existingIdentical' && ![SOURCE, 'legacy_public_cards'].includes(card.external_source ?? '') ? `external_source=${String(card.external_source)}` : undefined,
     action.action !== 'existingIdentical' && card.external_source !== SOURCE ? `external_source=${String(card.external_source)}` : undefined,
     action.action !== 'existingIdentical' || card.external_source === SOURCE ? (card.external_id !== incoming.id ? `external_id=${String(card.external_id)}` : undefined) : undefined,
     card.set_code !== expected.setCode ? `set_code=${String(card.set_code)}` : undefined,
-    expected.setName !== undefined && card.set_name !== normalizeRequired(expected.setName) ? `set_name=${String(card.set_name)}` : undefined,
+   expected.setName !== undefined && card.set_name !== normalizeRequired(expected.setName) ? `set_name=${String(card.set_name)}` : undefined,
     card.number !== normalizeRequired(incoming.number) ? `number=${String(card.number)}` : undefined,
     card.pokemon !== normalizeRequired(incoming.name) ? `pokemon=${String(card.pokemon)}` : undefined,
     card.rarity !== normalizeOptional(incoming.rarity) ? `rarity=${String(card.rarity)}` : undefined,
     card.image_small !== normalizeOptional(incoming.images?.small) ? `image_small=${String(card.image_small)}` : undefined,
     card.image_large !== normalizeOptional(incoming.images?.large) ? `image_large=${String(card.image_large)}` : undefined,
-    !cardDetailsSemanticallyEqual(card.card_details ?? null, incoming.details) ? 'card_details' : undefined,
+    existingDetailsMissing ? undefined : !cardDetailsSemanticallyEqual(card.card_details ?? null, incoming.details) ? 'card_details' : undefined,
   ].filter((value): value is string => Boolean(value));
   if (mismatches.length > 0) throw new UserFacingError(`Idempotency metadata/identity mismatch voor ${incoming.id}: ${mismatches.join(', ')}.`);
+  return existingDetailsMissing ? ['existing_catalog_details_missing'] : [];
 }
 
 export function validateExistingIdenticalRecord(params: {
@@ -669,7 +671,7 @@ export function validateExistingIdenticalRecord(params: {
   setCode: string;
   setName?: string;
   references: ExternalReferenceRow[];
-}): void {
+}): string[] {
   const action: CanonicalCardAction = {
     action: 'existingIdentical',
     externalSource: SOURCE,
@@ -684,13 +686,14 @@ export function validateExistingIdenticalRecord(params: {
     image_small: params.incoming.images?.small ?? null,
     image_large: params.incoming.images?.large ?? null,
   };
-  assertCatalogCardMatches(params.catalog, { action, incoming: params.incoming, setCode: params.setCode, setName: params.setName });
+  const diagnosticCodes = assertCatalogCardMatches(params.catalog, { action, incoming: params.incoming, setCode: params.setCode, setName: params.setName });
   if (params.references.length !== 1 || params.references[0].source !== SOURCE || params.references[0].external_id !== params.incoming.id || params.references[0].card_catalog_id !== params.expectedCatalogId) {
     throw new UserFacingError(`Idempotency vereist exact één correct gekoppelde pokemon_tcg_api-reference voor ${params.incoming.id}.`);
   }
+  return diagnosticCodes;
 }
 
-type LocalPlanReconciliation = { writePlan: WritePlan; alreadyAppliedCatalogRecords: number; alreadyAppliedReferenceRecords: number };
+type LocalPlanReconciliation = { writePlan: WritePlan; alreadyAppliedCatalogRecords: number; alreadyAppliedReferenceRecords: number; diagnosticCodes: string[] };
 
 async function reconcileLocalWritePlan(params: { supabase: SupabaseClient; plan: CatalogWritePlan; setId: string; cards: PokemonCard[]; setCode: string; setName?: string }): Promise<LocalPlanReconciliation> {
   const setPlan = params.plan.perSet.find((set) => set.setId === params.setId);
@@ -727,6 +730,7 @@ async function reconcileLocalWritePlan(params: { supabase: SupabaseClient; plan:
   const missingExistingReferences: PlannedReferenceInsert[] = [];
   let alreadyAppliedCatalogRecords = 0;
   let alreadyAppliedReferenceRecords = 0;
+  const diagnosticCodes: string[] = [];
   for (const card of params.cards) {
     const action = actions.get(card.id)!;
     const expectedId = expectedCatalogId(action);
@@ -734,7 +738,7 @@ async function reconcileLocalWritePlan(params: { supabase: SupabaseClient; plan:
     const catalog = catalogById.get(expectedId);
     if (action.action !== 'existingIdentical' && identityRows.length > 0 && (identityRows.length !== 1 || identityRows[0].id !== expectedId || identityRows[0].external_source !== SOURCE || identityRows[0].external_id !== card.id)) throw new UserFacingError(`Write-reconciliatie external_id/cataloguskaart-koppeling wijkt af voor ${card.id}.`);
     if (catalog) {
-      assertCatalogCardMatches(catalog, { action, incoming: card, setCode: params.setCode, setName: params.setName });
+      diagnosticCodes.push(...assertCatalogCardMatches(catalog, { action, incoming: card, setCode: params.setCode, setName: params.setName }));
       alreadyAppliedCatalogRecords += 1;
     } else if (action.action === 'insertCardAndReference') {
       missingCatalogRows.push(action.catalogInsert);
@@ -759,6 +763,7 @@ async function reconcileLocalWritePlan(params: { supabase: SupabaseClient; plan:
   return {
     alreadyAppliedCatalogRecords,
     alreadyAppliedReferenceRecords,
+    diagnosticCodes: [...new Set(diagnosticCodes)].sort(),
     writePlan: {
       existingMatches: setPlan.actions.filter((action) => action.action === 'existingIdentical').length,
       newCatalogRows: missingCatalogRows,
@@ -771,9 +776,10 @@ async function reconcileLocalWritePlan(params: { supabase: SupabaseClient; plan:
   };
 }
 
-async function verifyLocalIdempotency(params: { supabase: SupabaseClient; plan: CatalogWritePlan; setId: string; cards: PokemonCard[]; setCode: string; setName?: string }): Promise<void> {
+async function verifyLocalIdempotency(params: { supabase: SupabaseClient; plan: CatalogWritePlan; setId: string; cards: PokemonCard[]; setCode: string; setName?: string }): Promise<string[]> {
   const reconciliation = await reconcileLocalWritePlan(params);
   if (reconciliation.writePlan.plannedDatabaseWrites !== 0) throw new UserFacingError(`Idempotency vond nog ${reconciliation.writePlan.plannedDatabaseWrites} ontbrekende records.`);
+  return reconciliation.diagnosticCodes;
 }
 
 async function fetchFallbackCandidates(supabase: SupabaseClient, setCode: string, numbers: string[]): Promise<CatalogCardRow[]> {
@@ -1358,7 +1364,7 @@ function diagnosticExamples(matching: MatchingReport): Partial<Record<FailureCod
   };
 }
 
-function buildDiagnosticResult(params: { set: PokemonSet; receivedCards: number; validation: ValidationResult; matching: MatchingReport; writePlan: WritePlan; passed: boolean; databaseWrites: number }): SingleSetDiagnosticResult {
+function buildDiagnosticResult(params: { set: PokemonSet; receivedCards: number; validation: ValidationResult; matching: MatchingReport; writePlan: WritePlan; passed: boolean; databaseWrites: number; diagnosticCodes?: string[] }): SingleSetDiagnosticResult {
   const reasons = new Set<FailureCode>(mappingFailureReasons(params.matching.setMappingStatus));
   if (params.validation.errors.length > 0) reasons.add('input_validation_failure');
   if (params.validation.duplicateIds.length > 0) reasons.add('card_identity_conflict');
@@ -1394,6 +1400,7 @@ function buildDiagnosticResult(params: { set: PokemonSet; receivedCards: number;
     blockedItems: params.writePlan.blockedItems,
     plannedDatabaseWrites: params.writePlan.plannedDatabaseWrites,
     databaseWrites: params.databaseWrites,
+    ...(params.diagnosticCodes?.length ? { diagnosticCodes: [...new Set(params.diagnosticCodes)].sort() } : {}),
     failureReasons: [...reasons].sort(),
     examples: diagnosticExamples(params.matching),
   };
@@ -1470,10 +1477,12 @@ async function main(): Promise<number> {
       writePlan = buildWritePlan(matching, set.name, new Date().toISOString(), cards.cards.length);
     }
     const idempotencyErrors: string[] = [];
+    const diagnosticCodes: string[] = [];
     if (options.reconcile) {
       try {
         const reconciliation = await reconcileLocalWritePlan({ supabase, plan: approvedPlan!, setId, cards: cards.cards, setCode: matching.setCode!, setName: set.name });
         writePlan = reconciliation.writePlan;
+        diagnosticCodes.push(...reconciliation.diagnosticCodes);
         matching = { ...matching, newCards: writePlan.newCatalogRows.length, safeFallbackCandidates: writePlan.referencesForExistingCandidates.length };
       } catch (error) {
         idempotencyErrors.push(error instanceof Error ? error.message : 'Onbekende write-reconciliatiefout.');
@@ -1481,7 +1490,7 @@ async function main(): Promise<number> {
     }
     if (options.idempotency) {
       try {
-        await verifyLocalIdempotency({ supabase, plan: approvedPlan!, setId, cards: cards.cards, setCode: matching.setCode!, setName: set.name });
+        diagnosticCodes.push(...await verifyLocalIdempotency({ supabase, plan: approvedPlan!, setId, cards: cards.cards, setCode: matching.setCode!, setName: set.name }));
       } catch (error) {
         idempotencyErrors.push(error instanceof Error ? error.message : 'Onbekende lokale idempotency-fout.');
       }
@@ -1585,7 +1594,7 @@ async function main(): Promise<number> {
     const writePassed = writeErrors.length === 0;
     printPostWriteReport(writeStats, verification);
     for (const error of writeErrors) console.error(`Fout: ${sanitizeErrorMessage(error)}`);
-    writeDiagnosticResult(options.diagnosticResultPath, buildDiagnosticResult({ set, receivedCards: cards.cards.length, validation, matching, writePlan, passed: writePassed, databaseWrites }));
+    writeDiagnosticResult(options.diagnosticResultPath, buildDiagnosticResult({ set, receivedCards: cards.cards.length, validation, matching, writePlan, passed: writePassed, databaseWrites, diagnosticCodes }));
     printFinalResult(writePassed, databaseWrites);
     return writePassed ? 0 : 1;
   } catch (error) {
