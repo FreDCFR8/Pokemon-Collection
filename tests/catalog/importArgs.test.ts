@@ -15,14 +15,16 @@ test('allows dry-run for the reference set and other valid set IDs', () => {
 
 
 test('parses local JSON source input as read-only', () => {
-  assert.deepEqual(parses(['--set', 'sv3', '--source', 'pokemon_tcg_data', '--input', 'data/sv3.json']), {
+  assert.deepEqual(parses(['--set', 'sv3', '--source', 'pokemon_tcg_data', '--input', 'data/sv3.json', '--set-name', 'Obsidian Flames', '--set-series', 'Scarlet & Violet']), {
     setId: 'sv3',
     write: false,
     source: 'pokemon_tcg_data',
     inputPath: 'data/sv3.json',
+    setName: 'Obsidian Flames',
+    setSeries: 'Scarlet & Violet',
   });
   assert.throws(
-    () => assertWriteAuthorized(parses(['--set', 'sv3', '--source', 'pokemon_tcg_data', '--input', 'data/sv3.json', '--write'])),
+    () => assertWriteAuthorized(parses(['--set', 'sv3', '--source', 'pokemon_tcg_data', '--input', 'data/sv3.json', '--set-name', 'Obsidian Flames', '--set-series', 'Scarlet & Violet', '--write'])),
     /lokale JSON-bron.*read-only/i,
   );
 });
@@ -68,7 +70,7 @@ test('keeps the importer write boundary and collection isolation intact', () => 
   assert.ok(authorization < apiConfig, 'write authorization must precede external API configuration');
   assert.ok(authorization < localJsonLoad, 'write authorization must precede local-source processing');
   assert.throws(
-    () => assertWriteAuthorized(parses(['--set', 'sv3', '--source', 'pokemon_tcg_data', '--input', 'data/sv3.json', '--write'])),
+    () => assertWriteAuthorized(parses(['--set', 'sv3', '--source', 'pokemon_tcg_data', '--input', 'data/sv3.json', '--set-name', 'Obsidian Flames', '--set-series', 'Scarlet & Violet', '--write'])),
     /read-only/i,
   );
   assert.doesNotMatch(importer, /\.from\(['"]collection_cards['"]\)\.(insert|update|delete)/i);

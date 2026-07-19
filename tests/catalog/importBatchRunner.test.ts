@@ -13,9 +13,24 @@ function writeLocalFixture(dir: string, received: Record<string, number>): { man
   const root = join(dir, 'data'); mkdirSync(root, { recursive: true });
   for (const setId of ['sv3pt5', 'sv3']) writeFileSync(join(root, `${setId}.json`), '[]');
   const manifest = join(dir, 'manifest.json');
-  writeFileSync(manifest, JSON.stringify({ source: 'pokemon_tcg_data', datasetRepository: 'PokemonTCG/pokemon-tcg-data', datasetVersion, sets: [{ setId: 'sv3pt5', jsonPath: 'sv3pt5.json', expectedCards: 207, enabled: true }, { setId: 'sv3', jsonPath: 'sv3.json', expectedCards: 230, enabled: true }] }));
+  writeFileSync(manifest, JSON.stringify({ source: 'pokemon_tcg_data', datasetRepository: 'PokemonTCG/pokemon-tcg-data', datasetVersion, sets: [{ setId: 'sv3pt5', name: '151', series: 'Scarlet & Violet', jsonPath: 'sv3pt5.json', expectedCards: 207, enabled: true }, { setId: 'sv3', name: 'Obsidian Flames', series: 'Scarlet & Violet', jsonPath: 'sv3.json', expectedCards: 230, enabled: true }] }));
   const stub = join(dir, 'stub-import-set.ts');
-  writeFileSync(stub, `const args = process.argv.slice(2);\nconst set = args[args.indexOf('--set') + 1];\nconst input = args[args.indexOf('--input') + 1];\nif (!args.includes('--source') || !args.includes('pokemon_tcg_data') || !input) process.exit(3);\nconst counts = ${JSON.stringify(received)};\nconst failed = process.env.BATCH_STUB_FAIL_SET === set;\nconst plannedWrites = process.env.BATCH_STUB_PLANNED_WRITES ?? '0';\nconst databaseWrites = process.env.BATCH_STUB_DATABASE_WRITES ?? '0';\nif (process.env.BATCH_STUB_CHECKPOINT_PATH && process.env.BATCH_STUB_SNAPSHOT_PATH) { const fs = await import('node:fs'); fs.writeFileSync(process.env.BATCH_STUB_SNAPSHOT_PATH, fs.readFileSync(process.env.BATCH_STUB_CHECKPOINT_PATH)); }\nif (process.env.BATCH_STUB_EXECUTION_MARKER) { const fs = await import('node:fs'); fs.writeFileSync(process.env.BATCH_STUB_EXECUTION_MARKER, new Date().toISOString()); }\nconsole.log('Catalog import dry run');\nconsole.log('Source: pokemon_tcg_data');\nconsole.log('Set: ' + set);\nconsole.log('Mode: DRY RUN');\nconsole.log('Expected cards: ' + counts[set]);\nconsole.log('Received cards: ' + counts[set]);\nconsole.log('Theoretisch geplande writes: ' + plannedWrites);\nconsole.log('Result: ' + (failed ? 'FAIL' : 'PASS'));\nconsole.log('Database writes: ' + databaseWrites);\nprocess.exit(failed ? 1 : 0);\n`);
+  writeFileSync(stub, [
+    "import { readFileSync, writeFileSync } from 'node:fs';",
+    "const args = process.argv.slice(2);",
+    "const set = process.env.BATCH_STUB_WRONG_SET_ID ?? args[args.indexOf('--set') + 1];",
+    "const resultPath = args[args.indexOf('--diagnostic-result') + 1];",
+    `const counts = ${JSON.stringify(received)};`,
+    "const failed = process.env.BATCH_STUB_FAIL_SET === set;",
+    "const plannedWrites = process.env.BATCH_STUB_PLANNED_WRITES ?? '0';",
+    "const databaseWrites = process.env.BATCH_STUB_DATABASE_WRITES ?? '0';",
+    "if (process.env.BATCH_STUB_CHECKPOINT_PATH && process.env.BATCH_STUB_SNAPSHOT_PATH) writeFileSync(process.env.BATCH_STUB_SNAPSHOT_PATH, readFileSync(process.env.BATCH_STUB_CHECKPOINT_PATH));",
+    "if (process.env.BATCH_STUB_EXECUTION_MARKER) writeFileSync(process.env.BATCH_STUB_EXECUTION_MARKER, new Date().toISOString());",
+    "const diagnostic = {schemaVersion: 1, setId: set, expectedCards: Number(process.env.BATCH_STUB_EXPECTED_CARDS ?? counts[set]), receivedCards: Number(process.env.BATCH_STUB_RECEIVED_CARDS ?? counts[set]), status: failed ? 'FAIL' : 'PASS', setMappingStatus: 'already_reliable', setCode: set, setMapping: {status: 'already_reliable', reliableSetCode: set, candidates: [], evidence: []}, externalReferenceMatches: counts[set], fallbackCandidatesQueried: 0, safeFallbackCandidates: 0, newCards: 0, ambiguousItems: 0, conflicts: 0, unresolvedWithoutSetMapping: 0, metadataUnchanged: counts[set], metadataChanged: 0, blockedItems: 0, plannedDatabaseWrites: Number(plannedWrites), databaseWrites: Number(databaseWrites), failureReasons: failed ? ['missing_set_mapping'] : [], examples: {}};",
+    "writeFileSync(resultPath, JSON.stringify(diagnostic));",
+    "console.log('Database writes: ' + databaseWrites);",
+    "process.exit(failed ? 1 : 0);",
+  ].join('\n'));
   const gitRunner = join(dir, 'fake-git.mjs');
   writeFileSync(gitRunner, `const args = process.argv.slice(2);\nconst command = args[2];\nif (command === 'rev-parse' && args[3] === '--is-inside-work-tree') console.log('true');\nelse if (command === 'remote') console.log('https://github.com/PokemonTCG/pokemon-tcg-data');\nelse if (command === 'rev-parse' && args[3] === 'HEAD') console.log('0af6250a22495e4a3e9f60ff45fc3fedc2e0563d');\nelse if (command === 'status') {}\nelse process.exit(2);\n`);
   return { manifest, root, stub, report: join(dir, 'report.json'), gitRunner };
@@ -28,6 +43,20 @@ function writeApiFixture(dir: string, failureStep?: 'write' | 'idempotency'): { 
   writeFileSync(state, '0');
   const stub = join(dir, 'stub-import-set.ts');
   writeFileSync(stub, `import { readFileSync, writeFileSync } from 'node:fs';\nconst state = process.env.BATCH_STUB_STATE;\nconst count = Number(readFileSync(state, 'utf8')) + 1;\nwriteFileSync(state, String(count));\nconst isWrite = process.argv.includes('--write');\nconst phase = isWrite ? 'write' : count === 1 ? 'dry-run' : 'idempotency';\nconst failure = ${JSON.stringify(failureStep ?? '')};\nconst failed = phase === failure;\nconsole.log('Catalog import ' + (isWrite ? 'write' : 'dry run'));\nconsole.log('Set: sv3');\nconsole.log('Mode: ' + (isWrite ? 'WRITE' : 'DRY RUN'));\nconsole.log('Expected cards: 230');\nconsole.log('Received cards: 230');\nconsole.log('New: ' + (phase === 'idempotency' && failed ? '1' : '0'));\nconsole.log('Theoretisch geplande writes: ' + (phase === 'idempotency' && failed ? '2' : '0'));\nif (isWrite) console.log('Mislukte writes: ' + (failed ? '1' : '0'));\nconsole.log('Result: ' + (failed ? 'FAIL' : 'PASS'));\nconsole.log('Database writes: ' + (isWrite && !failed ? '5' : '0'));\nprocess.exit(failed ? 1 : 0);\n`);
+  writeFileSync(stub, [
+    "import { readFileSync, writeFileSync } from 'node:fs';",
+    "const state = process.env.BATCH_STUB_STATE;",
+    "const count = Number(readFileSync(state, 'utf8')) + 1;",
+    "writeFileSync(state, String(count));",
+    "const isWrite = process.argv.includes('--write');",
+    "const phase = isWrite ? 'write' : count === 1 ? 'dry-run' : 'idempotency';",
+    `const failure = ${JSON.stringify(failureStep ?? '')};`,
+    "const failed = phase === failure;",
+    "const resultPath = process.argv[process.argv.indexOf('--diagnostic-result') + 1];",
+    "const diagnostic = {schemaVersion: 1, setId: 'sv3', expectedCards: 230, receivedCards: 230, status: failed ? 'FAIL' : 'PASS', setMappingStatus: 'already_reliable', setCode: 'sv3', setMapping: {status: 'already_reliable', reliableSetCode: 'sv3', candidates: [], evidence: []}, externalReferenceMatches: 230, fallbackCandidatesQueried: 0, safeFallbackCandidates: 0, newCards: phase === 'idempotency' && failed ? 1 : 0, ambiguousItems: 0, conflicts: 0, unresolvedWithoutSetMapping: 0, metadataUnchanged: 230, metadataChanged: 0, blockedItems: 0, plannedDatabaseWrites: phase === 'idempotency' && failed ? 2 : 0, databaseWrites: isWrite && !failed ? 5 : 0, failureReasons: failed ? ['external_reference_conflict'] : [], examples: {}};",
+    "writeFileSync(resultPath, JSON.stringify(diagnostic));",
+    "process.exit(failed ? 1 : 0);",
+  ].join('\n'));
   return { config, stub, report: join(dir, 'report.json'), state };
 }
 
@@ -108,6 +137,7 @@ test('checkpoint is created before execution and resume skips passed sets', () =
   const saved = JSON.parse(readFileSync(checkpoint, 'utf8'));
   const originalStartedAt = saved.startedAt;
   assert.deepEqual(saved.sets.map((set: { setId: string; status: string }) => [set.setId, set.status]), [['sv3pt5', 'failed'], ['sv3', 'passed']]);
+  assert.deepEqual(saved.sets[0].diagnostic.failureReasons, ['missing_set_mapping']);
   const resumed = runLocalBatch(paths, ['--checkpoint', checkpoint, '--resume', '--report', paths.report]);
   assert.equal(resumed.status, 0, resumed.stderr);
   assert.match(resumed.stdout, /sv3pt5 \/ dry-run/);
@@ -117,6 +147,36 @@ test('checkpoint is created before execution and resume skips passed sets', () =
   assert.equal(report.setsExecutedThisInvocation, 1);
   assert.equal(report.setsSkippedFromCheckpoint, 1);
   assert.equal(report.databaseWritesTotal, 0);
+  assert.deepEqual(report.results.find((item: { setId: string }) => item.setId === 'sv3').diagnostic.failureReasons, []);
+});
+
+test('wrong diagnostic set identity fails closed before checkpoint completion', () => {
+  const paths = writeLocalFixture(makeTmp(), { sv3pt5: 207, sv3: 230 });
+  const result = runLocalBatch(paths, ['--sets', 'sv3'], { BATCH_STUB_WRONG_SET_ID: 'sv3pt5' });
+  assert.notEqual(result.status, 0);
+  assert.match(result.stdout, /failureCode=unexpected_runner_failure/);
+});
+
+test('wrong diagnostic expectedCards fails closed against the local manifest', () => {
+  const paths = writeLocalFixture(makeTmp(), { sv3pt5: 207, sv3: 230 });
+  const result = runLocalBatch(paths, ['--sets', 'sv3'], { BATCH_STUB_EXPECTED_CARDS: '229' });
+  assert.notEqual(result.status, 0);
+  assert.match(result.stdout, /failureCode=unexpected_runner_failure/);
+});
+
+test('PASS received mismatch becomes one valid FAIL diagnostic in checkpoint and report', () => {
+  const paths = writeLocalFixture(makeTmp(), { sv3pt5: 207, sv3: 230 });
+  const checkpoint = join(makeTmp(), 'checkpoint.json');
+  const result = runLocalBatch(paths, ['--sets', 'sv3', '--checkpoint', checkpoint, '--report', paths.report], { BATCH_STUB_RECEIVED_CARDS: '229' });
+  assert.equal(result.status, 1);
+  const saved = JSON.parse(readFileSync(checkpoint, 'utf8'));
+  const report = JSON.parse(readFileSync(paths.report, 'utf8'));
+  const checkpointDiagnostic = saved.sets[0].diagnostic;
+  const reportDiagnostic = report.results[0].diagnostic;
+  assert.equal(checkpointDiagnostic.status, 'FAIL');
+  assert.deepEqual(checkpointDiagnostic.failureReasons, ['input_validation_failure']);
+  assert.deepEqual(reportDiagnostic.failureReasons, checkpointDiagnostic.failureReasons);
+  assert.doesNotThrow(() => JSON.parse(readFileSync(checkpoint, 'utf8')));
 });
 
 test('resume rejects a manifest fingerprint mismatch before subprocesses', () => {

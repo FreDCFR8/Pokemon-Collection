@@ -44,7 +44,9 @@ This document shows product direction and phase status. It intentionally avoids 
 - ✅ Phase 7B-2F7 — uitgebreide Card Detail-presentatie
 - ✅ Phase 7B-2F8 — lokale catalogusmanifest- en batchvalidatie
 - ✅ Phase 7B-2F9A — automatische volledige lokale datasetinventaris
-- 🚧 Phase 7B-2F9B — hervatbare volledige lokale catalogus-dry-run
+- ✅ Phase 7B-2F9B — hervatbare volledige lokale catalogus-dry-run
+- ✅ Phase 7B-2F9C — read-only failure-classificatie en setmappingplan
+- 🔎 Phase 7B-2F9D — gecontroleerde beoordeling van 44 exacte setmappingkandidaten
 - ⏳ broader catalog synchronization and catalog writes after separate approval
 
 ## Sets and binder experience

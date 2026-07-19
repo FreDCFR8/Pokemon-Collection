@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { parseLocalCatalogManifestFromText } from '../../scripts/catalog/local-manifest.ts';
 
-const valid = JSON.stringify({ source: 'pokemon_tcg_data', datasetRepository: 'PokemonTCG/pokemon-tcg-data', datasetVersion: '0af6250a22495e4a3e9f60ff45fc3fedc2e0563d', sets: [{ setId: 'sv3pt5', jsonPath: 'cards/en/sv3pt5.json', expectedCards: 207, enabled: true }, { setId: 'sv3', jsonPath: 'cards/en/sv3.json', expectedCards: 230, enabled: true }] });
+const valid = JSON.stringify({ source: 'pokemon_tcg_data', datasetRepository: 'PokemonTCG/pokemon-tcg-data', datasetVersion: '0af6250a22495e4a3e9f60ff45fc3fedc2e0563d', sets: [{ setId: 'sv3pt5', name: '151', series: 'Scarlet & Violet', jsonPath: 'cards/en/sv3pt5.json', expectedCards: 207, enabled: true }, { setId: 'sv3', name: 'Obsidian Flames', series: 'Scarlet & Violet', jsonPath: 'cards/en/sv3.json', expectedCards: 230, enabled: true }] });
 
 test('parses a valid local pokemon_tcg_data manifest', () => {
   assert.deepEqual(parseLocalCatalogManifestFromText(valid).sets.map((set) => set.setId), ['sv3pt5', 'sv3']);

@@ -1,8 +1,10 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { randomUUID } from 'node:crypto';
 import { loadPokemonTcgDataJson } from './local-json.ts';
+import { classifyFallbackCandidates } from './fallback-classification.ts';
 import { parseCardDetails, type CardDetails } from './card-details.ts';
 import { assertWriteAuthorized, getWritePlanTitle, parseCatalogImportArgs, type CatalogImportOptions } from './import-args.ts';
+import { failureCodesForConflictReasons, mappingFailureReasons, writeDiagnosticResult, type DiagnosticExample, type FailureCode, type SetMappingCandidate, type SetMappingStatus, type SingleSetDiagnosticResult } from './diagnostic-result.ts';
 
 const SOURCE = 'pokemon_tcg_api';
 const API_BASE_URL = 'https://api.pokemontcg.io/v2';
@@ -47,6 +49,8 @@ type SetCatalogRow = {
   set_code: string;
   source: string | null;
   source_id: string | null;
+  name?: string | null;
+  series?: string | null;
 };
 
 type MatchExample = {
@@ -64,7 +68,7 @@ type MatchingReport = {
   catalogCardsQueried: number;
   fallbackCandidatesQueried: number;
   matchedByExternalReference: number;
-  candidateBySetAndNumber: number;
+  safeFallbackCandidates: number;
   newCards: number;
   ambiguous: number;
   conflicts: number;
@@ -81,6 +85,9 @@ type MatchingReport = {
   setCode?: string;
   classifications: CardClassification[];
   errors: string[];
+  setMappingStatus: SetMappingStatus;
+  setMappingEvidence: string[];
+  setMappingCandidates: SetMappingCandidate[];
 };
 
 type CardClassification =
@@ -464,9 +471,34 @@ async function readRows<T>(query: PromiseLike<{ data: T[] | null; error: { messa
 
 async function fetchSetCatalogMapping(supabase: SupabaseClient, externalSetId: string): Promise<SetCatalogRow[]> {
   return readRows<SetCatalogRow>(
-    supabase.from('sets_catalog').select('set_code,source,source_id').eq('source', SOURCE).eq('source_id', externalSetId),
+    supabase.from('sets_catalog').select('set_code,source,source_id,name,series').eq('source', SOURCE).eq('source_id', externalSetId),
     'sets_catalog setmapping',
   );
+}
+
+async function fetchSetCatalogCandidates(supabase: SupabaseClient, incomingSet: PokemonSet): Promise<SetCatalogRow[]> {
+  const rows = await readRows<SetCatalogRow>(
+    supabase.from('sets_catalog').select('set_code,source,source_id,name,series'),
+    'sets_catalog mapping candidates',
+  );
+  const normalizedName = normalizeRequired(incomingSet.name).toLowerCase();
+  const normalizedSeries = normalizeRequired(incomingSet.series).toLowerCase();
+  return rows.filter((row) => row.set_code === incomingSet.id || normalizeRequired(row.name ?? '').toLowerCase() === normalizedName && (!normalizedSeries || !row.series || normalizeRequired(row.series).toLowerCase() === normalizedSeries));
+}
+
+type CardNumberRow = { number: string | null };
+
+async function fetchCardNumbersForSet(supabase: SupabaseClient, setCode: string): Promise<string[]> {
+  const numbers: string[] = [];
+  for (let offset = 0; ; offset += SUPABASE_BATCH_SIZE) {
+    const rows = await readRows<CardNumberRow>(
+      supabase.from('cards_catalog').select('number').eq('set_code', setCode).order('id').range(offset, offset + SUPABASE_BATCH_SIZE - 1),
+      'cards_catalog mapping card coverage',
+    );
+    numbers.push(...rows.map((row) => normalizeOptional(row.number)).filter((number): number is string => Boolean(number)));
+    if (rows.length < SUPABASE_BATCH_SIZE) break;
+  }
+  return uniqueSorted(numbers);
 }
 
 async function fetchExternalReferences(supabase: SupabaseClient, externalIds: string[]): Promise<ExternalReferenceRow[]> {
@@ -569,14 +601,30 @@ function compareMetadata(externalCard: PokemonCard, catalogCard: CatalogCardRow,
   return differences;
 }
 
-async function matchCards(supabase: SupabaseClient, setId: string, externalCards: PokemonCard[]): Promise<MatchingReport> {
+async function matchCards(supabase: SupabaseClient, incomingSet: PokemonSet, externalCards: PokemonCard[]): Promise<MatchingReport> {
+  const setId = incomingSet.id;
   const errors: string[] = [];
   const externalIds = uniqueSorted(externalCards.map((card) => card.id).filter(Boolean));
   const setMappings = await fetchSetCatalogMapping(supabase, setId);
+  const candidateRows = await fetchSetCatalogCandidates(supabase, incomingSet);
   const setCode = setMappings.length === 1 ? setMappings[0].set_code : undefined;
   const unresolvedReason = setMappings.length === 0 ? 'missing_set_mapping' : setMappings.length > 1 ? 'multiple_set_mappings' : undefined;
   if (setMappings.length === 0) errors.push('Fallbackmatching kon niet worden uitgevoerd omdat geen betrouwbare sets_catalog-koppeling voor deze externe set bestaat.');
   if (setMappings.length > 1) errors.push('Fallbackmatching kon niet worden uitgevoerd omdat meerdere sets_catalog-koppelingen voor deze externe set bestaan.');
+
+  const incomingNumbers = uniqueSorted(externalCards.map((card) => normalizeRequired(card.number)).filter(Boolean));
+  const mappingCandidates: SetMappingCandidate[] = [];
+  for (const candidate of candidateRows) {
+    const candidateNumbers = await fetchCardNumbersForSet(supabase, candidate.set_code);
+    const overlap = candidateNumbers.filter((number) => incomingNumbers.includes(number)).length;
+    const evidenceCodes = [
+      ...(candidate.set_code === setId ? ['exact_set_code'] : []),
+      ...(normalizeRequired(candidate.name ?? '').toLowerCase() === normalizeRequired(incomingSet.name).toLowerCase() ? ['exact_normalized_name'] : []),
+      ...(candidate.series && normalizeRequired(candidate.series).toLowerCase() === normalizeRequired(incomingSet.series).toLowerCase() ? ['series_match'] : []),
+      ...(overlap > 0 ? ['card_number_overlap'] : []),
+    ];
+    mappingCandidates.push({ set_code: candidate.set_code, ...(candidate.name ? { name: candidate.name } : {}), ...(candidate.series ? { series: candidate.series } : {}), source: candidate.source, source_id: candidate.source_id, evidenceCodes, incomingCardCount: incomingNumbers.length, overlappingUniqueCardNumbers: overlap, coveragePercentage: incomingNumbers.length === 0 ? 0 : Number(((overlap / incomingNumbers.length) * 100).toFixed(2)) });
+  }
 
   const references = await fetchExternalReferences(supabase, externalIds);
   const referencesByExternalId = new Map<string, ExternalReferenceRow[]>();
@@ -626,7 +674,7 @@ async function matchCards(supabase: SupabaseClient, setId: string, externalCards
     catalogCardsQueried: linkedCatalogCards.length,
     fallbackCandidatesQueried: fallbackCards.length,
     matchedByExternalReference: 0,
-    candidateBySetAndNumber: 0,
+    safeFallbackCandidates: 0,
     newCards: 0,
     ambiguous: 0,
     conflicts: 0,
@@ -643,6 +691,9 @@ async function matchCards(supabase: SupabaseClient, setId: string, externalCards
     setCode,
     classifications: [],
     errors,
+    setMappingStatus: setMappings.length === 1 ? 'already_reliable' : setMappings.length > 1 ? 'conflicting_candidate' : mappingCandidates.length === 1 ? 'exact_candidate' : mappingCandidates.length > 1 ? 'ambiguous_candidate' : 'no_candidate',
+    setMappingEvidence: setMappings.length === 1 ? ['exact_external_source_id'] : mappingCandidates.length > 0 ? ['candidate_evidence_only; no automatic promotion'] : [],
+    setMappingCandidates: mappingCandidates,
   };
 
   for (const externalCard of [...externalCards].sort((a, b) => a.id.localeCompare(b.id))) {
@@ -694,25 +745,25 @@ async function matchCards(supabase: SupabaseClient, setId: string, externalCards
     }
 
     const candidates = fallbackByNumber.get(normalizeRequired(externalCard.number)) ?? [];
-    if (candidates.length === 1) {
+    const candidateDecision = classifyFallbackCandidates(candidates.map((candidate) => ({ id: candidate.id, changedFields: compareMetadata(externalCard, candidate, setCode), hasSourceReference: (fallbackReferencesByCardId.get(candidate.id) ?? []).length > 0 })));
+    if (candidateDecision === 'safe') {
+      const candidate = candidates[0];
+      report.safeFallbackCandidates += 1;
+      report.metadataUnchanged += 1;
+      addExample(report.candidateExamples, { ...baseExample, card_catalog_id: candidate.id });
+      report.classifications.push({ kind: 'fallback', externalCard, catalogCard: candidate });
+    } else if (candidateDecision === 'metadata_mismatch') {
       const candidate = candidates[0];
       const changedFields = compareMetadata(externalCard, candidate, setCode);
-      const conflictingReferences = fallbackReferencesByCardId.get(candidate.id) ?? [];
-      if (changedFields.length > 0) {
-        report.conflicts += 1;
-        report.metadataChanged += 1;
-        addExample(report.metadataChangedExamples, { ...baseExample, card_catalog_id: candidate.id, changed_fields: changedFields });
-        addExample(report.conflictExamples, { ...baseExample, card_catalog_id: candidate.id, changed_fields: changedFields, reason: 'fallback_metadata_mismatch' });
-      } else if (conflictingReferences.length > 0) {
-        report.conflicts += 1;
-        addExample(report.conflictExamples, { ...baseExample, card_catalog_id: candidate.id, reason: 'fallback_candidate_already_has_source_reference' });
-      } else {
-        report.candidateBySetAndNumber += 1;
-        report.metadataUnchanged += 1;
-        addExample(report.candidateExamples, { ...baseExample, card_catalog_id: candidate.id });
-        report.classifications.push({ kind: 'fallback', externalCard, catalogCard: candidate });
-      }
-    } else if (candidates.length > 1) {
+      report.conflicts += 1;
+      report.metadataChanged += 1;
+      addExample(report.metadataChangedExamples, { ...baseExample, card_catalog_id: candidate.id, changed_fields: changedFields });
+      addExample(report.conflictExamples, { ...baseExample, card_catalog_id: candidate.id, changed_fields: changedFields, reason: 'fallback_metadata_mismatch' });
+    } else if (candidateDecision === 'existing_source_reference') {
+      const candidate = candidates[0];
+      report.conflicts += 1;
+      addExample(report.conflictExamples, { ...baseExample, card_catalog_id: candidate.id, reason: 'fallback_candidate_already_has_source_reference' });
+    } else if (candidateDecision === 'ambiguous') {
       report.ambiguous += 1;
       addExample(report.ambiguousExamples, { ...baseExample, reason: `${candidates.length}_fallback_candidates` });
     } else {
@@ -724,13 +775,13 @@ async function matchCards(supabase: SupabaseClient, setId: string, externalCards
 
   const classified =
     report.matchedByExternalReference +
-    report.candidateBySetAndNumber +
+    report.safeFallbackCandidates +
     report.newCards +
     report.ambiguous +
     report.conflicts +
     report.unresolvedWithoutSetMapping;
   if (classified !== externalCards.length) errors.push('Niet iedere externe kaart kreeg exact één primaire matchingstatus.');
-  if (report.conflicts > 0) errors.push('Conflicten gevonden in externe referenties.');
+  if (report.conflicts > 0) errors.push('Conflicten of metadata-afwijkingen gevonden; automatische updates blijven geblokkeerd.');
   if (report.ambiguous > 0) errors.push('Ambigue fallbackmatches gevonden.');
   if (report.unresolvedWithoutSetMapping > 0) errors.push('Niet-gematchte kaarten zonder betrouwbare setmapping gevonden.');
   if (report.metadataChanged > 0) errors.push('Bestaande catalogusmetadata wijkt af; automatische metadata-updates zijn niet toegestaan.');
@@ -1025,7 +1076,7 @@ function printReport(params: {
     console.log(`Catalog cards queried: ${params.matching.catalogCardsQueried}`);
     console.log(`Fallback candidates queried: ${params.matching.fallbackCandidatesQueried}`);
     console.log(`Matched by external reference: ${params.matching.matchedByExternalReference}`);
-    console.log(`Candidate by set and number: ${params.matching.candidateBySetAndNumber}`);
+    console.log(`Safe fallback candidates: ${params.matching.safeFallbackCandidates}`);
     console.log(`New: ${params.matching.newCards}`);
     console.log(`Ambiguous: ${params.matching.ambiguous}`);
     console.log(`Conflicts: ${params.matching.conflicts}`);
@@ -1058,6 +1109,64 @@ function printWritePlan(plan: WritePlan, write: boolean): void {
 function printFinalResult(passed: boolean, databaseWrites: number): void {
   console.log(`Result: ${passed ? 'PASS' : 'FAIL'}`);
   console.log(`Database writes: ${databaseWrites}`);
+}
+
+function diagnosticExamples(matching: MatchingReport): Partial<Record<FailureCode, DiagnosticExample[]>> {
+  const map = (examples: MatchExample[]): DiagnosticExample[] => examples.slice(0, EXAMPLE_LIMIT).map(({ external_id, number, card_catalog_id, reason, changed_fields }) => ({ external_id, number, ...(card_catalog_id ? { card_catalog_id } : {}), ...(reason ? { reason } : {}), ...(changed_fields ? { changed_fields } : {}) }));
+  return {
+    ...(matching.unresolvedWithoutSetMappingExamples.length ? { missing_set_mapping: map(matching.unresolvedWithoutSetMappingExamples) } : {}),
+    ...(matching.ambiguousExamples.length ? { ambiguous_fallback_candidate: map(matching.ambiguousExamples) } : {}),
+    ...(matching.conflictExamples.some((item) => item.reason === 'fallback_metadata_mismatch') ? { fallback_metadata_mismatch: map(matching.conflictExamples.filter((item) => item.reason === 'fallback_metadata_mismatch')) } : {}),
+    ...(matching.conflictExamples.some((item) => failureCodesForConflictReasons([item.reason ?? '']).includes('external_reference_conflict')) ? { external_reference_conflict: map(matching.conflictExamples.filter((item) => failureCodesForConflictReasons([item.reason ?? '']).includes('external_reference_conflict'))) } : {}),
+    ...(matching.metadataChangedExamples.length ? { card_identity_conflict: map(matching.metadataChangedExamples) } : {}),
+  };
+}
+
+function buildDiagnosticResult(params: { set: PokemonSet; receivedCards: number; validation: ValidationResult; matching: MatchingReport; writePlan: WritePlan; passed: boolean; databaseWrites: number }): SingleSetDiagnosticResult {
+  const reasons = new Set<FailureCode>(mappingFailureReasons(params.matching.setMappingStatus));
+  if (params.validation.errors.length > 0) reasons.add('input_validation_failure');
+  if (params.validation.duplicateIds.length > 0) reasons.add('card_identity_conflict');
+  if (params.matching.ambiguous > 0) reasons.add('ambiguous_fallback_candidate');
+  for (const code of failureCodesForConflictReasons(params.matching.conflictExamples.map((item) => item.reason ?? ''))) reasons.add(code);
+  if (params.matching.metadataChanged > 0) reasons.add('card_identity_conflict');
+  if (!params.passed && reasons.size === 0) reasons.add('unexpected_runner_failure');
+  const status = params.passed && reasons.size === 0 ? 'PASS' : 'FAIL';
+  return {
+    schemaVersion: 1,
+    setId: params.set.id,
+    setName: params.set.name,
+    expectedCards: params.set.total,
+    receivedCards: params.receivedCards,
+    status,
+    ...(params.matching.setCode ? { setCode: params.matching.setCode } : {}),
+    setMappingStatus: params.matching.setMappingStatus,
+    setMapping: {
+      status: params.matching.setMappingStatus,
+      ...(params.matching.setCode ? { reliableSetCode: params.matching.setCode } : {}),
+      candidates: params.matching.setMappingCandidates,
+      evidence: params.matching.setMappingEvidence,
+    },
+    externalReferenceMatches: params.matching.matchedByExternalReference,
+    fallbackCandidatesQueried: params.matching.fallbackCandidatesQueried,
+    safeFallbackCandidates: params.matching.safeFallbackCandidates,
+    newCards: params.matching.newCards,
+    ambiguousItems: params.matching.ambiguous,
+    conflicts: params.matching.conflicts,
+    unresolvedWithoutSetMapping: params.matching.unresolvedWithoutSetMapping,
+    metadataUnchanged: params.matching.metadataUnchanged,
+    metadataChanged: params.matching.metadataChanged,
+    blockedItems: params.writePlan.blockedItems,
+    plannedDatabaseWrites: params.writePlan.plannedDatabaseWrites,
+    databaseWrites: params.databaseWrites,
+    failureReasons: [...reasons].sort(),
+    examples: diagnosticExamples(params.matching),
+  };
+}
+
+function diagnosticPathFromArgv(argv: readonly string[]): string | undefined {
+  const index = argv.indexOf('--diagnostic-result');
+  if (index >= 0) return argv[index + 1];
+  return argv.find((arg) => arg.startsWith('--diagnostic-result='))?.slice('--diagnostic-result='.length);
 }
 
 function printPostWriteReport(stats: WriteStats, verification: PostWriteVerification): void {
@@ -1095,8 +1204,8 @@ async function main(): Promise<number> {
     const set = localData
       ? {
           id: setId,
-          name: localData.setName,
-          series: '',
+          name: options.setName!,
+          series: options.setSeries!,
           printedTotal: localData.cards.length,
           total: localData.cards.length,
           releaseDate: '',
@@ -1114,7 +1223,7 @@ async function main(): Promise<number> {
       : await fetchCards(setId, set.total, apiKey!, stats);
     const validation = validate(set, cards);
     const uniqueExternalIds = new Set(cards.cards.map((card) => card.id).filter(Boolean)).size;
-    const matching = await matchCards(supabase, setId, cards.cards);
+    const matching = await matchCards(supabase, set, cards.cards);
     const writePlan = buildWritePlan(matching, set.name, new Date().toISOString(), cards.cards.length);
     const allErrors = [...validation.errors, ...matching.errors, ...writePlan.errors];
     if (writePlan.blockedItems > 0 && !allErrors.includes('Minstens één item kon niet eenduidig in het writeplan worden opgenomen.')) {
@@ -1145,11 +1254,13 @@ async function main(): Promise<number> {
 
     if (!passed) {
       for (const error of allErrors) console.error(`Fout: ${error}`);
+      writeDiagnosticResult(options.diagnosticResultPath, buildDiagnosticResult({ set, receivedCards: cards.cards.length, validation, matching, writePlan, passed: false, databaseWrites: 0 }));
       printFinalResult(false, 0);
       return 1;
     }
 
     if (!options.write) {
+      writeDiagnosticResult(options.diagnosticResultPath, buildDiagnosticResult({ set, receivedCards: cards.cards.length, validation, matching, writePlan, passed: true, databaseWrites: 0 }));
       printFinalResult(true, 0);
       return 0;
     }
@@ -1159,6 +1270,7 @@ async function main(): Promise<number> {
       await assertNoReferences(supabase, [...writePlan.referencesForNewCards, ...writePlan.referencesForExistingCandidates]);
     } catch (error) {
       console.error(`Fout: pre-write gate geblokkeerd: ${error instanceof Error ? error.message : 'defensieve writecontrole mislukt.'}`);
+      writeDiagnosticResult(options.diagnosticResultPath, buildDiagnosticResult({ set, receivedCards: cards.cards.length, validation, matching, writePlan, passed: false, databaseWrites: 0 }));
       printFinalResult(false, 0);
       return 1;
     }
@@ -1168,6 +1280,7 @@ async function main(): Promise<number> {
       collectionCardsBefore = await countCollectionCards(supabase);
     } catch (error) {
       console.error(`Fout: ${error instanceof Error ? error.message : 'collection_cards veiligheidscontrole mislukt.'}`);
+      writeDiagnosticResult(options.diagnosticResultPath, buildDiagnosticResult({ set, receivedCards: cards.cards.length, validation, matching, writePlan, passed: false, databaseWrites: 0 }));
       printFinalResult(false, 0);
       return 1;
     }
@@ -1208,6 +1321,7 @@ async function main(): Promise<number> {
     const writePassed = writeErrors.length === 0;
     printPostWriteReport(writeStats, verification);
     for (const error of writeErrors) console.error(`Fout: ${sanitizeErrorMessage(error)}`);
+    writeDiagnosticResult(options.diagnosticResultPath, buildDiagnosticResult({ set, receivedCards: cards.cards.length, validation, matching, writePlan, passed: writePassed, databaseWrites }));
     printFinalResult(writePassed, databaseWrites);
     return writePassed ? 0 : 1;
   } catch (error) {
@@ -1218,6 +1332,28 @@ async function main(): Promise<number> {
     console.error('');
     const message = error instanceof Error ? error.message : 'Onbekende fout tijdens catalog import.';
     console.error(`Fout: ${sanitizeErrorMessage(message)}`);
+    writeDiagnosticResult(diagnosticPathFromArgv(process.argv.slice(2)), {
+      schemaVersion: 1,
+      setId,
+      status: 'FAIL',
+      receivedCards: 0,
+      setMappingStatus: 'no_candidate',
+      setMapping: { status: 'no_candidate', candidates: [], evidence: [] },
+      externalReferenceMatches: 0,
+      fallbackCandidatesQueried: 0,
+      safeFallbackCandidates: 0,
+      newCards: 0,
+      ambiguousItems: 0,
+      conflicts: 0,
+      unresolvedWithoutSetMapping: 0,
+      metadataUnchanged: 0,
+      metadataChanged: 0,
+      blockedItems: 0,
+      plannedDatabaseWrites: 0,
+      databaseWrites: 0,
+      failureReasons: ['unexpected_runner_failure'],
+      examples: { unexpected_runner_failure: [{ reason: sanitizeErrorMessage(message) }] } as Partial<Record<FailureCode, DiagnosticExample[]>>,
+    });
     printFinalResult(false, 0);
     return 1;
   }

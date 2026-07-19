@@ -5,6 +5,8 @@ export const POKEMON_TCG_DATA_REPOSITORY = 'PokemonTCG/pokemon-tcg-data';
 
 export type LocalCatalogManifestSet = {
   setId: string;
+  name: string;
+  series: string;
   jsonPath: string;
   expectedCards: number;
   enabled: boolean;
@@ -62,6 +64,10 @@ export function parseLocalCatalogManifestFromText(text: string): LocalCatalogMan
     if (seen.has(setId)) throw new LocalCatalogManifestError(`Dubbele set-ID in lokaal manifest: ${setId}.`);
     seen.add(setId);
     const jsonPath = item.jsonPath;
+    const name = item.name;
+    const series = item.series;
+    if (typeof name !== 'string' || name.trim().length === 0) throw new LocalCatalogManifestError(`Manifestset ${setId} mist officiële setnaam.`);
+    if (typeof series !== 'string' || series.trim().length === 0) throw new LocalCatalogManifestError(`Manifestset ${setId} mist officiële setserie.`);
     if (typeof jsonPath !== 'string') throw new LocalCatalogManifestError(`Manifestset ${setId} mist een geldig JSON-pad.`);
     assertSafeRelativePath(jsonPath, setId);
     const expectedCards = item.expectedCards;
@@ -70,7 +76,7 @@ export function parseLocalCatalogManifestFromText(text: string): LocalCatalogMan
     }
     const enabled = item.enabled === undefined ? true : item.enabled;
     if (typeof enabled !== 'boolean') throw new LocalCatalogManifestError(`Manifestset ${setId} heeft een ongeldige enabled-waarde.`);
-    return { setId, jsonPath, expectedCards, enabled };
+    return { setId, name: name.trim(), series: series.trim(), jsonPath, expectedCards, enabled };
   });
   if (!sets.some((set) => set.enabled)) throw new LocalCatalogManifestError('Lokaal catalogusmanifest moet minstens één actieve set bevatten.');
   return {

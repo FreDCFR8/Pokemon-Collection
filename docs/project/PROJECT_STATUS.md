@@ -1,24 +1,24 @@
 # Pokémon Collection V3 — Project Status
 
-_Last updated: 2026-07-17_
+_Last updated: 2026-07-19_
 
 This document contains current operational state only. Historical direction belongs in `ROADMAP.md`; lasting reasons belong in `DECISION_LOG.md`.
 
 ## Current phase
 
-**Phase 7B-2F9B — Hervatbare volledige lokale catalogus-dry-run**
+**Phase 7B-2F9C — Read-only failure-classificatie en setmappingplan (afgerond)**
 
-De actieve fase bouwt een versieerbare, volledig read-only manifestbatch voor meerdere lokale JSON-setbestanden uit `PokemonTCG/pokemon-tcg-data`. De batchrunner blijft orchestratie-only en hergebruikt `import-set.ts` voor parsing, matching en veiligheidsvalidatie.
+De volledige vastgepinde lokale dataset is verwerkt met getypeerde, hervatbare en volledig read-only diagnostiek. Alle inhoudelijke blokkades zijn machineleesbaar geclassificeerd zonder catalogus- of collectiewrites.
 
 ## Latest merged product milestone
 
-**PR136 — Phase 7B-2F9A: Automatische volledige lokale datasetinventaris**
+**PR138 — Phase 7B-2F9C: Read-only failure-classificatie en setmappingdiagnostiek**
 
-PR136 is gemerged. De lokale manifestbatch blijft read-only, gebruikt de bestaande single-set importer en wijzigt geen `cards_catalog` of `collection_cards`.
+PR138 rondt de volledige lokale analyse af. De batchrunner blijft orchestratie-only, hergebruikt `import-set.ts` en wijzigt geen `cards_catalog`, `card_external_references`, `sets_catalog` of `collection_cards`.
 
-## Active work
+## Completed work
 
-Phase 7B-2F9B:
+Phase 7B-2F9C:
 
 - automatische inventarisatie via `catalog:manifest:generate -- --input-root <datasetmap> --output <manifestpad> [--report <rapportpad>]`;
 - de generator controleert een schone checkout met exact de vastgepinde datasetcommit;
@@ -29,7 +29,12 @@ Phase 7B-2F9B:
 - manifestoutput wordt alleen bij een volledige PASS atomisch geschreven;
 - checkpoint/resume gebruikt een atomisch machineleesbaar checkpoint, exact manifest- en setfingerprint, datasetcheckoutvalidatie en gesanitiseerde per-setstatus;
 - het eindrapport is atomisch en rapporteert expliciet `databaseWritesTotal: 0`;
-- de volledige operationele 173-setrun blijft operatorwerk in de gecontroleerde lokale datasetomgeving.
+- de volledige operationele run verwerkte 173/173 sets en 20.324/20.324 kaarten;
+- 7 sets slaagden inhoudelijk en 166 sets bleven veilig geblokkeerd;
+- er waren 0 pending sets, 0 runnerfouten en 0 databasewrites;
+- setmappingstatussen: 11 `already_reliable`, 44 `exact_candidate` en 118 `no_candidate`;
+- failureclassificaties: 162 `missing_set_mapping`, 5 `card_identity_conflict` en 4 `fallback_metadata_mismatch`;
+- 5 fallbackkandidaten werden onderzocht en 0 daarvan waren automatisch veilig.
 
 ## Current architecture baseline
 
@@ -83,6 +88,12 @@ Pokémon TCG API set `sv3` (`Obsidian Flames`) is imported and idempotency-verif
 - idempotency planned writes: 0;
 - idempotency database writes: 0.
 
+## Phase 7B-2F9C update
+
+Phase 7B-2F9C adds typed, atomic per-set diagnostic JSON results and makes the batchrunner classify failures from that contract rather than console wording. Checkpoints and reports retain sanitized diagnostics, failure codes, setmapping evidence and limited examples; malformed subprocess results fail closed as `unexpected_runner_failure`.
+
+De operationele 2F9C-run is afgerond: 173 sets verwerkt, 7 inhoudelijke PASS, 166 inhoudelijke blokkades, 20.324/20.324 kaarten ontvangen, 0 runnerfouten en `databaseWritesTotal: 0`. Een globale FAIL blijft correct zolang inhoudelijke blokkades bestaan.
+
 ## Next phase scope
 
-Na Phase 7B-2F9A blijven bredere cataloguswrites en de volledige catalogus-dry-run expliciet aparte, goedgekeurde fases. Trade remains a separate future area and the lowest product priority.
+Voorgestelde Phase 7B-2F9D beoordeelt de 44 `exact_candidate`-setmappings gecontroleerd en read-only. Kandidaten worden niet automatisch betrouwbaar gemaakt; iedere mappingwijziging en iedere bredere cataloguswrite vereist een afzonderlijke analyse, expliciete goedkeuring en eigen PR. De 118 sets zonder kandidaat blijven geblokkeerd. Trade remains a separate future area and the lowest product priority.

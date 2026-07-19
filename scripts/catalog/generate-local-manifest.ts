@@ -6,7 +6,7 @@ import { PINNED_DATASET_VERSION, validateLocalDatasetCheckout, type GitRunner } 
 
 export { PINNED_DATASET_VERSION } from './local-checkout.ts';
 
-type DatasetSet = { id: string; total: number };
+type DatasetSet = { id: string; name: string; series: string; total: number };
 type DatasetCard = { id: unknown };
 type FileWriter = (content: string, outputPath: string) => void;
 
@@ -65,12 +65,16 @@ export function inventoryLocalDataset(inputRoot: string, outputPath: string, run
     const value = item as Record<string, unknown>;
     const setId = value.id;
     const total = value.total;
+    const name = value.name;
+    const series = value.series;
     if (typeof setId !== 'string' || !isValidSetId(setId)) { failedIndexEntries += 1; errors.push(asError(`ongeldige lowercase set-ID: ${String(setId)}`, 'sets/en.json')); continue; }
     if (seen.has(setId)) { failedIndexEntries += 1; errors.push(asError(`dubbele set-ID: ${setId}`, 'sets/en.json', setId)); continue; }
     seen.add(setId);
     if (!Number.isInteger(total) || (total as number) <= 0) { failedIndexEntries += 1; errors.push(asError(`total moet een positief geheel getal zijn: ${String(total)}`, 'sets/en.json', setId)); continue; }
+    if (typeof name !== 'string' || name.trim() === '') { failedIndexEntries += 1; errors.push(asError('officiële setnaam ontbreekt', 'sets/en.json', setId)); continue; }
+    if (typeof series !== 'string' || series.trim() === '') { failedIndexEntries += 1; errors.push(asError('officiële setserie ontbreekt', 'sets/en.json', setId)); continue; }
     indexedCardsTotal += total as number;
-    candidates.push({ id: setId, total: total as number });
+    candidates.push({ id: setId, name: name.trim(), series: series.trim(), total: total as number });
   }
 
   const manifestSets: LocalCatalogManifest['sets'] = [];
@@ -98,7 +102,7 @@ export function inventoryLocalDataset(inputRoot: string, outputPath: string, run
         ids.add(id);
       }
     } catch (error) { valid = false; errors.push(asError(error instanceof Error ? error.message : 'kaartbestand is ongeldig', file, set.id)); }
-    if (valid) { setsValid += 1; manifestSets.push({ setId: set.id, jsonPath: file, expectedCards: fileTotal, enabled: true }); }
+    if (valid) { setsValid += 1; manifestSets.push({ setId: set.id, name: set.name, series: set.series, jsonPath: file, expectedCards: fileTotal, enabled: true }); }
   }
   manifestSets.sort((a, b) => a.setId.localeCompare(b.setId));
   const setsFailed = failedIndexEntries + candidates.length - setsValid;
