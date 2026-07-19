@@ -4,7 +4,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { reportHash, stableJson, validateSetMappingCandidate } from '../../scripts/catalog/setmapping-validation.ts';
-import { runValidation } from '../../scripts/catalog/validate-set-mappings.ts';
+import { runCli, runValidation } from '../../scripts/catalog/validate-set-mappings.ts';
 
 function pureInput(overrides: Partial<Parameters<typeof validateSetMappingCandidate>[0]> = {}) {
   return { externalSetId: 'sv10', externalSetName: 'Destined Rivals', externalSeries: 'Scarlet & Violet', proposedSetCode: 'sv10', candidateCount: 1, catalogSet: { set_code: 'sv10', name: 'Destined Rivals', series: 'Scarlet & Violet', source: 'pokemon_tcg_api', source_id: 'sv10' }, catalogSourceIdentityMatchCount: 1, incomingCardCount: 10, uniqueIncomingCardNumbers: 10, overlappingUniqueCardNumbers: 10, existingExternalCardReferences: 10, conflictingExternalCardReferences: 0, ...overrides };
@@ -69,6 +69,8 @@ class ReadOnlyQuery {
   then(resolve: (value: { data: unknown[]; error: null }) => unknown, reject?: (reason: unknown) => unknown): Promise<unknown> { try { return Promise.resolve(resolve({ data: this.resolver(this.table, this.filters, this.lists), error: null })); } catch (error) { return reject ? Promise.resolve(reject(error)) : Promise.reject(error); } }
 }
 
+function isMutationOperation(operation: string): boolean { return /^(insert|update|upsert|delete|rpc)(:|$)/.test(operation); }
+
 function fixture(overrides: { name?: string; expected?: number; received?: number; foreignOnly?: boolean; referenceMode?: 'none' | 'valid' | 'wrong-set' | 'wrong-number' | 'dangling' | 'multiple'; databaseError?: boolean } = {}) {
   const root = mkdtempSync(join(tmpdir(), 'setmapping-')); mkdirSync(join(root, 'cards', 'en'), { recursive: true });
   const card = { id: 'sv10-1', name: 'Test Card', number: '1', images: {} };
@@ -105,6 +107,12 @@ function fixture(overrides: { name?: string; expected?: number; received?: numbe
   return { root, manifestPath, sourceReportPath, supabase, operations };
 }
 
+function cliArgs(item: ReturnType<typeof fixture>, reportPath = join(item.root, 'cli-report.json')): string[] { return ['--manifest', item.manifestPath, '--input-root', item.root, '--source-report', item.sourceReportPath, '--report', reportPath]; }
+function cliDependencies(item: ReturnType<typeof fixture>, expectedCandidateCount: number) {
+  return { createSupabaseClient: () => item.supabase, validateCheckout: () => undefined, runValidation: (params: Parameters<typeof runValidation>[0]) => runValidation({ ...params, expectedCandidateCount }) };
+}
+function readReport(path: string): Record<string, unknown> { return JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>; }
+
 test('runValidation gebruikt exact manifest.jsonPath en alleen read-methoden', async () => {
   const item = fixture();
   const report = await runValidation({ manifestPath: item.manifestPath, inputRoot: item.root, sourceReportPath: item.sourceReportPath, reportPath: 'reports/out.json', supabase: item.supabase, expectedCandidateCount: 1 });
@@ -114,8 +122,42 @@ test('runValidation gebruikt exact manifest.jsonPath en alleen read-methoden', a
   assert.equal(report.status, 'PASS');
   assert.deepEqual(report.operationalErrors, []);
   assert.equal(report.databaseWritesTotal, 0);
-  assert.equal(item.operations.some((operation) => ['insert', 'update', 'upsert', 'delete', 'rpc'].includes(operation)), false);
+  assert.equal(item.operations.some(isMutationOperation), false);
   assert.equal(item.operations.some((operation) => operation.startsWith('empty-in:')), false);
+});
+
+test('runCli schrijft FAIL-rapport en exitcode 1 bij ontbrekende credentials', async () => {
+  const item = fixture(); const reportPath = join(item.root, 'missing-credentials.json');
+  const exitCode = await runCli(cliArgs(item, reportPath), {}, { validateCheckout: () => undefined });
+  const report = readReport(reportPath);
+  assert.equal(exitCode, 1); assert.equal(report.status, 'FAIL'); assert.equal(report.databaseWritesTotal, 0); assert.equal(Array.isArray(report.operationalErrors), true);
+});
+
+test('runCli schrijft FAIL-rapport bij candidate-count mismatch', async () => {
+  const item = fixture(); const reportPath = join(item.root, 'candidate-count.json');
+  const exitCode = await runCli(cliArgs(item, reportPath), { SUPABASE_URL: 'https://example.invalid', SUPABASE_SERVICE_ROLE_KEY: 'test-key' }, cliDependencies(item, 44));
+  const report = readReport(reportPath);
+  assert.equal(exitCode, 1); assert.equal(report.status, 'FAIL'); assert.equal(report.databaseWritesTotal, 0); assert.match(String((report.operationalErrors as string[])[0]), /exact_candidate/);
+});
+
+test('runCli geeft exitcode 0 voor inhoudelijk geblokkeerd zonder operationele fout', async () => {
+  const item = fixture({ name: 'Wrong Report Name' }); const reportPath = join(item.root, 'blocked-pass.json');
+  const exitCode = await runCli(cliArgs(item, reportPath), { SUPABASE_URL: 'https://example.invalid', SUPABASE_SERVICE_ROLE_KEY: 'test-key' }, cliDependencies(item, 1));
+  const report = readReport(reportPath);
+  assert.equal(exitCode, 0); assert.equal(report.status, 'PASS'); assert.equal(report.databaseWritesTotal, 0); assert.equal((report.operationalErrors as string[]).length, 0);
+});
+
+test('runCli geeft exitcode 1 voor databaseleesfout met FAIL-rapport', async () => {
+  const item = fixture({ databaseError: true }); const reportPath = join(item.root, 'database-failure.json');
+  const exitCode = await runCli(cliArgs(item, reportPath), { SUPABASE_URL: 'https://example.invalid', SUPABASE_SERVICE_ROLE_KEY: 'test-key' }, cliDependencies(item, 1));
+  const report = readReport(reportPath);
+  assert.equal(exitCode, 1); assert.equal(report.status, 'FAIL'); assert.equal(report.databaseWritesTotal, 0); assert.equal((report.operationalErrors as string[]).length, 1);
+});
+
+test('write-guard registreert een bewuste querybuilder-mutatie', () => {
+  const item = fixture();
+  assert.throws(() => (item.supabase.from('sets_catalog') as unknown as { insert: (rows: unknown[]) => never }).insert([{ set_code: 'bad' }]), /querybuilder insert/);
+  assert.equal(item.operations.some(isMutationOperation), true);
 });
 
 test('source report mismatch wordt inhoudelijk geblokkeerd', async () => {

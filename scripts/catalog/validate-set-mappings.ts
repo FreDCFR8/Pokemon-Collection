@@ -151,8 +151,45 @@ function parseArgs(argv: readonly string[]): { manifestPath: string; inputRoot: 
   return { manifestPath: values.get('--manifest')!, inputRoot: values.get('--input-root')!, sourceReportPath: values.get('--source-report')!, reportPath: values.get('--report')! };
 }
 
-function summarize(report: ValidationReport): void { console.log('\nPhase 7B-2F9D-A read-only setmapping validation'); console.log(`Candidates: ${report.candidateCount}`); for (const classification of ['safe_for_mapping_review', 'needs_manual_review', 'blocked']) console.log(`${classification}: ${report.classifications[classification] ?? 0}`); console.log(`Operational errors: ${report.operationalErrors.length}`); console.log('Database writes: 0'); console.log('Reason-code examples:'); for (const [reason, examples] of Object.entries(report.reasonCodeExamples).sort()) console.log(`- ${reason}: ${examples.join(', ')}`); }
+function reportPathFromArgs(argv: readonly string[]): string | undefined {
+  for (let index = 0; index < argv.length; index += 1) {
+    if (argv[index] === '--report' && argv[index + 1] && !argv[index + 1].startsWith('--')) return argv[index + 1];
+    if (argv[index].startsWith('--report=') && argv[index].slice('--report='.length)) return argv[index].slice('--report='.length);
+  }
+  return undefined;
+}
 
-export async function runCli(argv: readonly string[], env: NodeJS.ProcessEnv = process.env): Promise<number> { try { const options = parseArgs(argv); const manifest = parseLocalCatalogManifestFromText(readFileSync(options.manifestPath, 'utf8')); validateLocalDatasetCheckout(options.inputRoot, manifest.datasetVersion); const url = env.SUPABASE_URL; const key = env.SUPABASE_SERVICE_ROLE_KEY; if (!url || !key) throw new Error('SUPABASE_URL en SUPABASE_SERVICE_ROLE_KEY zijn vereist voor read-only databasevalidatie.'); const report = await runValidation({ ...options, supabase: createClient(url, key) }); writeAtomicJson(options.reportPath, report); summarize(report); return report.status === 'PASS' ? 0 : 1; } catch (error) { console.error(`Setmappingvalidatie geblokkeerd: ${error instanceof Error ? error.message : 'onbekende fout'}`); return 1; } }
+function sanitizeOperationalError(message: string, env: NodeJS.ProcessEnv): string {
+  let sanitized = message;
+  for (const value of [env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY].filter((value): value is string => Boolean(value))) sanitized = sanitized.split(value).join('[REDACTED]');
+  return sanitized.replace(/(?:[A-Za-z]:)?[\\/][^\s]+/g, '[REDACTED_PATH]').replace(/(api[_-]?key|token|secret|password)=([^\s]+)/gi, '$1=[REDACTED]');
+}
+
+function preflightFailureReport(message: string, manifest: LocalCatalogManifest | undefined, env: NodeJS.ProcessEnv): ValidationReport {
+  const base = { schemaVersion: SETMAPPING_VALIDATION_SCHEMA_VERSION, phase: 'Phase 7B-2F9D-A' as const, mode: 'read-only' as const, source: 'pokemon_tcg_data' as const, ...(manifest ? { datasetRepository: manifest.datasetRepository, datasetVersion: manifest.datasetVersion } : {}), manifestPath: 'config/catalog/local-pokemon-tcg-data-manifest.json', sourceReportHash: '', candidateCount: 0, status: 'FAIL' as const, databaseWritesTotal: 0 as const, classifications: {}, reasonCodes: {}, reasonCodeExamples: {}, operationalErrors: [sanitizeOperationalError(message, env)], architectureRecommendation: 'introduce_set_external_references_later' as const, architectureBasis: [], candidates: [] };
+  return { ...base, reportHash: reportHash(base) } as ValidationReport;
+}
+
+function summarize(report: ValidationReport): void { console.log('\nPhase 7B-2F9D-A read-only setmapping validation'); console.log(`Candidates: ${report.candidateCount}`); for (const classification of ['safe_for_mapping_review', 'needs_manual_review', 'blocked']) console.log(`${classification}: ${report.classifications[classification] ?? 0}`); console.log(`Operational errors: ${report.operationalErrors.length}`); console.log(`Result: ${report.status}`); console.log('Database writes: 0'); console.log('Reason-code examples:'); for (const [reason, examples] of Object.entries(report.reasonCodeExamples).sort()) console.log(`- ${reason}: ${examples.join(', ')}`); }
+
+type CliDependencies = {
+  createSupabaseClient?: (url: string, key: string) => SupabaseClient;
+  validateCheckout?: (inputRoot: string, datasetVersion: string) => void;
+  runValidation?: (params: { manifestPath: string; inputRoot: string; sourceReportPath: string; reportPath: string; supabase: SupabaseClient }) => Promise<ValidationReport>;
+  writeReport?: (path: string, report: ValidationReport) => void;
+};
+
+export async function runCli(argv: readonly string[], env: NodeJS.ProcessEnv = process.env, dependencies: CliDependencies = {}): Promise<number> {
+  const reportPath = reportPathFromArgs(argv); let manifest: LocalCatalogManifest | undefined;
+  try {
+    const options = parseArgs(argv); manifest = parseLocalCatalogManifestFromText(readFileSync(options.manifestPath, 'utf8')); (dependencies.validateCheckout ?? validateLocalDatasetCheckout)(options.inputRoot, manifest.datasetVersion);
+    const url = env.SUPABASE_URL; const key = env.SUPABASE_SERVICE_ROLE_KEY; if (!url || !key) throw new Error('SUPABASE_URL en SUPABASE_SERVICE_ROLE_KEY zijn vereist voor read-only databasevalidatie.');
+    const report = await (dependencies.runValidation ?? runValidation)({ ...options, supabase: (dependencies.createSupabaseClient ?? createClient)(url, key) }); (dependencies.writeReport ?? writeAtomicJson)(options.reportPath, report); summarize(report); return report.status === 'PASS' ? 0 : 1;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Onbekende operationele validatiefout.'; const failure = preflightFailureReport(message, manifest, env);
+    if (reportPath) { try { (dependencies.writeReport ?? writeAtomicJson)(reportPath, failure); } catch (writeError) { console.error(`FAIL-rapport kon niet worden geschreven: ${writeError instanceof Error ? sanitizeOperationalError(writeError.message, env) : 'onbekende schrijffout'}`); } }
+    console.error(`Setmappingvalidatie geblokkeerd: ${sanitizeOperationalError(message, env)}`); return 1;
+  }
+}
 async function main(): Promise<number> { return runCli(process.argv.slice(2)); }
 if (process.argv[1]?.endsWith('validate-set-mappings.ts')) main().then((code) => { process.exitCode = code; });
