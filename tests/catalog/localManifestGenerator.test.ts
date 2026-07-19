@@ -19,6 +19,14 @@ test('generates a valid, sorted manifest and PASS report', () => {
   assert.equal(result.report.status, 'PASS'); assert.equal(result.report.setsIndexed, 2); assert.equal(result.report.indexedCardsTotal, 3); assert.equal(result.report.receivedCardsTotal, 3); assert.deepEqual(result.manifest?.sets.map((set) => set.setId), ['base1', 'sv1']);
 });
 
+test('default checkout validator path is operational without an injected GitRunner', () => {
+  const root = validFixture();
+  const report = inventoryLocalDataset(root, join(root, 'manifest.json')).report;
+  assert.equal(report.status, 'FAIL');
+  assert.match(report.errors?.[0].reason ?? '', /checkout-validatie/);
+  assert.doesNotMatch(report.errors?.[0].reason ?? '', /git is not defined/);
+});
+
 test('count mismatch is a warning, remains PASS, and manifest uses file length', () => {
   const root = fixture(); writeFixture(root, [{ id: 'sv1', total: 1 }], { sv1: [{ id: 'a' }, { id: 'b' }] });
   const result = generateManifest({ inputRoot: root, outputPath: join(root, 'manifest.json'), reportPath: join(root, 'report.json') }, { inventory: (input, target) => inventoryLocalDataset(input, target, fakeGit(root)) });

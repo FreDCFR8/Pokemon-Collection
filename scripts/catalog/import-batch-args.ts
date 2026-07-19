@@ -11,6 +11,8 @@ export type CatalogBatchOptions = {
   manifestPath?: string;
   inputRoot?: string;
   reportPath?: string;
+  checkpointPath?: string;
+  resume?: boolean;
   setIds?: string[];
 };
 
@@ -54,6 +56,8 @@ export function parseCatalogBatchArgs(argv: readonly string[]): CatalogBatchOpti
   let manifestPath: string | undefined;
   let inputRoot: string | undefined;
   let reportPath: string | undefined;
+  let checkpointPath: string | undefined;
+  let resume = false;
   let setIds: string[] | undefined;
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -70,12 +74,18 @@ export function parseCatalogBatchArgs(argv: readonly string[]): CatalogBatchOpti
     if (arg.startsWith('--input-root=')) { if (inputRoot) throw new CatalogBatchArgumentError('--input-root mag slechts eenmaal worden opgegeven.'); inputRoot = arg.slice(13); if (!inputRoot) throw new CatalogBatchArgumentError('Ontbrekende waarde voor --input-root.'); continue; }
     if (arg === '--report') { if (reportPath) throw new CatalogBatchArgumentError('--report mag slechts eenmaal worden opgegeven.'); reportPath = readValue(argv, index, '--report'); index += 1; continue; }
     if (arg.startsWith('--report=')) { if (reportPath) throw new CatalogBatchArgumentError('--report mag slechts eenmaal worden opgegeven.'); reportPath = arg.slice(9); if (!reportPath) throw new CatalogBatchArgumentError('Ontbrekende waarde voor --report.'); continue; }
+    if (arg === '--checkpoint') { if (checkpointPath) throw new CatalogBatchArgumentError('--checkpoint mag slechts eenmaal worden opgegeven.'); checkpointPath = readValue(argv, index, '--checkpoint'); index += 1; continue; }
+    if (arg.startsWith('--checkpoint=')) { if (checkpointPath) throw new CatalogBatchArgumentError('--checkpoint mag slechts eenmaal worden opgegeven.'); checkpointPath = arg.slice(13); if (!checkpointPath) throw new CatalogBatchArgumentError('Ontbrekende waarde voor --checkpoint.'); continue; }
+    if (arg === '--resume') { if (resume) throw new CatalogBatchArgumentError('--resume mag slechts eenmaal worden opgegeven.'); resume = true; continue; }
     if (arg === '--sets') { if (setIds !== undefined) throw new CatalogBatchArgumentError('--sets mag slechts eenmaal worden opgegeven.'); setIds = parseSetList(readValue(argv, index, '--sets')); index += 1; continue; }
     if (arg.startsWith('--sets=')) { if (setIds !== undefined) throw new CatalogBatchArgumentError('--sets mag slechts eenmaal worden opgegeven.'); setIds = parseSetList(arg.slice(7)); continue; }
     throw new CatalogBatchArgumentError(`Onbekend argument: ${arg}`);
   }
 
   if (setIds !== undefined) assertValidSetList(setIds, '--sets');
+  if (resume && !checkpointPath) throw new CatalogBatchArgumentError('--resume vereist --checkpoint.');
+  if (source !== 'pokemon_tcg_data' && (checkpointPath || resume)) throw new CatalogBatchArgumentError('--checkpoint en --resume zijn alleen toegestaan met source pokemon_tcg_data.');
+  if (mode === 'write-approved' && (checkpointPath || resume)) throw new CatalogBatchArgumentError('Checkpoint/resume is alleen toegestaan voor de lokale dry-run.');
   if (source === 'pokemon_tcg_data') {
     if (mode === 'write-approved') throw new CatalogBatchArgumentError('Write-approved is geblokkeerd: bron pokemon_tcg_data is strikt read-only.');
     if (!manifestPath) throw new CatalogBatchArgumentError('Bron pokemon_tcg_data vereist --manifest.');
@@ -83,7 +93,7 @@ export function parseCatalogBatchArgs(argv: readonly string[]): CatalogBatchOpti
   } else if (manifestPath || inputRoot) {
     throw new CatalogBatchArgumentError('--manifest en --input-root zijn alleen toegestaan met bron pokemon_tcg_data.');
   }
-  return { mode, source, configPath, ...(manifestPath ? { manifestPath } : {}), ...(inputRoot ? { inputRoot } : {}), ...(reportPath ? { reportPath } : {}), ...(setIds ? { setIds } : {}) };
+  return { mode, source, configPath, ...(manifestPath ? { manifestPath } : {}), ...(inputRoot ? { inputRoot } : {}), ...(reportPath ? { reportPath } : {}), ...(checkpointPath ? { checkpointPath } : {}), ...(resume ? { resume } : {}), ...(setIds ? { setIds } : {}) };
 }
 
 export function parseCatalogBatchConfigFromText(text: string): CatalogBatchConfig {
