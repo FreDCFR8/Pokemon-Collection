@@ -7,7 +7,7 @@ import { reportHash, stableJson, validateSetMappingCandidate } from '../../scrip
 import { runCli, runValidation } from '../../scripts/catalog/validate-set-mappings.ts';
 
 function pureInput(overrides: Partial<Parameters<typeof validateSetMappingCandidate>[0]> = {}) {
-  return { externalSetId: 'sv10', externalSetName: 'Destined Rivals', externalSeries: 'Scarlet & Violet', proposedSetCode: 'sv10', candidateCount: 1, catalogSet: { set_code: 'sv10', name: 'Destined Rivals', series: 'Scarlet & Violet', source: 'pokemon_tcg_api', source_id: 'sv10' }, catalogSourceIdentityMatchCount: 1, incomingCardCount: 10, uniqueIncomingCardNumbers: 10, overlappingUniqueCardNumbers: 10, existingExternalCardReferences: 10, conflictingExternalCardReferences: 0, ...overrides };
+  return { externalSetId: 'sv10', externalSetName: 'Destined Rivals', externalSeries: 'Scarlet & Violet', proposedSetCode: 'sv10', candidateCount: 1, catalogSet: { set_code: 'sv10', name: 'Destined Rivals', series: 'Scarlet & Violet', source: 'pokemon_tcg_api', source_id: 'sv10' }, catalogSourceIdentityMatchCount: 1, incomingCardCount: 10, uniqueIncomingCardNumbers: 10, overlappingUniqueCardNumbers: 10, cardNumberIdentityMatches: 10, cardNumberIdentityConflicts: 0, ambiguousCardNumberOverlaps: 0, existingExternalCardReferences: 10, conflictingExternalCardReferences: 0, ...overrides };
 }
 
 test('manifestnaam en manifestserie blijven de externe waarheid', () => {
@@ -21,6 +21,31 @@ test('serieconflict kan niet worden verborgen door kandidaatdata', () => {
   const result = validateSetMappingCandidate(pureInput({ externalSeries: 'Manifest Series', catalogSet: { set_code: 'sv10', name: 'Destined Rivals', series: 'Wrong Series', source: 'pokemon_tcg_api', source_id: 'sv10' }, candidateSource: 'Wrong', candidateSourceId: 'wrong' }));
   assert.equal(result.classification, 'blocked');
   assert.ok(result.reasonCodes.includes('set_series_conflict'));
+});
+
+test('ontbrekende catalogusserie is informatief en blokkeert niet', () => {
+  const result = validateSetMappingCandidate(pureInput({ catalogSet: { set_code: 'sv10', name: 'Destined Rivals', series: '  ', source: 'pokemon_tcg_api', source_id: 'sv10' } }));
+  assert.equal(result.classification, 'safe_for_mapping_review');
+  assert.ok(result.reasonCodes.includes('catalog_series_missing'));
+  assert.equal(result.reasonCodes.includes('set_series_conflict'), false);
+});
+
+test('legacy provenance zonder source_id vereist later een externe setreferentie', () => {
+  const result = validateSetMappingCandidate(pureInput({ catalogSet: { set_code: 'sv10', name: 'Destined Rivals', series: 'Scarlet & Violet', source: 'manual_review', source_id: null }, missingExternalProvenance: true }));
+  assert.equal(result.classification, 'safe_for_mapping_review');
+  assert.ok(result.reasonCodes.includes('legacy_catalog_provenance_present'));
+  assert.ok(result.reasonCodes.includes('external_set_reference_missing'));
+  assert.ok(result.reasonCodes.includes('requires_set_external_reference_model'));
+  assert.equal(result.reasonCodes.includes('proposed_set_conflicting_source_identity'), false);
+});
+
+test('kaartnummerconflict blokkeert en ambigu overlap vereist handmatige review', () => {
+  const conflict = validateSetMappingCandidate(pureInput({ cardNumberIdentityMatches: 0, cardNumberIdentityConflicts: 1 }));
+  assert.equal(conflict.classification, 'blocked');
+  assert.ok(conflict.reasonCodes.includes('card_number_identity_conflict'));
+  const ambiguous = validateSetMappingCandidate(pureInput({ cardNumberIdentityMatches: 1, ambiguousCardNumberOverlaps: 1 }));
+  assert.equal(ambiguous.classification, 'needs_manual_review');
+  assert.ok(ambiguous.reasonCodes.includes('ambiguous_card_number_overlap'));
 });
 
 test('bronrapport- en expected/received-mismatches blokkeren', () => {
@@ -46,9 +71,9 @@ test('kaartreferentieconflicten hebben afzonderlijke codes en blokkeren', () => 
   }
 });
 
-test('onvoldoende kaartnummeroverlap blokkeert', () => {
+test('lage kaartnummeroverlap blokkeert niet automatisch', () => {
   const result = validateSetMappingCandidate(pureInput({ uniqueIncomingCardNumbers: 10, overlappingUniqueCardNumbers: 2 }));
-  assert.equal(result.classification, 'blocked');
+  assert.equal(result.classification, 'safe_for_mapping_review');
   assert.ok(result.reasonCodes.includes('card_number_coverage_partial'));
 });
 
@@ -71,7 +96,7 @@ class ReadOnlyQuery {
 
 function isMutationOperation(operation: string): boolean { return /^(insert|update|upsert|delete|rpc)(:|$)/.test(operation); }
 
-function fixture(overrides: { name?: string; expected?: number; received?: number; foreignOnly?: boolean; referenceMode?: 'none' | 'valid' | 'wrong-set' | 'wrong-number' | 'dangling' | 'multiple'; databaseError?: boolean } = {}) {
+function fixture(overrides: { name?: string; expected?: number; received?: number; foreignOnly?: boolean; referenceMode?: 'none' | 'valid' | 'wrong-set' | 'wrong-number' | 'dangling' | 'multiple'; databaseError?: boolean; catalogSeries?: string | null; catalogSource?: string | null; catalogSourceId?: string | null; overlapMode?: 'match' | 'conflict' | 'ambiguous' | 'none' } = {}) {
   const root = mkdtempSync(join(tmpdir(), 'setmapping-')); mkdirSync(join(root, 'cards', 'en'), { recursive: true });
   const card = { id: 'sv10-1', name: 'Test Card', number: '1', images: {} };
   writeFileSync(join(root, 'cards', 'en', 'custom.json'), JSON.stringify([card]));
@@ -83,17 +108,20 @@ function fixture(overrides: { name?: string; expected?: number; received?: numbe
   const rows = (table: string, filters: Map<string, unknown>, lists: Map<string, unknown[]>): unknown[] => {
     if (overrides.databaseError && table === 'sets_catalog') throw new Error('simulated database read failure');
     if (table === 'sets_catalog') {
-      if (filters.get('source_id') === 'sv10') return [{ set_code: 'sv10', name: 'Manifest Name', series: 'Manifest Series', source: 'pokemon_tcg_api', source_id: 'sv10' }];
-      return [{ set_code: 'sv10', name: 'Manifest Name', series: 'Manifest Series', source: 'pokemon_tcg_api', source_id: 'sv10' }];
+      if (filters.get('source') === 'pokemon_tcg_api' && overrides.catalogSource !== undefined && overrides.catalogSource !== 'pokemon_tcg_api') return [];
+      return [{ set_code: 'sv10', name: 'Manifest Name', series: overrides.catalogSeries === undefined ? 'Manifest Series' : overrides.catalogSeries, source: overrides.catalogSource === undefined ? 'pokemon_tcg_api' : overrides.catalogSource, source_id: overrides.catalogSourceId === undefined ? 'sv10' : overrides.catalogSourceId }];
     }
     if (table === 'cards_catalog') {
       if (lists.has('id')) {
         if (overrides.referenceMode === 'dangling' || overrides.referenceMode === 'none' || overrides.foreignOnly) return [];
-        if (overrides.referenceMode === 'wrong-set') return [{ id: 'card-1', set_code: 'other-set', number: '1' }];
-        if (overrides.referenceMode === 'wrong-number') return [{ id: 'card-1', set_code: 'sv10', number: '999' }];
-        return [{ id: 'card-1', set_code: 'sv10', number: '1' }];
+        if (overrides.referenceMode === 'wrong-set') return [{ id: 'card-1', set_code: 'other-set', number: '1', name: 'Test Card' }];
+        if (overrides.referenceMode === 'wrong-number') return [{ id: 'card-1', set_code: 'sv10', number: '999', name: 'Test Card' }];
+        return [{ id: 'card-1', set_code: 'sv10', number: '1', name: 'Test Card' }];
       }
-      return [{ id: 'card-1', set_code: 'sv10', number: '1' }];
+      if (overrides.overlapMode === 'none') return [];
+      if (overrides.overlapMode === 'conflict') return [{ id: 'card-1', set_code: 'sv10', number: '1', name: 'Other Card' }];
+      if (overrides.overlapMode === 'ambiguous') return [{ id: 'card-1', set_code: 'sv10', number: '1', name: 'Test Card' }, { id: 'card-2', set_code: 'sv10', number: '1', name: 'Alternate Card' }];
+      return [{ id: 'card-1', set_code: 'sv10', number: '1', name: 'Test Card' }];
     }
     if (table === 'card_external_references') {
       if (overrides.foreignOnly || overrides.referenceMode === 'none') return [];
@@ -235,6 +263,40 @@ test('geldige kaartreferentie veroorzaakt geen conflict', async () => {
   assert.equal(report.candidates[0].conflictingExternalCardReferences, 0);
   assert.equal(report.candidates[0].validation.reasonCodes.includes('card_reference_conflict'), false);
   assert.equal(report.candidates[0].validation.classification, 'safe_for_mapping_review');
+});
+
+for (const [mode, expectedReason, classification] of [
+  ['match', 'card_number_identity_match', 'safe_for_mapping_review'],
+  ['conflict', 'card_number_identity_conflict', 'blocked'],
+  ['ambiguous', 'ambiguous_card_number_overlap', 'needs_manual_review'],
+  ['none', 'card_number_overlap_missing', 'needs_manual_review'],
+] as const) {
+  test(`validateOne analyseert echte kaartnummeranalyse: ${mode}`, async () => {
+    const item = fixture({ overlapMode: mode });
+    const report = await runValidation({ manifestPath: item.manifestPath, inputRoot: item.root, sourceReportPath: item.sourceReportPath, reportPath: 'reports/out.json', supabase: item.supabase, expectedCandidateCount: 1 });
+    const record = report.candidates[0];
+    assert.ok(record.validation.reasonCodes.includes(expectedReason));
+    assert.equal(record.validation.classification, classification);
+    if (mode === 'conflict') {
+      assert.equal(record.cardNumberIdentityConflicts, 1);
+      assert.equal(record.cardNumberOverlapExamples[0].external_id, 'sv10-1');
+      assert.equal(record.cardNumberOverlapExamples[0].number, '1');
+      assert.equal(record.cardNumberOverlapExamples[0].external_name, 'Test Card');
+      assert.equal(record.cardNumberOverlapExamples[0].existing_name, 'Other Card');
+      assert.equal(record.cardNumberOverlapExamples[0].actual_set_code, 'sv10');
+    }
+  });
+}
+
+test('legacy catalogusprovenance wordt via validateOne niet als bronconflict behandeld', async () => {
+  const item = fixture({ catalogSeries: null, catalogSource: 'manual_review', catalogSourceId: null, overlapMode: 'match' });
+  const report = await runValidation({ manifestPath: item.manifestPath, inputRoot: item.root, sourceReportPath: item.sourceReportPath, reportPath: 'reports/out.json', supabase: item.supabase, expectedCandidateCount: 1 });
+  const record = report.candidates[0];
+  assert.equal(record.validation.classification, 'safe_for_mapping_review');
+  assert.ok(record.validation.reasonCodes.includes('catalog_series_missing'));
+  assert.ok(record.validation.reasonCodes.includes('legacy_catalog_provenance_present'));
+  assert.equal(record.validation.reasonCodes.includes('proposed_set_conflicting_source_identity'), false);
+  assert.equal(record.mappingImplementationStatus, 'requires_set_external_references');
 });
 
 test('gelijke inhoud vanuit verschillende tijdelijke directories heeft dezelfde rapporthash', async () => {

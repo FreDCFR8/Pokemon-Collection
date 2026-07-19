@@ -13,15 +13,19 @@ export type CandidateRecord = { setId: string; sourceReportSetName?: string; sou
 type CatalogSet = { set_code: string; name: string | null; series: string | null; source: string | null; source_id: string | null };
 type Reference = { id: string; source: string; external_id: string; card_catalog_id: string | null };
 type CatalogCard = { id: string; set_code: string | null; number: string | null };
+type CatalogCardWithName = CatalogCard & { name: string | null };
 type CardReferenceExample = { external_id: string; card_catalog_id: string | null; expected_number: string; actual_number?: string | null; actual_set_code?: string | null; reason: SetMappingReasonCode };
+type CardNumberExample = { external_id: string; number: string; external_name: string; existing_name?: string | null; catalog_card_id?: string; actual_set_code?: string | null; reason: SetMappingReasonCode };
 
 type ValidationRecord = {
   setId: string; manifestSetName: string; manifestSeries: string; manifestExpectedCards: number; manifestJsonPath: string;
   sourceReportSetName?: string; sourceReportExpectedCards?: number; sourceReportReceivedCards?: number;
   candidate: Candidate; existingCatalogSet: CatalogSet | null; sourceIdentityMatches: CatalogSet[]; receivedCards: number;
   incomingCardCount: number; uniqueCardNumbers: number; overlappingUniqueCardNumbers: number;
+  cardNumberIdentityMatches: number; cardNumberIdentityConflicts: number; ambiguousCardNumberOverlaps: number; cardNumberOverlapExamples: CardNumberExample[];
   existingExternalCardReferences: number; conflictingExternalCardReferences: number; duplicateIncomingCardNumbers: number;
   cardReferenceExamples: CardReferenceExample[]; validation: SetMappingValidationResult; operationalError?: string;
+  mappingImplementationStatus: 'requires_set_external_references' | 'already_registered' | 'blocked_by_identity_conflict';
 };
 
 type ValidationReport = {
@@ -79,7 +83,7 @@ async function rows<T>(query: PromiseLike<{ data: T[] | null; error: { message: 
 }
 
 function baseValidationRecord(manifestSet: LocalCatalogManifestSet, candidate: CandidateRecord, validation: SetMappingValidationResult, receivedCards = 0, operationalError?: string): ValidationRecord {
-  return { setId: manifestSet.setId, manifestSetName: manifestSet.name, manifestSeries: manifestSet.series, manifestExpectedCards: manifestSet.expectedCards, manifestJsonPath: manifestSet.jsonPath, sourceReportSetName: candidate.sourceReportSetName, sourceReportExpectedCards: candidate.sourceReportExpectedCards, sourceReportReceivedCards: candidate.sourceReportReceivedCards, candidate: candidate.candidate, existingCatalogSet: null, sourceIdentityMatches: [], receivedCards, incomingCardCount: receivedCards, uniqueCardNumbers: 0, overlappingUniqueCardNumbers: 0, existingExternalCardReferences: 0, conflictingExternalCardReferences: 0, duplicateIncomingCardNumbers: 0, cardReferenceExamples: [], validation, ...(operationalError ? { operationalError } : {}) };
+  return { setId: manifestSet.setId, manifestSetName: manifestSet.name, manifestSeries: manifestSet.series, manifestExpectedCards: manifestSet.expectedCards, manifestJsonPath: manifestSet.jsonPath, sourceReportSetName: candidate.sourceReportSetName, sourceReportExpectedCards: candidate.sourceReportExpectedCards, sourceReportReceivedCards: candidate.sourceReportReceivedCards, candidate: candidate.candidate, existingCatalogSet: null, sourceIdentityMatches: [], receivedCards, incomingCardCount: receivedCards, uniqueCardNumbers: 0, overlappingUniqueCardNumbers: 0, cardNumberIdentityMatches: 0, cardNumberIdentityConflicts: 0, ambiguousCardNumberOverlaps: 0, cardNumberOverlapExamples: [], existingExternalCardReferences: 0, conflictingExternalCardReferences: 0, duplicateIncomingCardNumbers: 0, cardReferenceExamples: [], validation, mappingImplementationStatus: validation.classification === 'blocked' ? 'blocked_by_identity_conflict' : 'requires_set_external_references', ...(operationalError ? { operationalError } : {}) };
 }
 
 async function validateOne(supabase: SupabaseClient, manifestSet: LocalCatalogManifestSet, candidate: CandidateRecord, inputRoot: string, preflightReasonCodes: SetMappingReasonCode[] = []): Promise<ValidationRecord> {
@@ -87,14 +91,22 @@ async function validateOne(supabase: SupabaseClient, manifestSet: LocalCatalogMa
   const numbers = cards.map((card) => card.number.trim()).filter(Boolean); const uniqueNumbers = [...new Set(numbers)].sort(); const setCode = candidate.candidate.set_code;
   const proposedRows = await rows<CatalogSet>(supabase.from('sets_catalog').select('set_code,name,series,source,source_id').eq('set_code', setCode), 'sets_catalog proposed set');
   const sourceRows = await rows<CatalogSet>(supabase.from('sets_catalog').select('set_code,name,series,source,source_id').eq('source', SET_EXTERNAL_SOURCE).eq('source_id', manifestSet.setId), 'sets_catalog external set identity');
-  const catalogCards = await rows<CatalogCard>(supabase.from('cards_catalog').select('id,set_code,number').eq('set_code', setCode), 'cards_catalog proposed set');
+  const catalogCards = await rows<CatalogCardWithName>(supabase.from('cards_catalog').select('id,set_code,number,name').eq('set_code', setCode), 'cards_catalog proposed set');
   const catalogNumbers = new Set(catalogCards.map((card) => card.number?.trim()).filter((value): value is string => Boolean(value)));
   const externalIds = cards.map((card) => card.id); const references = await rows<Reference>(supabase.from('card_external_references').select('id,source,external_id,card_catalog_id').eq('source', CARD_EXTERNAL_SOURCE).in('external_id', externalIds), 'card_external_references intended source');
   const linkedIds = [...new Set(references.map((ref) => ref.card_catalog_id).filter((id): id is string => Boolean(id)))];
   const linkedCards = linkedIds.length === 0 ? [] : await rows<CatalogCard>(supabase.from('cards_catalog').select('id,set_code,number').in('id', linkedIds), 'cards_catalog referenced cards');
   const cardsById = new Map(linkedCards.map((card) => [card.id, card])); const refsByExternalId = new Map<string, Reference[]>();
   for (const ref of references) refsByExternalId.set(ref.external_id, [...(refsByExternalId.get(ref.external_id) ?? []), ref]);
-  const cardReferenceExamples: CardReferenceExample[] = []; let conflicts = 0;
+  const cardReferenceExamples: CardReferenceExample[] = []; const cardNumberOverlapExamples: CardNumberExample[] = []; let conflicts = 0; let cardNumberIdentityMatches = 0; let cardNumberIdentityConflicts = 0; let ambiguousCardNumberOverlaps = 0;
+  for (const number of uniqueNumbers) {
+    const incoming = cards.find((card) => card.number.trim() === number)!; const possible = catalogCards.filter((card) => (card.number ?? '').trim() === number);
+    if (possible.length === 0) continue;
+    if (possible.length > 1) { ambiguousCardNumberOverlaps += 1; cardNumberOverlapExamples.push({ external_id: incoming.id, number, external_name: incoming.name, existing_name: possible[0].name, catalog_card_id: possible[0].id, actual_set_code: possible[0].set_code, reason: 'ambiguous_card_number_overlap' }); continue; }
+    const existing = possible[0];
+    if (existing.name && existing.name.trim().toLocaleLowerCase('en-US') === incoming.name.trim().toLocaleLowerCase('en-US')) { cardNumberIdentityMatches += 1; cardNumberOverlapExamples.push({ external_id: incoming.id, number, external_name: incoming.name, existing_name: existing.name, catalog_card_id: existing.id, actual_set_code: existing.set_code, reason: 'card_number_identity_match' }); }
+    else { cardNumberIdentityConflicts += 1; cardNumberOverlapExamples.push({ external_id: incoming.id, number, external_name: incoming.name, existing_name: existing.name, catalog_card_id: existing.id, actual_set_code: existing.set_code, reason: 'card_number_identity_conflict' }); }
+  }
   for (const [externalId, refs] of [...refsByExternalId.entries()].sort()) {
     const expected = cards.find((card) => card.id === externalId)!;
     if (refs.length > 1) { conflicts += 1; const linked = refs[0].card_catalog_id ? cardsById.get(refs[0].card_catalog_id) : undefined; cardReferenceExamples.push({ external_id: externalId, card_catalog_id: refs[0].card_catalog_id, expected_number: expected.number, actual_number: linked?.number, actual_set_code: linked?.set_code, reason: 'multiple_card_references' }); continue; }
@@ -104,17 +116,18 @@ async function validateOne(supabase: SupabaseClient, manifestSet: LocalCatalogMa
     if ((linked.number ?? '').trim() !== expected.number.trim()) { conflicts += 1; cardReferenceExamples.push({ external_id: externalId, card_catalog_id: linked.id, expected_number: expected.number, actual_number: linked.number, actual_set_code: linked.set_code, reason: 'card_reference_wrong_number' }); }
   }
   const existingCatalogSet = proposedRows.length === 1 ? proposedRows[0] : null;
-  const proposedConflict = proposedRows.some((row) => row.source !== SET_EXTERNAL_SOURCE || row.source_id !== manifestSet.setId);
+  const proposedConflict = proposedRows.some((row) => row.source === SET_EXTERNAL_SOURCE && Boolean(row.source_id) && row.source_id !== manifestSet.setId);
   const input: SetMappingCandidateInput = {
     externalSetId: manifestSet.setId, externalSetName: manifestSet.name, externalSeries: manifestSet.series, proposedSetCode: setCode,
     candidateSource: SET_EXTERNAL_SOURCE, candidateSourceId: manifestSet.setId, candidateCount: 1, catalogSet: existingCatalogSet, catalogSetRowCount: proposedRows.length,
     catalogSourceIdentityMatchCount: sourceRows.length, catalogSourceIdentityOtherSetCount: sourceRows.filter((row) => row.set_code !== setCode).length,
     proposedSetHasConflictingSourceIdentity: proposedConflict, missingExternalProvenance: proposedRows.length === 0 || proposedRows.some((row) => !row.source || !row.source_id),
-    incomingCardCount: cards.length, uniqueIncomingCardNumbers: uniqueNumbers.length, overlappingUniqueCardNumbers: uniqueNumbers.filter((number) => catalogNumbers.has(number)).length,
+    incomingCardCount: cards.length, uniqueIncomingCardNumbers: uniqueNumbers.length, overlappingUniqueCardNumbers: uniqueNumbers.filter((number) => catalogNumbers.has(number)).length, cardNumberIdentityMatches, cardNumberIdentityConflicts, ambiguousCardNumberOverlaps,
     existingExternalCardReferences: references.length, conflictingExternalCardReferences: conflicts, duplicateIncomingCardNumbers: numbers.length - uniqueNumbers.length, preflightReasonCodes: [...preflightReasonCodes, ...cardReferenceExamples.map((example) => example.reason)],
   };
   const validation = validateSetMappingCandidate(input);
-  return { ...baseValidationRecord(manifestSet, candidate, validation, cards.length), existingCatalogSet, sourceIdentityMatches: sourceRows, receivedCards: cards.length, incomingCardCount: cards.length, uniqueCardNumbers: uniqueNumbers.length, overlappingUniqueCardNumbers: input.overlappingUniqueCardNumbers, existingExternalCardReferences: references.length, conflictingExternalCardReferences: conflicts, duplicateIncomingCardNumbers: input.duplicateIncomingCardNumbers ?? 0, cardReferenceExamples };
+  const mappingImplementationStatus = validation.classification === 'blocked' ? 'blocked_by_identity_conflict' : sourceRows.some((row) => row.set_code === setCode) ? 'already_registered' : 'requires_set_external_references';
+  return { ...baseValidationRecord(manifestSet, candidate, validation, cards.length), existingCatalogSet, sourceIdentityMatches: sourceRows, receivedCards: cards.length, incomingCardCount: cards.length, uniqueCardNumbers: uniqueNumbers.length, overlappingUniqueCardNumbers: input.overlappingUniqueCardNumbers, cardNumberIdentityMatches, cardNumberIdentityConflicts, ambiguousCardNumberOverlaps, cardNumberOverlapExamples, existingExternalCardReferences: references.length, conflictingExternalCardReferences: conflicts, duplicateIncomingCardNumbers: input.duplicateIncomingCardNumbers ?? 0, cardReferenceExamples, mappingImplementationStatus };
 }
 
 function errorRecord(manifestSet: LocalCatalogManifestSet, candidate: CandidateRecord, reason: SetMappingReasonCode, error: string): ValidationRecord {
@@ -134,7 +147,7 @@ export async function runValidation(params: { manifestPath: string; inputRoot: s
     if (candidate.sourceReportReceivedCards !== undefined && candidate.sourceReportReceivedCards !== manifestSet.expectedCards) preflight.push('received_cards_mismatch');
     try {
       const record = await validateOne(params.supabase, manifestSet, candidate, params.inputRoot, preflight);
-      if (record.receivedCards !== manifestSet.expectedCards) record.validation = validateSetMappingCandidate({ externalSetId: manifestSet.setId, externalSetName: manifestSet.name, externalSeries: manifestSet.series, proposedSetCode: candidate.candidate.set_code, candidateCount: 1, catalogSet: record.existingCatalogSet, catalogSetRowCount: record.existingCatalogSet ? 1 : 0, catalogSourceIdentityMatchCount: record.sourceIdentityMatches.length, catalogSourceIdentityOtherSetCount: record.sourceIdentityMatches.filter((row) => row.set_code !== candidate.candidate.set_code).length, incomingCardCount: record.incomingCardCount, uniqueIncomingCardNumbers: record.uniqueCardNumbers, overlappingUniqueCardNumbers: record.overlappingUniqueCardNumbers, existingExternalCardReferences: record.existingExternalCardReferences, conflictingExternalCardReferences: record.conflictingExternalCardReferences, duplicateIncomingCardNumbers: record.duplicateIncomingCardNumbers, preflightReasonCodes: [...preflight, 'received_cards_mismatch', ...record.cardReferenceExamples.map((example) => example.reason)] });
+      if (record.receivedCards !== manifestSet.expectedCards) record.validation = validateSetMappingCandidate({ externalSetId: manifestSet.setId, externalSetName: manifestSet.name, externalSeries: manifestSet.series, proposedSetCode: candidate.candidate.set_code, candidateCount: 1, catalogSet: record.existingCatalogSet, catalogSetRowCount: record.existingCatalogSet ? 1 : 0, catalogSourceIdentityMatchCount: record.sourceIdentityMatches.length, catalogSourceIdentityOtherSetCount: record.sourceIdentityMatches.filter((row) => row.set_code !== candidate.candidate.set_code).length, incomingCardCount: record.incomingCardCount, uniqueIncomingCardNumbers: record.uniqueCardNumbers, overlappingUniqueCardNumbers: record.overlappingUniqueCardNumbers, cardNumberIdentityMatches: record.cardNumberIdentityMatches, cardNumberIdentityConflicts: record.cardNumberIdentityConflicts, ambiguousCardNumberOverlaps: record.ambiguousCardNumberOverlaps, existingExternalCardReferences: record.existingExternalCardReferences, conflictingExternalCardReferences: record.conflictingExternalCardReferences, duplicateIncomingCardNumbers: record.duplicateIncomingCardNumbers, preflightReasonCodes: [...preflight, 'received_cards_mismatch', ...record.cardReferenceExamples.map((example) => example.reason)] });
       records.push(record);
     } catch (error) { const message = error instanceof Error ? error.message : 'Onbekende operationele validatiefout.'; const stableMessage = message.split(resolve(params.inputRoot)).join('<input-root>'); operationalErrors.push(`${candidate.setId}: ${stableMessage}`); records.push(errorRecord(manifestSet, candidate, 'database_read_error', stableMessage)); }
   }
