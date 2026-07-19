@@ -6,9 +6,9 @@ This document contains current operational state only. Historical direction belo
 
 ## Current phase
 
-**Phase 7B-2F9D-A — Read-only validatie van exacte setmappings (actief)**
+**Phase 7B-2F9D-A — Read-only validatie van exacte setmappings (afgerond)**
 
-De validator leest uitsluitend de 44 `exact_candidate`-resultaten uit het PR138-rapport tegen hetzelfde gepinde manifest en datasetprofiel. Per kandidaat worden `sets_catalog`, naam/serie, provenance, kaartnummerdekking, externe kaartreferenties en set-/bronconflicten read-only gecontroleerd. De uitkomst is deterministisch, bevat machineleesbare reason codes en rapporteert altijd `databaseWritesTotal: 0`.
+De validator verwerkte uitsluitend de 44 `exact_candidate`-resultaten uit het PR138-rapport tegen hetzelfde gepinde manifest en datasetprofiel. De definitieve read-only run eindigde met status `PASS`, 41 `safe_for_mapping_review`, 1 `needs_manual_review` (`zsv10pt5`, dubbele inkomende kaartnummers), 2 `blocked` (`sv9` en `swsh9`, echte kaartnummer-/naamidentiteitsconflicten), 0 operationele fouten en `databaseWritesTotal: 0`. Van de kandidaten vereisen 42 later `set_external_references`; 2 zijn `blocked_by_identity_conflict`.
 
 **Phase 7B-2F9C — Read-only failure-classificatie en setmappingplan (afgerond)**
 
@@ -100,8 +100,4 @@ De operationele 2F9C-run is afgerond: 173 sets verwerkt, 7 inhoudelijke PASS, 16
 
 ## Next phase scope
 
-Phase 7B-2F9D-A: kandidaatclassificaties blijven inhoudelijke analyse-uitvoer; mappingpromotie, bredere cataloguswrites en een eventuele `set_external_references`-tabel zijn expliciet uitgesloten.
-
-De live 44-kandidatenrun is lokaal nog niet uitgevoerd: deze checkout bevat geen `PokemonTCG/pokemon-tcg-data`-input-root, PR138-bronrapport of Supabase-leescredentials. De CLI faalt hiervoor gesloten en produceert geen gedeeltelijk of fictief rapport.
-
-Voorgestelde Phase 7B-2F9D beoordeelt de 44 `exact_candidate`-setmappings gecontroleerd en read-only. Kandidaten worden niet automatisch betrouwbaar gemaakt; iedere mappingwijziging en iedere bredere cataloguswrite vereist een afzonderlijke analyse, expliciete goedkeuring en eigen PR. De 118 sets zonder kandidaat blijven geblokkeerd. Trade remains a separate future area and the lowest product priority.
+De volgende fase introduceert `set_external_references`, bereidt de 41 veilige mappings gecontroleerd voor, beoordeelt `zsv10pt5` afzonderlijk en houdt `sv9` en `swsh9` geblokkeerd tot conflictresolutie. Iedere mappingwijziging en bredere cataloguswrite vereist afzonderlijke analyse, expliciete goedkeuring en een eigen PR. De 118 sets zonder kandidaat blijven geblokkeerd. Trade remains a separate future area and the lowest product priority.

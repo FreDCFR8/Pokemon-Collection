@@ -28,7 +28,7 @@ This document shows product direction and phase status. It intentionally avoids 
 
 ## Catalog and imports
 
-- 🚧 Phase 7B-2F9D-A — read-only validatie en beoordelingsrapport voor 44 exacte setmappingkandidaten
+- ✅ Phase 7B-2F9D-A — read-only validatie en beoordelingsrapport voor 44 exacte setmappingkandidaten
 
 - ✅ `cards_catalog` runtime source of truth
 - ✅ `sets_catalog` canonical set metadata
@@ -48,7 +48,8 @@ This document shows product direction and phase status. It intentionally avoids 
 - ✅ Phase 7B-2F9A — automatische volledige lokale datasetinventaris
 - ✅ Phase 7B-2F9B — hervatbare volledige lokale catalogus-dry-run
 - ✅ Phase 7B-2F9C — read-only failure-classificatie en setmappingplan
-- 🔎 Phase 7B-2F9D — gecontroleerde beoordeling van 44 exacte setmappingkandidaten
+- ✅ Phase 7B-2F9D — gecontroleerde beoordeling van 44 exacte setmappingkandidaten: 41 veilig voor mapping review, 1 handmatige review (`zsv10pt5`) en 2 geblokkeerd (`sv9`, `swsh9`); 0 operationele fouten en 0 databasewrites
+- 🚧 Next: `set_external_references` introduceren, de 41 veilige mappings gecontroleerd voorbereiden, `zsv10pt5` afzonderlijk beoordelen en `sv9`/`swsh9` geblokkeerd houden tot conflictresolutie
 - ⏳ broader catalog synchronization and catalog writes after separate approval
 
 ## Sets and binder experience
