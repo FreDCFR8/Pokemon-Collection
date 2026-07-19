@@ -4,6 +4,7 @@ This living document records important architectural and product decisions and, 
 
 | Date | Phase | Decision | Reason and lasting effect |
 |---|---|---|---|
+| 2026-07 | Phase 7B-2F9D-B | Store external set identities in `set_external_references` and keep `sets_catalog.source/source_id` immutable. | The 41 safe PR139 mappings add parallel identity; overwriting legacy provenance would lose source history. The plan and runner remain dry-run-first, and schema/data writes require separate approval. |
 | 2026-07 | Project restart | Build Pokémon Collection V3 as a clean React, TypeScript and Supabase project instead of continuing the previous patched application. | The previous application had accumulated overlapping patches, regressions and technical debt. V3 prioritizes long-term maintainability and stable evolution. |
 | 2026-07 | Workflow | Keep `main` stable and use one branch and PR per clear objective. | Small isolated changes are easier to review, test, revert and reason about. |
 | 2026-07 | Workflow | Require explicit technical review and UX review before merging user-facing work. | Functional correctness alone did not produce a product-ready result during the set-card work. Both data safety and user experience must be approved. |

@@ -79,8 +79,12 @@ export function validateSetMappingCandidate(input: SetMappingCandidateInput): Se
 }
 
 export function stableJson(value: unknown): string {
-  if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
-  if (value && typeof value === 'object') return `{${Object.keys(value as Record<string, unknown>).sort().map((key) => `${JSON.stringify(key)}:${stableJson((value as Record<string, unknown>)[key])}`).join(',')}}`;
-  return JSON.stringify(value);
+  if (value === undefined) return 'null';
+  if (Array.isArray(value)) return `[${value.map((item) => stableJson(item)).join(',')}]`;
+  if (value && typeof value === 'object') {
+    const objectValue = value as Record<string, unknown>;
+    return `{${Object.keys(objectValue).filter((key) => objectValue[key] !== undefined).sort().map((key) => `${JSON.stringify(key)}:${stableJson(objectValue[key])}`).join(',')}}`;
+  }
+  return JSON.stringify(value) ?? 'null';
 }
 export function reportHash(value: unknown): string { return createHash('sha256').update(stableJson(value)).digest('hex'); }

@@ -1,0 +1,343 @@
+{
+  "schemaVersion": 1,
+  "phase": "Phase 7B-2F9D-B",
+  "source": "pokemon_tcg_data",
+  "datasetRepository": "PokemonTCG/pokemon-tcg-data",
+  "datasetVersion": "0af6250a22495e4a3e9f60ff45fc3fedc2e0563d",
+  "manifestHash": "f56b58065b3ed4a16e67b1af1102bd407c389999799e1f2293fa21f84cea6671",
+  "pr139ReportHash": "a4239078e14c137aeff1e9ae5e7675b2d8c017e20854efe5d05638e57f47ba58",
+  "pr139SourceReportHash": "777e63dca70ebd8d7eaa07a1a33b3cc5aae38e33a4c11089e6a70a4365ca5c03",
+  "mappingCount": 41,
+  "databaseWritesTotal": 0,
+  "mappings": [
+    {
+      "setCode": "bw9",
+      "externalId": "bw9",
+      "source": "pokemon_tcg_api",
+      "sourceUrl": "https://api.pokemontcg.io/v2/sets/bw9",
+      "legacySource": "derived_from_existing_card_urls",
+      "legacySourceId": null
+    },
+    {
+      "setCode": "cel25",
+      "externalId": "cel25",
+      "source": "pokemon_tcg_api",
+      "sourceUrl": "https://api.pokemontcg.io/v2/sets/cel25",
+      "legacySource": "derived_from_existing_card_urls",
+      "legacySourceId": null
+    },
+    {
+      "setCode": "mcd22",
+      "externalId": "mcd22",
+      "source": "pokemon_tcg_api",
+      "sourceUrl": "https://api.pokemontcg.io/v2/sets/mcd22",
+      "legacySource": "derived_from_existing_card_urls",
+      "legacySourceId": null
+    },
+    {
+      "setCode": "me1",
+      "externalId": "me1",
+      "source": "pokemon_tcg_api",
+      "sourceUrl": "https://api.pokemontcg.io/v2/sets/me1",
+      "legacySource": "derived_from_existing_card_urls",
+      "legacySourceId": null
+    },
+    {
+      "setCode": "me2",
+      "externalId": "me2",
+      "source": "pokemon_tcg_api",
+      "sourceUrl": "https://api.pokemontcg.io/v2/sets/me2",
+      "legacySource": "derived_from_existing_card_urls",
+      "legacySourceId": null
+    },
+    {
+      "setCode": "me2pt5",
+      "externalId": "me2pt5",
+      "source": "pokemon_tcg_api",
+      "sourceUrl": "https://api.pokemontcg.io/v2/sets/me2pt5",
+      "legacySource": "derived_from_existing_card_urls",
+      "legacySourceId": null
+    },
+    {
+      "setCode": "me3",
+      "externalId": "me3",
+      "source": "pokemon_tcg_api",
+      "sourceUrl": "https://api.pokemontcg.io/v2/sets/me3",
+      "legacySource": "derived_from_existing_card_urls",
+      "legacySourceId": null
+    },
+    {
+      "setCode": "me4",
+      "externalId": "me4",
+      "source": "pokemon_tcg_api",
+      "sourceUrl": "https://api.pokemontcg.io/v2/sets/me4",
+      "legacySource": "derived_from_existing_card_urls",
+      "legacySourceId": null
+    },
+    {
+      "setCode": "pgo",
+      "externalId": "pgo",
+      "source": "pokemon_tcg_api",
+      "sourceUrl": "https://api.pokemontcg.io/v2/sets/pgo",
+      "legacySource": "manual_review",
+      "legacySourceId": null
+    },
+    {
+      "setCode": "rsv10pt5",
+      "externalId": "rsv10pt5",
+      "source": "pokemon_tcg_api",
+      "sourceUrl": "https://api.pokemontcg.io/v2/sets/rsv10pt5",
+      "legacySource": "derived_from_existing_card_urls",
+      "legacySourceId": null
+    },
+    {
+      "setCode": "sm1",
+      "externalId": "sm1",
+      "source": "pokemon_tcg_api",
+      "sourceUrl": "https://api.pokemontcg.io/v2/sets/sm1",
+      "legacySource": "derived_from_existing_card_urls",
+      "legacySourceId": null
+    },
+    {
+      "setCode": "sm12",
+      "externalId": "sm12",
+      "source": "pokemon_tcg_api",
+      "sourceUrl": "https://api.pokemontcg.io/v2/sets/sm12",
+      "legacySource": "derived_from_existing_card_urls",
+      "legacySourceId": null
+    },
+    {
+      "setCode": "sm2",
+      "externalId": "sm2",
+      "source": "pokemon_tcg_api",
+      "sourceUrl": "https://api.pokemontcg.io/v2/sets/sm2",
+      "legacySource": "derived_from_existing_card_urls",
+      "legacySourceId": null
+    },
+    {
+      "setCode": "sm35",
+      "externalId": "sm35",
+      "source": "pokemon_tcg_api",
+      "sourceUrl": "https://api.pokemontcg.io/v2/sets/sm35",
+      "legacySource": "derived_from_existing_card_urls",
+      "legacySourceId": null
+    },
+    {
+      "setCode": "sm4",
+      "externalId": "sm4",
+      "source": "pokemon_tcg_api",
+      "sourceUrl": "https://api.pokemontcg.io/v2/sets/sm4",
+      "legacySource": "derived_from_existing_card_urls",
+      "legacySourceId": null
+    },
+    {
+      "setCode": "sm7",
+      "externalId": "sm7",
+      "source": "pokemon_tcg_api",
+      "sourceUrl": "https://api.pokemontcg.io/v2/sets/sm7",
+      "legacySource": "derived_from_existing_card_urls",
+      "legacySourceId": null
+    },
+    {
+      "setCode": "sm8",
+      "externalId": "sm8",
+      "source": "pokemon_tcg_api",
+      "sourceUrl": "https://api.pokemontcg.io/v2/sets/sm8",
+      "legacySource": "derived_from_existing_card_urls",
+      "legacySourceId": null
+    },
+    {
+      "setCode": "sv10",
+      "externalId": "sv10",
+      "source": "pokemon_tcg_api",
+      "sourceUrl": "https://api.pokemontcg.io/v2/sets/sv10",
+      "legacySource": "manual_review",
+      "legacySourceId": null
+    },
+    {
+      "setCode": "sv8pt5",
+      "externalId": "sv8pt5",
+      "source": "pokemon_tcg_api",
+      "sourceUrl": "https://api.pokemontcg.io/v2/sets/sv8pt5",
+      "legacySource": "derived_from_existing_card_urls",
+      "legacySourceId": null
+    },
+    {
+      "setCode": "swsh1",
+      "externalId": "swsh1",
+      "source": "pokemon_tcg_api",
+      "sourceUrl": "https://api.pokemontcg.io/v2/sets/swsh1",
+      "legacySource": "derived_from_existing_card_urls",
+      "legacySourceId": null
+    },
+    {
+      "setCode": "swsh10",
+      "externalId": "swsh10",
+      "source": "pokemon_tcg_api",
+      "sourceUrl": "https://api.pokemontcg.io/v2/sets/swsh10",
+      "legacySource": "manual_review",
+      "legacySourceId": null
+    },
+    {
+      "setCode": "swsh10tg",
+      "externalId": "swsh10tg",
+      "source": "pokemon_tcg_api",
+      "sourceUrl": "https://api.pokemontcg.io/v2/sets/swsh10tg",
+      "legacySource": "derived_from_existing_card_urls",
+      "legacySourceId": null
+    },
+    {
+      "setCode": "swsh11",
+      "externalId": "swsh11",
+      "source": "pokemon_tcg_api",
+      "sourceUrl": "https://api.pokemontcg.io/v2/sets/swsh11",
+      "legacySource": "manual_review",
+      "legacySourceId": null
+    },
+    {
+      "setCode": "swsh11tg",
+      "externalId": "swsh11tg",
+      "source": "pokemon_tcg_api",
+      "sourceUrl": "https://api.pokemontcg.io/v2/sets/swsh11tg",
+      "legacySource": "derived_from_existing_card_urls",
+      "legacySourceId": null
+    },
+    {
+      "setCode": "swsh12",
+      "externalId": "swsh12",
+      "source": "pokemon_tcg_api",
+      "sourceUrl": "https://api.pokemontcg.io/v2/sets/swsh12",
+      "legacySource": "manual_review",
+      "legacySourceId": null
+    },
+    {
+      "setCode": "swsh12pt5",
+      "externalId": "swsh12pt5",
+      "source": "pokemon_tcg_api",
+      "sourceUrl": "https://api.pokemontcg.io/v2/sets/swsh12pt5",
+      "legacySource": "manual_review",
+      "legacySourceId": null
+    },
+    {
+      "setCode": "swsh12pt5gg",
+      "externalId": "swsh12pt5gg",
+      "source": "pokemon_tcg_api",
+      "sourceUrl": "https://api.pokemontcg.io/v2/sets/swsh12pt5gg",
+      "legacySource": "derived_from_existing_card_urls",
+      "legacySourceId": null
+    },
+    {
+      "setCode": "swsh12tg",
+      "externalId": "swsh12tg",
+      "source": "pokemon_tcg_api",
+      "sourceUrl": "https://api.pokemontcg.io/v2/sets/swsh12tg",
+      "legacySource": "derived_from_existing_card_urls",
+      "legacySourceId": null
+    },
+    {
+      "setCode": "swsh2",
+      "externalId": "swsh2",
+      "source": "pokemon_tcg_api",
+      "sourceUrl": "https://api.pokemontcg.io/v2/sets/swsh2",
+      "legacySource": "derived_from_existing_card_urls",
+      "legacySourceId": null
+    },
+    {
+      "setCode": "swsh3",
+      "externalId": "swsh3",
+      "source": "pokemon_tcg_api",
+      "sourceUrl": "https://api.pokemontcg.io/v2/sets/swsh3",
+      "legacySource": "derived_from_existing_card_urls",
+      "legacySourceId": null
+    },
+    {
+      "setCode": "swsh35",
+      "externalId": "swsh35",
+      "source": "pokemon_tcg_api",
+      "sourceUrl": "https://api.pokemontcg.io/v2/sets/swsh35",
+      "legacySource": "derived_from_existing_card_urls",
+      "legacySourceId": null
+    },
+    {
+      "setCode": "swsh4",
+      "externalId": "swsh4",
+      "source": "pokemon_tcg_api",
+      "sourceUrl": "https://api.pokemontcg.io/v2/sets/swsh4",
+      "legacySource": "derived_from_existing_card_urls",
+      "legacySourceId": null
+    },
+    {
+      "setCode": "swsh45",
+      "externalId": "swsh45",
+      "source": "pokemon_tcg_api",
+      "sourceUrl": "https://api.pokemontcg.io/v2/sets/swsh45",
+      "legacySource": "derived_from_existing_card_urls",
+      "legacySourceId": null
+    },
+    {
+      "setCode": "swsh5",
+      "externalId": "swsh5",
+      "source": "pokemon_tcg_api",
+      "sourceUrl": "https://api.pokemontcg.io/v2/sets/swsh5",
+      "legacySource": "derived_from_existing_card_urls",
+      "legacySourceId": null
+    },
+    {
+      "setCode": "swsh6",
+      "externalId": "swsh6",
+      "source": "pokemon_tcg_api",
+      "sourceUrl": "https://api.pokemontcg.io/v2/sets/swsh6",
+      "legacySource": "derived_from_existing_card_urls",
+      "legacySourceId": null
+    },
+    {
+      "setCode": "swsh7",
+      "externalId": "swsh7",
+      "source": "pokemon_tcg_api",
+      "sourceUrl": "https://api.pokemontcg.io/v2/sets/swsh7",
+      "legacySource": "manual_review",
+      "legacySourceId": null
+    },
+    {
+      "setCode": "swsh8",
+      "externalId": "swsh8",
+      "source": "pokemon_tcg_api",
+      "sourceUrl": "https://api.pokemontcg.io/v2/sets/swsh8",
+      "legacySource": "manual_review",
+      "legacySourceId": null
+    },
+    {
+      "setCode": "swsh9tg",
+      "externalId": "swsh9tg",
+      "source": "pokemon_tcg_api",
+      "sourceUrl": "https://api.pokemontcg.io/v2/sets/swsh9tg",
+      "legacySource": "derived_from_existing_card_urls",
+      "legacySourceId": null
+    },
+    {
+      "setCode": "swshp",
+      "externalId": "swshp",
+      "source": "pokemon_tcg_api",
+      "sourceUrl": "https://api.pokemontcg.io/v2/sets/swshp",
+      "legacySource": "derived_from_existing_card_urls",
+      "legacySourceId": null
+    },
+    {
+      "setCode": "xy11",
+      "externalId": "xy11",
+      "source": "pokemon_tcg_api",
+      "sourceUrl": "https://api.pokemontcg.io/v2/sets/xy11",
+      "legacySource": "derived_from_existing_card_urls",
+      "legacySourceId": null
+    },
+    {
+      "setCode": "xy9",
+      "externalId": "xy9",
+      "source": "pokemon_tcg_api",
+      "sourceUrl": "https://api.pokemontcg.io/v2/sets/xy9",
+      "legacySource": "derived_from_existing_card_urls",
+      "legacySourceId": null
+    }
+  ],
+  "planHash": "4d839615f9cf2a62aa15b55f164ae34f9f8ff1f591fe718ee9526c17d699dafb"
+}
