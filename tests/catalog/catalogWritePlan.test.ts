@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createCatalogWritePlan, validateCatalogWritePlan } from '../../scripts/catalog/catalog-write-plan.ts';
-import { buildCanonicalSetAnalysis } from '../../scripts/catalog/import-set.ts';
+import { buildCanonicalSetAnalysis, deterministicCatalogCardUuid, isValidPostgresUuid } from '../../scripts/catalog/import-set.ts';
 import { BATCH_1_SET_IDS } from '../../scripts/catalog/import-batch-args.ts';
 
 const set = { setId: 'bw9', setCode: 'bw9', setCatalogId: 'set-catalog-bw9', expectedCards: 1, receivedCards: 1, actions: [{ action: 'existingIdentical' as const, externalSource: 'pokemon_tcg_api', externalId: 'bw9-1', setId: 'bw9', setCode: 'bw9', setCatalogId: 'set-catalog-bw9', cardCatalogId: 'card-bw9-1', cardNumber: '1', name: 'Fixture', rarity: null, image_small: null, image_large: null }], plannedCatalogInserts: 0, plannedReferenceInserts: 0, blockedItems: 0, conflicts: 0 };
@@ -69,6 +69,27 @@ test('valid set identity preserves existing and insertCardAndReference actions',
   assert.equal(existing.blockedItems + inserted.blockedItems, 0);
 });
 
+test('deterministische catalog UUIDs zijn geldige version 4 UUIDs', () => {
+  const uuid = deterministicCatalogCardUuid('pokemon_tcg_api', 'sv1-1');
+  assert.match(uuid, /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+  assert.equal(isValidPostgresUuid(uuid), true);
+  assert.equal(uuid[14], '4');
+  assert.ok('89ab'.includes(uuid[19].toLowerCase()));
+  assert.equal(uuid, deterministicCatalogCardUuid('pokemon_tcg_api', 'sv1-1'));
+  assert.notEqual(uuid, deterministicCatalogCardUuid('pokemon_tcg_api', 'sv1-2'));
+  assert.notEqual(uuid, deterministicCatalogCardUuid('other_source', 'sv1-1'));
+});
+
+test('nieuwe cataloguskaart en reference gebruiken exact dezelfde deterministische UUID', () => {
+  const analysis = buildCanonicalSetAnalysis({ setId: 'bw9', setName: 'Fixture', expectedCards: 1, matching: matchingForCards(['bw9-1'], 'set-catalog-bw9', 'bw9', 'new') });
+  const action = analysis.actions[0];
+  assert.equal(action.action, 'insertCardAndReference');
+  if (action.action !== 'insertCardAndReference') return;
+  assert.equal(isValidPostgresUuid(action.catalogInsert.id), true);
+  assert.equal(action.catalogInsert.id, action.referenceInsert.card_catalog_id);
+  assert.equal(action.catalogInsert.id, deterministicCatalogCardUuid('pokemon_tcg_api', 'bw9-1'));
+});
+
 test('blocked plans with missing set identity cannot be approved', () => {
   const blocked = createCatalogWritePlan({
     source: 'pokemon_tcg_data', datasetRepository: 'PokemonTCG/pokemon-tcg-data', datasetVersion: 'a'.repeat(40), datasetCommit: 'a'.repeat(40), manifestHash: 'b'.repeat(64), sourceReportHash: 'c'.repeat(64), batch: 'batch-1', sets: ['bw9'], expectedCardsTotal: 1, existingCardsTotal: 0, plannedCatalogInserts: 0, plannedReferenceInserts: 0, conflicts: [], blockedItems: [{ externalId: 'bw9-1', reason: 'missing_set_catalog_identity' }], perSet: [{ ...set, setCode: undefined, setCatalogId: undefined, actions: [{ action: 'blocked' as const, externalSource: 'pokemon_tcg_api', externalId: 'bw9-1', setId: 'bw9', cardNumber: '1', reason: 'missing_set_catalog_identity' }], blockedItems: 1 }],
@@ -100,4 +121,8 @@ test('Batch 1-plan behoudt de volledige goedgekeurde totalen', () => {
   assert.equal(value.plannedCatalogInserts, 1808);
   assert.equal(value.plannedReferenceInserts, 1808);
   assert.equal(value.plannedCatalogInserts + value.plannedReferenceInserts, 3616);
+  const inserted = perSet.flatMap((item) => item.actions).filter((action) => action.action === 'insertCardAndReference');
+  assert.equal(inserted.length, 1808);
+  assert.ok(inserted.every((action) => isValidPostgresUuid(action.catalogInsert.id)));
+  assert.ok(inserted.every((action) => action.catalogInsert.id === action.referenceInsert.card_catalog_id));
 });
