@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import test from 'node:test';
-import { BATCHES, IMPORT_READY_SETS, PHASE, assertDatasetProfile, checkpointIdentity, parseArgs, preflightDataset, selectBatch, validateBatchLists, validateCheckpoint } from '../../scripts/catalog/rebaseline-read-only.ts';
+import { PHASE, assertDatasetProfile, checkpointIdentity, createCanonicalBatches, parseArgs, preflightDataset, selectBatch, validateBatchLists, validateCheckpoint } from '../../scripts/catalog/rebaseline-read-only.ts';
 import { reportHash } from '../../scripts/catalog/setmapping-validation.ts';
 
 const dataset = 'C:\\Users\\Freru\\AppData\\Local\\Temp\\pokemon-tcg-data';
@@ -11,12 +11,30 @@ test('read-only runner rejects every write-shaped option', () => {
   for (const option of ['--write', '--insert', '--update', '--upsert', '--delete', '--rpc', '--migration']) assert.throws(() => parseArgs(['--dataset', dataset, '--report', 'report.json', option]), /strikt read-only/i);
 });
 
-test('read-only runner requires dataset, batch and report and supports help', () => {
-  assert.throws(() => parseArgs([]), /--dataset, --batch en --report zijn verplicht/);
+test('initial Phase-A analysis runs without an approved report or batch', () => {
+  assert.throws(() => parseArgs([]), /--dataset en --report zijn verplicht/);
   assert.equal(parseArgs(['--help']).help, true);
-  assert.throws(() => parseArgs(['--dataset', dataset, '--batch', 'batch-1', '--report', 'report.json']), /--write-plan is verplicht/);
-  assert.throws(() => parseArgs(['--dataset', dataset, '--batch', 'batch-1', '--report', 'report.json', '--write-plan', 'plan.json', '--resume']), /--resume vereist/);
-  assert.throws(() => parseArgs(['--dataset', dataset, '--batch', 'other', '--report', 'report.json', '--write-plan', 'plan.json']), /batch-1/);
+  const initial = parseArgs(['--dataset', dataset, '--report', 'phase-a.json', '--checkpoint', 'phase-a.checkpoint.json']);
+  assert.equal(initial.mode, 'initial-phase-a');
+  assert.equal('approvedReport' in initial, false);
+});
+
+test('approved batch analysis requires approved report, batch and writeplan', () => {
+  assert.throws(() => parseArgs(['--dataset', dataset, '--report', 'batch.json', '--batch', 'batch-1', '--write-plan', 'plan.json']), /--batch vereist --approved-report/);
+  assert.throws(() => parseArgs(['--dataset', dataset, '--report', 'batch.json', '--approved-report', 'approved.json', '--write-plan', 'plan.json']), /--approved-report vereist --batch/);
+  assert.throws(() => parseArgs(['--dataset', dataset, '--approved-report', 'approved.json', '--batch', 'batch-1', '--report', 'report.json']), /--write-plan is verplicht/);
+  assert.throws(() => parseArgs(['--dataset', dataset, '--approved-report', 'approved.json', '--batch', 'batch-1', '--report', 'report.json', '--write-plan', 'plan.json', '--resume']), /--resume vereist/);
+  assert.throws(() => parseArgs(['--dataset', dataset, '--approved-report', 'approved.json', '--batch', 'other', '--report', 'report.json', '--write-plan', 'plan.json']), /batch-1/);
+});
+
+test('initial Phase-A generation creates a complete canonical batchestructure for 38 or 39 report-owned sets', () => {
+  for (const count of [38, 39]) {
+    const importReadySets = Array.from({ length: count }, (_, index) => `set${index + 1}`);
+    const batches = createCanonicalBatches(importReadySets);
+    const config = { officialImportReadySetIds: importReadySets, expectedImportReadySetCount: importReadySets.length, batches: Object.fromEntries(batches.map((batch) => [batch.name, batch.setIds])) as Record<'batch-1' | 'batch-2' | 'batch-3', string[]> };
+    assert.doesNotThrow(() => validateBatchLists(config));
+    assert.deepEqual(batches.flatMap((batch) => batch.setIds), importReadySets);
+  }
 });
 
 test('dataset profile enforces the pinned complete dataset', () => {
@@ -24,12 +42,10 @@ test('dataset profile enforces the pinned complete dataset', () => {
   assert.throws(() => assertDatasetProfile({ setsIndexed: 172, setsValid: 173, receivedCardsTotal: 20324 }), /Datasetprofiel wijkt af/);
 });
 
-test('batch lists are exact, unique and import-ready', () => {
-  assert.doesNotThrow(validateBatchLists);
-  assert.deepEqual(Object.values(BATCHES).map((batch) => batch.length), [13, 13, 13]);
-  assert.equal(IMPORT_READY_SETS.length, 39);
-  assert.equal(new Set(IMPORT_READY_SETS).size, 39);
-  assert.deepEqual(BATCHES['batch-1'], ['bw9', 'cel25', 'me1', 'me2', 'me2pt5', 'me3', 'me4', 'pgo', 'rsv10pt5', 'sm1', 'sm12', 'sm2', 'sm35']);
+test('batch lists are validated from the approved report and fail closed on count mismatch', () => {
+  const config = { officialImportReadySetIds: ['a', 'b', 'c', 'd'], expectedImportReadySetCount: 4, batches: { 'batch-1': ['a'], 'batch-2': ['b'], 'batch-3': ['c', 'd'] } } as const;
+  assert.doesNotThrow(() => validateBatchLists(config));
+  assert.throws(() => validateBatchLists({ ...config, expectedImportReadySetCount: 5 }), /bevat 4 sets; verwacht 5/);
 });
 
 test('pinned local dataset preflight validates the restored checkout when available', { skip: !existsSync(dataset) }, () => {
@@ -40,9 +56,9 @@ test('pinned local dataset preflight validates the restored checkout when availa
 });
 
 test('checkpoint creation and validation cover the selected batch', () => {
-  const batchManifest = { ...manifest, sets: BATCHES['batch-1'].map((setId) => ({ setId, expectedCards: 1 })) };
+  const batchManifest = { ...manifest, sets: ['a'].map((setId) => ({ setId, expectedCards: 1 })) };
   const checkpoint = checkpointIdentity(batchManifest, 'a'.repeat(64), '2026-07-19T00:00:00.000Z');
-  assert.equal(checkpoint.sets.length, 13);
+  assert.equal(checkpoint.sets.length, 1);
   assert.doesNotThrow(() => validateCheckpoint(checkpoint, batchManifest, 'a'.repeat(64)));
   const corrupt = structuredClone(checkpoint) as typeof checkpoint;
   corrupt.sets[0] = { setId: corrupt.sets[0].setId, status: 'completed' };

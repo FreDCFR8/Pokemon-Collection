@@ -1,0 +1,15 @@
+{
+  "phase": "Phase 7B-2F9E-A/B",
+  "reportType": "read-only-batch-3-dry-run",
+  "batch": "batch-3",
+  "finalStatus": "BLOCKED",
+  "databaseWrites": 0,
+  "plannedWrites": 0,
+  "actualWrites": 0,
+  "idempotencyStatus": "NOT_RUN",
+  "reconciliationStatus": "NOT_RUN",
+  "operationalErrors": ["Pinned local pokemon_tcg_data checkout/input root is not present in the workspace."],
+  "contentBlockades": ["Repository configuration does not contain the requested local Batch 3 set list."],
+  "approvedSets": ["swsh11", "swsh12", "swsh12pt5", "swsh2", "swsh3", "swsh35", "swsh4", "swsh45", "swsh5", "swsh6", "swsh7", "xy11"],
+  "writePlan": null
+}

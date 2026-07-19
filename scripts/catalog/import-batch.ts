@@ -10,9 +10,11 @@ import { assertCheckpointIdentity, CHECKPOINT_SCHEMA_VERSION, checkpointExists, 
 import { addDiagnosticFailure, assertValidDiagnosticResult, classifyDiagnosticOutcome, readDiagnosticResult, type SingleSetDiagnosticResult } from './diagnostic-result.ts';
 import { createClient } from '@supabase/supabase-js';
 import { analysisHash, reportHash } from './catalog-report-identity.ts';
-import { BATCH_1_SET_IDS } from './import-batch-args.ts';
 import { localManifestIdentityFromText } from './catalog-manifest-identity.ts';
 import { validateCatalogWritePlan, type CatalogWritePlan } from './catalog-write-plan.ts';
+import { deriveImportLifecycle, ImportLifecycleTracker, type ImportLifecycleState } from './import-lifecycle.ts';
+import { batchSetConfigurationFromReport, classifyDynamicPrecheck, expectedPostWriteCounts, PhaseAReportValidationError, type CatalogTableCounts } from './catalog-batch-validation.ts';
+import type { CatalogBatchApproval } from './import-args.ts';
 
 type StepName = 'dry-run' | 'write' | 'idempotency';
 
@@ -27,6 +29,7 @@ type StepResult = {
   plannedWrites?: number;
   databaseWrites?: number;
   diagnostic?: SingleSetDiagnosticResult;
+  lifecycle?: ImportLifecycleState;
 };
 
 type SetResult = {
@@ -36,6 +39,7 @@ type SetResult = {
   write?: StepResult;
   idempotency?: StepResult;
   error?: string;
+  lifecycle?: ImportLifecycleState;
 };
 
 type LocalBatchSelection = {
@@ -65,11 +69,13 @@ type ReportSet = {
   databaseWrites?: number;
   error?: string;
   steps: ReportStep[];
+  lifecycle: ImportLifecycleState;
   diagnostic?: Omit<SingleSetDiagnosticResult, 'schemaVersion'>;
 };
 
-function runImportSet(setId: string, write: boolean, inputPath?: string, stepOverride?: StepName, setMetadata?: { name: string; series: string }, expectedCards?: number, batchApproval?: 'batch-1', writePlanPath?: string): StepResult {
+function runImportSet(setId: string, write: boolean, inputPath?: string, stepOverride?: StepName, setMetadata?: { name: string; series: string }, expectedCards?: number, batchApproval?: CatalogBatchApproval, writePlanPath?: string, reconcile = false, lifecycle?: ImportLifecycleTracker): StepResult {
   const step: StepName = stepOverride ?? (write ? 'write' : 'dry-run');
+  if (write) lifecycle?.startWrite();
   const resultPath = join(tmpdir(), `pokemon-catalog-diagnostic-${process.pid}-${Date.now()}-${setId}-${step}.json`);
   const args = [
     '--experimental-strip-types',
@@ -79,27 +85,36 @@ function runImportSet(setId: string, write: boolean, inputPath?: string, stepOve
     ...(inputPath ? ['--source', 'pokemon_tcg_data', '--input', inputPath] : []),
     ...(setMetadata ? ['--set-name', setMetadata.name, '--set-series', setMetadata.series] : []),
     ...(write ? ['--write'] : []),
+    ...(step === 'idempotency' ? ['--idempotency'] : []),
     ...(batchApproval ? ['--batch-approval', batchApproval] : []),
     ...(writePlanPath ? ['--write-plan', writePlanPath] : []),
+    ...(reconcile ? ['--reconcile'] : []),
     '--diagnostic-result', resultPath,
   ];
   const result = spawnSync(process.execPath, args, { encoding: 'utf8' });
   const output = `${result.stdout ?? ''}${result.stderr ?? ''}`;
   try {
-    if (!existsSync(resultPath)) return failClosedStep({ setId, step, exitCode: result.status ?? 1, output, error: 'Subprocessresultaat ontbreekt.' });
+    if (!existsSync(resultPath)) {
+      const failed = failClosedStep({ setId, step, exitCode: result.status ?? 1, output, error: 'Subprocessresultaat ontbreekt.' });
+      if (write) lifecycle?.fail(failed.databaseWrites ?? 0);
+      return { ...failed, lifecycle: lifecycle?.state };
+    }
     const diagnostic = readDiagnosticResult(resultPath);
     if (diagnostic.setId !== setId) throw new Error('Diagnostisch resultaat hoort bij een andere set.');
     if (expectedCards !== undefined && diagnostic.expectedCards !== expectedCards) throw new Error('Diagnostisch expectedCards komt niet overeen met het manifest.');
-    return validateStepOutput({ step, exitCode: result.status ?? 1, output, diagnostic });
+    const validated = validateStepOutput({ step, exitCode: result.status ?? 1, output, diagnostic });
+    if (write) validated.passed ? lifecycle?.completeWrite() : lifecycle?.fail(validated.databaseWrites ?? 0);
+    return { ...validated, lifecycle: lifecycle?.state };
   } catch (error) {
-    return failClosedStep({ setId, step, exitCode: result.status ?? 1, output, error: error instanceof Error ? error.message : 'Ongeldig subprocessresultaat.' });
+    const failed = failClosedStep({ setId, step, exitCode: result.status ?? 1, output, error: error instanceof Error ? error.message : 'Ongeldig subprocessresultaat.' });
+    if (write) lifecycle?.fail(failed.databaseWrites ?? 0);
+    return { ...failed, lifecycle: lifecycle?.state };
   } finally {
     try { rmSync(resultPath, { force: true }); } catch { /* diagnostiek is al ingelezen */ }
   }
 }
 
-const EXPECTED_POSTCHECK_COUNTS = { cards_catalog: 3213, card_external_references: 3176, collection_cards: 1106, sets_catalog: 55, set_external_references: 41 } as const;
-type TableCounts = Record<keyof typeof EXPECTED_POSTCHECK_COUNTS, number>;
+type TableCounts = CatalogTableCounts;
 
 export function validateApprovedDryRunReportText(text: string): Record<string, any> {
   let report: any;
@@ -108,9 +123,11 @@ export function validateApprovedDryRunReportText(text: string): Record<string, a
   const suppliedAnalysisHash = report?.analysisHash;
   if (typeof suppliedReportHash !== 'string' || reportHash(report) !== suppliedReportHash) throw new Error('reportHash van het goedgekeurde dry-runrapport komt niet overeen.');
   if (typeof suppliedAnalysisHash !== 'string' || analysisHash(report) !== suppliedAnalysisHash) throw new Error('analysisHash van het goedgekeurde dry-runrapport komt niet overeen.');
-  if (report.source !== 'pokemon_tcg_data' || report.finalStatus !== 'PASS' || report.datasetVersion !== '0af6250a22495e4a3e9f60ff45fc3fedc2e0563d' || report.manifestHash !== 'c5604ffa39e017e08eca089770bce82a786b1b20ebb45ee9bc0d6d22db3b6ab3') throw new Error('Goedgekeurd dry-runrapport heeft geen geldige Batch 1-identiteit.');
-  if (JSON.stringify(report.importReadySets) !== JSON.stringify(BATCH_1_SET_IDS) || report.setsPlanned !== 13 || report.setsProcessed !== 13 || report.expectedCardsTotal !== 1973 || report.receivedCardsTotal !== 1973) throw new Error('Goedgekeurd dry-runrapport bevat niet exact de Batch 1-setlijst of kaartenaantallen.');
-  if (report.theoreticalWrites?.cardsCatalog !== 1808 || report.theoreticalWrites?.cardExternalReferences !== 1808 || report.theoreticalWrites?.total !== 3616) throw new Error('Goedgekeurd dry-runrapport bevat niet exact de goedgekeurde theoretische writes.');
+  if (!Object.prototype.hasOwnProperty.call(report, 'source') || report.source !== 'pokemon_tcg_data' || report.finalStatus !== 'PASS') throw new Error('Goedgekeurd dry-runrapport heeft geen geldige lokale PASS-identiteit.');
+  batchSetConfigurationFromReport(report);
+  const batch = typeof report.batch === 'string' ? report.batches.find((item: { name?: unknown }) => item.name === report.batch) : undefined;
+  if (!batch || report.setsPlanned !== batch.setIds.length || report.setsProcessed !== report.setsPlanned || report.expectedCardsTotal !== report.receivedCardsTotal) throw new Error('Goedgekeurd dry-runrapport bevat inconsistente batch- of kaarttotalen.');
+  if (!report.theoreticalWrites || !Number.isInteger(report.theoreticalWrites.cardsCatalog) || !Number.isInteger(report.theoreticalWrites.cardExternalReferences) || report.theoreticalWrites.total !== report.theoreticalWrites.cardsCatalog + report.theoreticalWrites.cardExternalReferences) throw new Error('Goedgekeurd dry-runrapport mist dynamische write-totalen.');
   if (report.databaseWritesTotal !== 0 || report.actualWrites !== 0 || report.conflicts?.total !== 0 || report.operationalErrors?.length !== 0 || report.setsBlocked !== 0 || report.setsNeedsManualReview !== 0) throw new Error('Goedgekeurd dry-runrapport bevat conflicten, fouten of databasewrites.');
   return report;
 }
@@ -132,7 +149,8 @@ async function readTableCounts(): Promise<TableCounts> {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) throw new Error('SUPABASE_URL en SUPABASE_SERVICE_ROLE_KEY zijn vereist voor lokale write-prechecks.');
   const supabase = createClient(url, key);
-  const entries = await Promise.all(Object.keys(EXPECTED_POSTCHECK_COUNTS).map(async (table) => {
+  const tables: (keyof TableCounts)[] = ['cards_catalog', 'card_external_references', 'collection_cards', 'sets_catalog', 'set_external_references'];
+  const entries = await Promise.all(tables.map(async (table) => {
     const { count, error } = await supabase.from(table).select('id', { count: 'exact', head: true });
     if (error || count === null) throw new Error(`Supabase read-only precheck mislukt voor ${table}.`);
     return [table, count] as const;
@@ -140,11 +158,24 @@ async function readTableCounts(): Promise<TableCounts> {
   return Object.fromEntries(entries) as TableCounts;
 }
 
-function assertCountsEqual(actual: TableCounts, expected: TableCounts, label: string): void {
-  for (const table of Object.keys(expected) as (keyof TableCounts)[]) if (actual[table] !== expected[table]) throw new Error(`${label}: ${table}=${actual[table]}, verwacht ${expected[table]}.`);
+function approvedInitialCounts(value: unknown): TableCounts {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Goedgekeurd dry-runrapport mist een geldige oorspronkelijke database-nulmeting.');
+  const counts = value as Partial<TableCounts>;
+  for (const table of Object.keys(counts) as (keyof TableCounts)[]) if (!Number.isInteger(counts[table]) || (counts[table] as number) < 0) throw new Error(`Goedgekeurd dry-runrapport mist een geldige oorspronkelijke count voor ${table}.`);
+  for (const table of ['cards_catalog', 'card_external_references', 'collection_cards', 'sets_catalog', 'set_external_references'] as (keyof TableCounts)[]) if (!Number.isInteger(counts[table]) || (counts[table] as number) < 0) throw new Error(`Goedgekeurd dry-runrapport mist een geldige oorspronkelijke count voor ${table}.`);
+  return counts as TableCounts;
 }
 
-function runIdempotency(setId: string): StepResult {
+function alreadyAppliedStep(setId: string, expectedCards: number): StepResult {
+  const diagnostic: SingleSetDiagnosticResult = { schemaVersion: 1, setId, status: 'PASS', expectedCards, receivedCards: expectedCards, setMappingStatus: 'already_reliable', setMapping: { status: 'already_reliable', candidates: [], evidence: ['already_applied_precheck'] }, externalReferenceMatches: expectedCards, fallbackCandidatesQueried: 0, safeFallbackCandidates: 0, newCards: 0, ambiguousItems: 0, conflicts: 0, unresolvedWithoutSetMapping: 0, metadataUnchanged: expectedCards, metadataChanged: 0, blockedItems: 0, plannedDatabaseWrites: 0, databaseWrites: 0, failureReasons: [], examples: {} };
+  return { step: 'write', exitCode: 0, output: 'Write overgeslagen: batch al volledig toegepast; databaseWrites=0', passed: true, expectedCards, receivedCards: expectedCards, plannedWrites: 0, databaseWrites: 0, diagnostic };
+}
+
+function runIdempotency(setId: string, inputPath: string, setMetadata: { name: string; series: string }, expectedCards: number, writePlanPath: string): StepResult {
+  return runImportSet(setId, false, inputPath, 'idempotency', setMetadata, expectedCards, undefined, writePlanPath);
+}
+
+function runApiIdempotency(setId: string): StepResult {
   return runImportSet(setId, false, undefined, 'idempotency');
 }
 
@@ -380,6 +411,7 @@ function toReportSet(result: SetResult): ReportSet {
     ...(error ? { error } : {}),
     ...(displayStep?.diagnostic ? { diagnostic: displayStep.diagnostic } : {}),
     steps: executedSteps(result).map(toReportStep),
+    lifecycle: result.lifecycle ?? deriveImportLifecycle({ writeStarted: Boolean(result.write), writeCompleted: result.write?.passed === true, reconciliationCompleted: result.idempotency?.passed === true, actualWrites: result.write?.databaseWrites ?? 0 }),
   };
 }
 
@@ -437,11 +469,14 @@ export async function main(): Promise<number> {
       const identity = localIdentity(local, options.manifestPath!);
       const approvedReport = options.mode === 'write-approved' ? readApprovedReport(options.approvedDryRunReportPath!) : undefined;
       const approvedPlan = options.mode === 'write-approved' ? readApprovedWritePlan(options.writePlanPath!, local, identity.manifestHash, approvedReport!.reportHash) : undefined;
+      const approvedBatchConfiguration = approvedReport ? batchSetConfigurationFromReport(approvedReport) : undefined;
+      const approvedBatchSetIds = approvedReport && approvedBatchConfiguration ? approvedBatchConfiguration.batches.find((batch) => batch.name === approvedReport.batch)?.setIds : undefined;
+      if (options.mode === 'write-approved' && (!approvedBatchSetIds || JSON.stringify(approvedBatchSetIds) !== JSON.stringify(local.sets.map((set) => set.setId)))) throw new Error('Actuele lokale selectie wijkt af van de officiële batch-setlijst uit het goedgekeurde rapport.');
       if (approvedReport && (local.datasetVersion !== approvedReport.datasetVersion || identity.manifestHash !== approvedReport.manifestHash)) throw new Error('Actuele dataset- of manifestHash-identiteit wijkt af van het goedgekeurde rapport.');
       if (approvedReport && approvedPlan && (
         approvedReport.datasetVersion !== approvedPlan.datasetVersion ||
         approvedReport.manifestHash !== approvedPlan.manifestHash ||
-        JSON.stringify(approvedReport.importReadySets) !== JSON.stringify(approvedPlan.sets) ||
+        JSON.stringify(approvedBatchSetIds) !== JSON.stringify(approvedPlan.sets) ||
         approvedReport.expectedCardsTotal !== approvedPlan.expectedCardsTotal ||
         approvedReport.receivedCardsTotal !== approvedPlan.perSet.reduce((sum, set) => sum + set.receivedCards, 0) ||
         approvedReport.theoreticalWrites?.cardsCatalog !== approvedPlan.plannedCatalogInserts ||
@@ -450,7 +485,9 @@ export async function main(): Promise<number> {
       )) throw new Error('Goedgekeurd rapport en writeplan hebben geen identieke dataset-, batch-, kaart- of write-identiteit.');
       if (approvedReport && approvedPlan && approvedReport.reportHash !== approvedPlan.sourceReportHash) throw new Error('Goedgekeurd dry-runrapport en writeplan hebben verschillende reportHash/sourceReportHash-identiteit.');
       const precheckCounts = options.mode === 'write-approved' ? await readTableCounts() : undefined;
-      if (approvedReport?.precheckCounts) assertCountsEqual(precheckCounts!, approvedReport.precheckCounts as TableCounts, 'Read-only Supabase-precheck wijkt af van het goedgekeurde rapport');
+      const initialDatabaseCounts = options.mode === 'write-approved' ? approvedInitialCounts(approvedReport?.precheckCounts) : undefined;
+      const dynamicExpectedPostWriteCounts = options.mode === 'write-approved' ? expectedPostWriteCounts(initialDatabaseCounts!, approvedPlan!.plannedCatalogInserts, approvedPlan!.plannedReferenceInserts) : undefined;
+      const precheckDisposition = options.mode === 'write-approved' ? classifyDynamicPrecheck(precheckCounts!, initialDatabaseCounts!, dynamicExpectedPostWriteCounts!) : undefined;
 
       let checkpoint: CatalogBatchCheckpoint | undefined;
       if (options.checkpointPath) {
@@ -503,34 +540,53 @@ export async function main(): Promise<number> {
       }
 
       if (mode === 'write-approved') {
+        const lifecycleTrackers = new Map<string, ImportLifecycleTracker>();
         for (const set of local.sets) results.push({ setId: set.setId, expectedCards: set.expectedCards });
         for (const set of local.sets) {
           const result = results.find((item) => item.setId === set.setId)!;
-          result.write = runImportSet(set.setId, true, set.inputPath, 'write', { name: set.name, series: set.series }, set.expectedCards, 'batch-1', options.writePlanPath);
+          const tracker = new ImportLifecycleTracker();
+          lifecycleTrackers.set(set.setId, tracker);
+          result.write = precheckDisposition === 'alreadyApplied'
+            ? alreadyAppliedStep(set.setId, set.expectedCards)
+            : runImportSet(set.setId, true, set.inputPath, 'write', { name: set.name, series: set.series }, set.expectedCards, options.confirmWriteBatch, options.writePlanPath, precheckDisposition === 'partial', tracker);
+          result.lifecycle = result.write.lifecycle ?? tracker.state;
           printStep(set.setId, result.write);
           if (!result.write.passed) break;
         }
         if (results.every((result) => result.write?.passed)) {
           for (const set of local.sets) {
             const result = results.find((item) => item.setId === set.setId)!;
-            result.idempotency = runIdempotency(set.setId);
+            result.idempotency = runIdempotency(set.setId, set.inputPath, { name: set.name, series: set.series }, set.expectedCards, options.writePlanPath!);
             printStep(set.setId, result.idempotency);
             if (!result.idempotency.passed) break;
           }
         }
         let postcheckCounts: TableCounts | undefined;
+        let postcheckError: string | undefined;
         const actualCatalogWrites = results.reduce((sum, result) => sum + (result.write?.diagnostic?.newCards ?? 0), 0);
         if (results.every((result) => result.idempotency?.passed)) {
-          postcheckCounts = await readTableCounts();
-          assertCountsEqual(postcheckCounts, EXPECTED_POSTCHECK_COUNTS, 'Read-only postcheck wijkt af');
+          try {
+            postcheckCounts = await readTableCounts();
+            if (JSON.stringify(postcheckCounts) !== JSON.stringify(dynamicExpectedPostWriteCounts)) postcheckError = 'Read-only postcheck wijkt af van dynamisch expectedPostWriteCounts.';
+          } catch (error) { postcheckError = error instanceof Error ? error.message : 'Read-only postcheck mislukt.'; }
+        }
+        for (const result of results) {
+          const tracker = lifecycleTrackers.get(result.setId);
+          const liveVerified = result.idempotency?.passed === true && !postcheckError && Boolean(postcheckCounts);
+          if (liveVerified && tracker) tracker.completeReconciliation(true);
+          else if (!liveVerified && tracker && (result.write?.passed || result.write?.databaseWrites)) tracker.fail(result.write?.databaseWrites ?? 0);
+          result.lifecycle = tracker?.state ?? deriveImportLifecycle({ writeStarted: Boolean(result.write), writeCompleted: result.write?.passed === true, reconciliationCompleted: liveVerified, actualWrites: result.write?.databaseWrites ?? 0 });
         }
         const localReport = {
-          phase: 'controlled-local-write', source: 'pokemon_tcg_data', mode, batch: 'batch-1', datasetRepository: local.datasetRepository, datasetVersion: local.datasetVersion,
+          phase: 'controlled-local-write', source: 'pokemon_tcg_data', mode, batch: approvedReport!.batch, datasetRepository: local.datasetRepository, datasetVersion: local.datasetVersion,
           manifestHash: identity.manifestHash, approvedDryRunReport: options.approvedDryRunReportPath, approvedWritePlan: options.writePlanPath, sourceReportHash: approvedReport!.reportHash, analysisHash: approvedPlan!.analysisHash,
-          setsPlanned: local.sets.map((set) => set.setId), setsProcessed: results.filter((result) => result.write?.passed).map((result) => result.setId), expectedCardsTotal: 1973, receivedCardsTotal: 1973,
-          plannedCatalogWrites: 1808, plannedReferenceWrites: 1808, actualCatalogWrites, actualReferenceWrites: results.reduce((sum, result) => sum + (result.write?.databaseWrites ?? 0) - (result.write?.diagnostic?.newCards ?? 0), 0),
-          databaseWritesTotal: results.reduce((sum, result) => sum + (result.write?.databaseWrites ?? 0), 0), conflicts: 0, operationalErrors: [], precheckCounts, postcheckCounts: results.every((result) => result.idempotency?.passed) ? EXPECTED_POSTCHECK_COUNTS : undefined,
-          idempotencyResult: results.every((result) => result.idempotency?.passed) ? 'PASS' : 'BLOCKED', finalStatus: results.every((result) => result.idempotency?.passed) ? 'PASS' : 'BLOCKED', startedAt: localStartedAt, finishedAt: new Date().toISOString(), results: results.map(toReportSet),
+          initialDatabaseCounts, currentDatabaseCounts: precheckCounts, alreadyApplied: { status: precheckDisposition === 'alreadyApplied' ? 'complete' : precheckDisposition === 'partial' ? 'partial' : 'none', catalogRecords: precheckDisposition === 'alreadyApplied' ? approvedPlan!.plannedCatalogInserts : Math.max(0, precheckCounts!.cards_catalog - initialDatabaseCounts!.cards_catalog), referenceRecords: precheckDisposition === 'alreadyApplied' ? approvedPlan!.plannedReferenceInserts : Math.max(0, precheckCounts!.card_external_references - initialDatabaseCounts!.card_external_references) },
+          setsPlanned: local.sets.map((set) => set.setId), setsProcessed: results.filter((result) => result.write?.passed).map((result) => result.setId), expectedCardsTotal: approvedReport!.expectedCardsTotal, receivedCardsTotal: approvedReport!.receivedCardsTotal,
+          plannedCatalogWrites: approvedPlan!.plannedCatalogInserts, plannedReferenceWrites: approvedPlan!.plannedReferenceInserts, actualCatalogWrites, actualReferenceWrites: results.reduce((sum, result) => sum + (result.write?.databaseWrites ?? 0) - (result.write?.diagnostic?.newCards ?? 0), 0),
+          actualWrites: results.reduce((sum, result) => sum + (result.write?.databaseWrites ?? 0), 0),
+          databaseWritesTotal: results.reduce((sum, result) => sum + (result.write?.databaseWrites ?? 0), 0), conflicts: 0, operationalErrors: postcheckError ? [postcheckError] : [], contentBlockades: results.filter((result) => result.lifecycle === 'FAILED_BEFORE_WRITE').map((result) => result.setId), precheckCounts, expectedPostWriteCounts: dynamicExpectedPostWriteCounts, postcheckCounts,
+          plannedWrites: approvedPlan!.plannedCatalogInserts + approvedPlan!.plannedReferenceInserts, alreadyAppliedRecords: approvedPlan!.plannedCatalogInserts + approvedPlan!.plannedReferenceInserts - results.reduce((sum, result) => sum + (result.write?.databaseWrites ?? 0), 0),
+          idempotencyStatus: results.every((result) => result.idempotency?.passed) ? 'PASS' : 'BLOCKED', reconciliationStatus: postcheckCounts && !postcheckError && results.every((result) => result.idempotency?.passed) ? 'PASS' : 'BLOCKED', reconciliationVerification: postcheckCounts && !postcheckError ? 'LIVE_READ_ONLY_SUPABASE' : 'NOT_VERIFIED', idempotencyResult: results.every((result) => result.idempotency?.passed) ? 'PASS' : 'BLOCKED', idempotencyChecks: { passed: results.filter((result) => result.idempotency?.passed).length, total: local.sets.length }, lifecycle: results.some((result) => result.lifecycle === 'FAILED_AFTER_WRITE') ? 'FAILED_AFTER_WRITE' : results.every((result) => result.idempotency?.passed) && postcheckCounts && !postcheckError ? 'RECONCILIATION_COMPLETE' : results.some((result) => result.write?.passed) ? 'FAILED_AFTER_WRITE' : 'FAILED_BEFORE_WRITE', finalStatus: results.some((result) => result.lifecycle === 'FAILED_AFTER_WRITE') ? 'FAILED_AFTER_WRITE' : results.every((result) => result.idempotency?.passed) && postcheckCounts && !postcheckError ? 'PASS' : 'BLOCKED', startedAt: localStartedAt, finishedAt: new Date().toISOString(), results: results.map(toReportSet),
         };
         if (options.reportPath) writeReport(options.reportPath, localReport);
         printSummary({ mode, results, datasetRepository, datasetVersion });
@@ -579,7 +635,7 @@ export async function main(): Promise<number> {
           printStep(setId, result.write);
           if (!result.write.passed) break;
 
-          result.idempotency = runIdempotency(setId);
+          result.idempotency = runApiIdempotency(setId);
           printStep(setId, result.idempotency);
           if (!result.idempotency.passed) break;
         }
@@ -601,7 +657,17 @@ export async function main(): Promise<number> {
     console.error('Catalog batch import');
     console.error(`Mode: ${mode}`);
     console.error(`Fout: ${error instanceof Error ? error.message : 'Onbekende batchfout.'}`);
-    if (failureReportPath) writeReport(failureReportPath, { phase: mode === 'write-approved' ? 'controlled-local-write' : 'catalog-batch', mode, datasetRepository, datasetVersion, finalStatus: 'BLOCKED', databaseWritesTotal: 0, operationalErrors: [error instanceof Error ? error.message : 'Onbekende batchfout.'], startedAt: new Date().toISOString(), finishedAt: new Date().toISOString() });
+    if (failureReportPath) {
+      const message = error instanceof Error ? error.message : 'Onbekende batchfout.';
+      const phaseA = error instanceof PhaseAReportValidationError ? {
+        status: 'BLOCKED',
+        missingField: error.field,
+        requiredBatchInformation: error.requiredBatchInformation,
+        regenerationCommand: error.regenerationCommand,
+        message,
+      } : undefined;
+      writeReport(failureReportPath, { phase: mode === 'write-approved' ? 'controlled-local-write' : 'catalog-batch', mode, datasetRepository, datasetVersion, finalStatus: 'BLOCKED', databaseWritesTotal: 0, operationalErrors: [message], ...(phaseA ? { phaseAValidation: phaseA } : {}), startedAt: new Date().toISOString(), finishedAt: new Date().toISOString() });
+    }
     return 1;
   }
 }

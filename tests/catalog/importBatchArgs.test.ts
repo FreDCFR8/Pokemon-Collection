@@ -1,13 +1,21 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import {
   DEFAULT_CATALOG_BATCH_CONFIG_PATH,
   parseCatalogBatchArgs,
   parseCatalogBatchConfigFromText,
 } from '../../scripts/catalog/import-batch-args.ts';
+import { parseCatalogImportArgs } from '../../scripts/catalog/import-args.ts';
 
 const parses = (args: string[]) => parseCatalogBatchArgs(args);
 const rejects = (args: string[]) => assert.throws(() => parses(args));
+
+test('package exposes the canonical catalog:import:batch script name', () => {
+  const packageJson = JSON.parse(readFileSync('package.json', 'utf8')) as { scripts?: Record<string, string> };
+  assert.match(packageJson.scripts?.['catalog:import:batch'] ?? '', /scripts[\\/]catalog[\\/]import-batch\.ts/);
+  assert.equal(packageJson.scripts?.['catalog:batch'], undefined);
+});
 
 test('uses dry-run mode and default config by default', () => {
   assert.deepEqual(parses([]), { mode: 'dry-run', source: 'pokemon_tcg_api', configPath: DEFAULT_CATALOG_BATCH_CONFIG_PATH });
@@ -41,6 +49,14 @@ test('parses controlled local manifest batch arguments', () => {
   });
 });
 
+test('parses local idempotency as read-only and requires the approved writeplan', () => {
+  const args = ['--source', 'pokemon_tcg_data', '--input', 'bw9.json', '--set', 'bw9', '--set-name', 'Fixture', '--set-series', 'Series', '--idempotency', '--write-plan', 'batch-1.json'];
+  assert.deepEqual(parseCatalogImportArgs(args), {
+    setId: 'bw9', write: false, source: 'pokemon_tcg_data', inputPath: 'bw9.json', setName: 'Fixture', setSeries: 'Series', idempotency: true, writePlanPath: 'batch-1.json',
+  });
+  assert.throws(() => parseCatalogImportArgs(['--source', 'pokemon_tcg_data', '--input', 'bw9.json', '--set', 'bw9', '--set-name', 'Fixture', '--set-series', 'Series', '--idempotency']), /write-plan/);
+});
+
 test('blocks local write attempts and incomplete local batch arguments', () => {
   for (const args of [
     ['--source', 'pokemon_tcg_data', '--mode', 'write-approved', '--manifest', 'm.json', '--input-root', 'data'],
@@ -60,9 +76,10 @@ test('requires separate report and writeplan approval for local Batch 1', () => 
   assert.deepEqual(parses(args), { mode: 'write-approved', source: 'pokemon_tcg_data', configPath: DEFAULT_CATALOG_BATCH_CONFIG_PATH, manifestPath: 'm.json', inputRoot: 'data', setIds: ['bw9','cel25','me1','me2','me2pt5','me3','me4','pgo','rsv10pt5','sm1','sm12','sm2','sm35'], approvedDryRunReportPath: 'approved.json', writePlanPath: 'plan.json', confirmWriteBatch: 'batch-1' });
 });
 
-test('blocks missing approval, altered set list, and Batch 2/3 selection', () => {
-  const base = ['--source', 'pokemon_tcg_data', '--mode', 'write-approved', '--manifest', 'm.json', '--input-root', 'data', '--approved-dry-run-report', 'approved.json', '--write-plan', 'plan.json', '--confirm-write', 'batch-1'];
-  for (const extra of [[], ['--sets', 'bw9'], ['--sets', 'sm4,sm7,sm8,sv1,sv10,sv3,sv3pt5,sv4,sv4pt5,sv6pt5,sv8,sv8pt5,swsh1'], ['--sets', 'swsh10,swsh11,swsh12,swsh12pt5,swsh2,swsh3,swsh35,swsh4,swsh45,swsh5,swsh6,swsh7,xy11'], ['--confirm-write', 'batch-2']]) rejects([...base, ...extra]);
+test('blocks missing approval but defers official set-list validation to the approved report runner', () => {
+  const base = ['--source', 'pokemon_tcg_data', '--mode', 'write-approved', '--manifest', 'm.json', '--input-root', 'data', '--approved-dry-run-report', 'approved.json', '--write-plan', 'plan.json'];
+  rejects([...base, '--sets', 'bw9']);
+  assert.doesNotThrow(() => parseCatalogBatchArgs([...base, '--confirm-write', 'batch-2']));
   rejects([...base, '--sets', 'bw9,cel25,me1,me2,me2pt5,me3,me4,pgo,rsv10pt5,sm1,sm12,sm2,sm35', '--approved-dry-run-report', '']);
 });
 

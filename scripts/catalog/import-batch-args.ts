@@ -1,8 +1,6 @@
-import { isValidSetId, type CatalogImportSource } from './import-args.ts';
+import { isValidSetId, type CatalogBatchApproval, type CatalogImportSource } from './import-args.ts';
 
 export const DEFAULT_CATALOG_BATCH_CONFIG_PATH = 'config/catalog/import-sets.json';
-export const BATCH_1_SET_IDS = ['bw9', 'cel25', 'me1', 'me2', 'me2pt5', 'me3', 'me4', 'pgo', 'rsv10pt5', 'sm1', 'sm12', 'sm2', 'sm35'] as const;
-
 export type CatalogBatchMode = 'dry-run' | 'write-approved';
 
 export type CatalogBatchOptions = {
@@ -14,7 +12,7 @@ export type CatalogBatchOptions = {
   reportPath?: string;
   approvedDryRunReportPath?: string;
   writePlanPath?: string;
-  confirmWriteBatch?: 'batch-1';
+  confirmWriteBatch?: CatalogBatchApproval;
   checkpointPath?: string;
   resume?: boolean;
   setIds?: string[];
@@ -62,7 +60,7 @@ export function parseCatalogBatchArgs(argv: readonly string[]): CatalogBatchOpti
   let reportPath: string | undefined;
   let approvedDryRunReportPath: string | undefined;
   let writePlanPath: string | undefined;
-  let confirmWriteBatch: 'batch-1' | undefined;
+  let confirmWriteBatch: CatalogBatchApproval | undefined;
   let checkpointPath: string | undefined;
   let resume = false;
   let setIds: string[] | undefined;
@@ -85,8 +83,8 @@ export function parseCatalogBatchArgs(argv: readonly string[]): CatalogBatchOpti
     if (arg.startsWith('--approved-dry-run-report=')) { if (approvedDryRunReportPath) throw new CatalogBatchArgumentError('--approved-dry-run-report mag slechts eenmaal worden opgegeven.'); approvedDryRunReportPath = arg.slice('--approved-dry-run-report='.length); if (!approvedDryRunReportPath) throw new CatalogBatchArgumentError('Ontbrekende waarde voor --approved-dry-run-report.'); continue; }
     if (arg === '--write-plan') { if (writePlanPath) throw new CatalogBatchArgumentError('--write-plan mag slechts eenmaal worden opgegeven.'); writePlanPath = readValue(argv, index, '--write-plan'); index += 1; continue; }
     if (arg.startsWith('--write-plan=')) { if (writePlanPath) throw new CatalogBatchArgumentError('--write-plan mag slechts eenmaal worden opgegeven.'); writePlanPath = arg.slice('--write-plan='.length); if (!writePlanPath) throw new CatalogBatchArgumentError('--write-plan vereist een pad.'); continue; }
-    if (arg === '--confirm-write') { if (confirmWriteBatch) throw new CatalogBatchArgumentError('--confirm-write mag slechts eenmaal worden opgegeven.'); const value = readValue(argv, index, '--confirm-write'); if (value !== 'batch-1') throw new CatalogBatchArgumentError('--confirm-write vereist exact batch-1.'); confirmWriteBatch = 'batch-1'; index += 1; continue; }
-    if (arg.startsWith('--confirm-write=')) throw new CatalogBatchArgumentError('--confirm-write vereist exact: --confirm-write batch-1.');
+    if (arg === '--confirm-write') { if (confirmWriteBatch) throw new CatalogBatchArgumentError('--confirm-write mag slechts eenmaal worden opgegeven.'); const value = readValue(argv, index, '--confirm-write'); if (value !== 'batch-1' && value !== 'batch-2' && value !== 'batch-3') throw new CatalogBatchArgumentError('--confirm-write vereist batch-1, batch-2 of batch-3.'); confirmWriteBatch = value; index += 1; continue; }
+    if (arg.startsWith('--confirm-write=')) throw new CatalogBatchArgumentError('--confirm-write vereist een losse waarde: batch-1, batch-2 of batch-3.');
     if (arg === '--checkpoint') { if (checkpointPath) throw new CatalogBatchArgumentError('--checkpoint mag slechts eenmaal worden opgegeven.'); checkpointPath = readValue(argv, index, '--checkpoint'); index += 1; continue; }
     if (arg.startsWith('--checkpoint=')) { if (checkpointPath) throw new CatalogBatchArgumentError('--checkpoint mag slechts eenmaal worden opgegeven.'); checkpointPath = arg.slice(13); if (!checkpointPath) throw new CatalogBatchArgumentError('Ontbrekende waarde voor --checkpoint.'); continue; }
     if (arg === '--resume') { if (resume) throw new CatalogBatchArgumentError('--resume mag slechts eenmaal worden opgegeven.'); resume = true; continue; }
@@ -105,8 +103,7 @@ export function parseCatalogBatchArgs(argv: readonly string[]): CatalogBatchOpti
     if (mode === 'write-approved') {
       if (!approvedDryRunReportPath) throw new CatalogBatchArgumentError('Lokale write-approved vereist --approved-dry-run-report.');
       if (!writePlanPath) throw new CatalogBatchArgumentError('Lokale write-approved vereist --write-plan.');
-      if (confirmWriteBatch !== 'batch-1') throw new CatalogBatchArgumentError('Lokale write-approved vereist --confirm-write batch-1.');
-      if (!setIds || setIds.length !== BATCH_1_SET_IDS.length || setIds.some((setId, index) => setId !== BATCH_1_SET_IDS[index])) throw new CatalogBatchArgumentError('Lokale write-approved vereist exact de Batch 1-setlijst; Batch 2/3 of een andere volgorde is geblokkeerd.');
+      if (!confirmWriteBatch) throw new CatalogBatchArgumentError('Lokale write-approved vereist --confirm-write batch-1, batch-2 of batch-3.');
     }
   } else if (manifestPath || inputRoot || approvedDryRunReportPath || writePlanPath || confirmWriteBatch) {
     throw new CatalogBatchArgumentError('--manifest en --input-root zijn alleen toegestaan met bron pokemon_tcg_data.');

@@ -109,3 +109,7 @@ De operationele 2F9C-run is afgerond: 173 sets verwerkt, 7 inhoudelijke PASS, 16
 ## Next phase scope
 
 De volgende fase introduceert `set_external_references`, bereidt de 41 veilige mappings gecontroleerd voor, beoordeelt `zsv10pt5` afzonderlijk en houdt `sv9` en `swsh9` geblokkeerd tot conflictresolutie. Iedere mappingwijziging en bredere cataloguswrite vereist afzonderlijke analyse, expliciete goedkeuring en een eigen PR. De 118 sets zonder kandidaat blijven geblokkeerd. Trade remains a separate future area and the lowest product priority.
+
+## Phase 7B-2F9E-A/B operational status
+
+Batch 1 is reeds naar Supabase geschreven. De actuele bekende counts zijn `cards_catalog=3213` en `card_external_references=3176`; `collection_cards` blijft beschermd. Reconciliation is alleen live bevestigd na een lokale read-only run; door de gebruiker aangeleverde evidence wordt niet als live reconciliation geregistreerd. Batch 2 en Batch 3 blijven geblokkeerd totdat dataset, manifest, officiële setlijst en writeplan lokaal opnieuw `PASS` zijn. De 130 `BLOCKED`-sets en 4 `NEEDS_MANUAL_REVIEW`-sets worden niet geïmporteerd.

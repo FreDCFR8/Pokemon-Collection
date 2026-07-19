@@ -1,8 +1,8 @@
 const WRITE_ALLOWED_SET_IDS = new Set(['sv3pt5', 'sv3']);
-const LOCAL_BATCH_1_WRITE_ALLOWED_SET_IDS = new Set(['bw9', 'cel25', 'me1', 'me2', 'me2pt5', 'me3', 'me4', 'pgo', 'rsv10pt5', 'sm1', 'sm12', 'sm2', 'sm35']);
 export const MAX_SET_ID_LENGTH = 32;
 
 export type CatalogImportSource = 'pokemon_tcg_api' | 'pokemon_tcg_data';
+export type CatalogBatchApproval = 'batch-1' | 'batch-2' | 'batch-3';
 export type CatalogImportOptions = {
   setId: string;
   write: boolean;
@@ -10,9 +10,11 @@ export type CatalogImportOptions = {
   inputPath?: string;
   diagnosticResultPath?: string;
   writePlanPath?: string;
+  idempotency?: boolean;
+  reconcile?: boolean;
   setName?: string;
   setSeries?: string;
-  batchApproval?: 'batch-1';
+  batchApproval?: CatalogBatchApproval;
 };
 
 export class CatalogImportArgumentError extends Error {}
@@ -38,9 +40,11 @@ export function parseCatalogImportArgs(argv: readonly string[]): CatalogImportOp
   let inputPath: string | undefined;
   let diagnosticResultPath: string | undefined;
   let writePlanPath: string | undefined;
+  let idempotency = false;
+  let reconcile = false;
   let setName: string | undefined;
   let setSeries: string | undefined;
-  let batchApproval: 'batch-1' | undefined;
+  let batchApproval: CatalogBatchApproval | undefined;
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -139,6 +143,18 @@ export function parseCatalogImportArgs(argv: readonly string[]): CatalogImportOp
       continue;
     }
 
+    if (arg === '--idempotency') {
+      if (idempotency) throw new CatalogImportArgumentError('--idempotency mag slechts eenmaal worden opgegeven.');
+      idempotency = true;
+      continue;
+    }
+
+    if (arg === '--reconcile') {
+      if (reconcile) throw new CatalogImportArgumentError('--reconcile mag slechts eenmaal worden opgegeven.');
+      reconcile = true;
+      continue;
+    }
+
     if (arg === '--write-plan') {
       if (writePlanPath !== undefined) throw new CatalogImportArgumentError('--write-plan mag slechts eenmaal worden opgegeven.');
       const value = argv[index + 1];
@@ -158,8 +174,8 @@ export function parseCatalogImportArgs(argv: readonly string[]): CatalogImportOp
     if (arg === '--batch-approval') {
       if (batchApproval) throw new CatalogImportArgumentError('--batch-approval mag slechts eenmaal worden opgegeven.');
       const value = argv[index + 1];
-      if (value !== 'batch-1') throw new CatalogImportArgumentError('--batch-approval vereist exact batch-1.');
-      batchApproval = 'batch-1'; index += 1; continue;
+      if (value !== 'batch-1' && value !== 'batch-2' && value !== 'batch-3') throw new CatalogImportArgumentError('--batch-approval vereist batch-1, batch-2 of batch-3.');
+      batchApproval = value; index += 1; continue;
     }
 
     if (arg.startsWith('--write=')) {
@@ -184,14 +200,18 @@ export function parseCatalogImportArgs(argv: readonly string[]): CatalogImportOp
     throw new CatalogImportArgumentError('--input is alleen toegestaan met bron pokemon_tcg_data.');
   }
 
-  if (writePlanPath && (!write || source !== 'pokemon_tcg_data')) throw new CatalogImportArgumentError('--write-plan is alleen toegestaan voor lokale write-approved uitvoer.');
-  return { setId, write, source, ...(inputPath ? { inputPath } : {}), ...(diagnosticResultPath ? { diagnosticResultPath } : {}), ...(writePlanPath ? { writePlanPath } : {}), ...(setName ? { setName } : {}), ...(setSeries ? { setSeries } : {}), ...(batchApproval ? { batchApproval } : {}) };
+  if (idempotency && (write || source !== 'pokemon_tcg_data')) throw new CatalogImportArgumentError('--idempotency is alleen toegestaan voor lokale read-only idempotency.');
+  if (idempotency && !writePlanPath) throw new CatalogImportArgumentError('--idempotency vereist --write-plan.');
+  if (reconcile && (!write || source !== 'pokemon_tcg_data')) throw new CatalogImportArgumentError('--reconcile is alleen toegestaan voor lokale write-approved uitvoer.');
+  if (reconcile && !writePlanPath) throw new CatalogImportArgumentError('--reconcile vereist --write-plan.');
+  if (writePlanPath && ((!write && !idempotency) || source !== 'pokemon_tcg_data')) throw new CatalogImportArgumentError('--write-plan is alleen toegestaan voor lokale write-approved of idempotency-uitvoer.');
+  return { setId, write, source, ...(inputPath ? { inputPath } : {}), ...(diagnosticResultPath ? { diagnosticResultPath } : {}), ...(writePlanPath ? { writePlanPath } : {}), ...(idempotency ? { idempotency } : {}), ...(reconcile ? { reconcile } : {}), ...(setName ? { setName } : {}), ...(setSeries ? { setSeries } : {}), ...(batchApproval ? { batchApproval } : {}) };
 }
 
 export function assertWriteAuthorized(options: CatalogImportOptions): void {
   if (!options.write) return;
   if (options.source !== 'pokemon_tcg_api') {
-    if (options.batchApproval !== 'batch-1' || !LOCAL_BATCH_1_WRITE_ALLOWED_SET_IDS.has(options.setId)) throw new CatalogImportArgumentError('Write geblokkeerd: lokale JSON-bron blijft read-only tenzij de expliciete Batch 1-goedkeuring aanwezig is.');
+    if (!options.batchApproval) throw new CatalogImportArgumentError('Write geblokkeerd: lokale JSON-bron blijft read-only tenzij expliciete batchgoedkeuring aanwezig is.');
     return;
   }
   if (!WRITE_ALLOWED_SET_IDS.has(options.setId)) {

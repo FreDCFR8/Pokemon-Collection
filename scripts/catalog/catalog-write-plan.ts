@@ -25,8 +25,8 @@ export type CatalogWritePlan = {
   finalStatus: 'PASS' | 'BLOCKED';
 };
 
-export function createCatalogWritePlan(params: Omit<CatalogWritePlan, 'schemaVersion' | 'phase' | 'analysisHash' | 'finalStatus'>): CatalogWritePlan {
-  const base = { schemaVersion: CATALOG_WRITE_PLAN_SCHEMA_VERSION, phase: 'Phase 7B-2F9E-B' as const, ...params };
+export function createCatalogWritePlan(params: Omit<CatalogWritePlan, 'schemaVersion' | 'phase' | 'source' | 'analysisHash' | 'finalStatus'>): CatalogWritePlan {
+  const base = { schemaVersion: CATALOG_WRITE_PLAN_SCHEMA_VERSION, phase: 'Phase 7B-2F9E-B' as const, source: 'pokemon_tcg_data' as const, ...params };
   const finalStatus = params.conflicts.length === 0 && params.blockedItems.length === 0 && params.perSet.every((set) => set.receivedCards === set.expectedCards && set.conflicts === 0 && set.blockedItems === 0) ? 'PASS' as const : 'BLOCKED' as const;
   const withStatus = { ...base, finalStatus };
   return { ...withStatus, analysisHash: analysisHash(withStatus) };
@@ -35,7 +35,8 @@ export function createCatalogWritePlan(params: Omit<CatalogWritePlan, 'schemaVer
 export function validateCatalogWritePlan(value: unknown, expected: { datasetVersion: string; datasetCommit: string; manifestHash: string; sourceReportHash: string; sets: readonly string[] }): CatalogWritePlan {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Writeplan heeft een ongeldig formaat.');
   const plan = value as CatalogWritePlan;
-  if (plan.schemaVersion !== CATALOG_WRITE_PLAN_SCHEMA_VERSION || plan.phase !== 'Phase 7B-2F9E-B' || plan.source !== 'pokemon_tcg_data') throw new Error('Writeplan-schema of bron is ongeldig.');
+  if (!Object.prototype.hasOwnProperty.call(plan, 'source') || typeof plan.source !== 'string' || plan.source !== 'pokemon_tcg_data') throw new Error('Writeplan-source ontbreekt of is ongeldig.');
+  if (plan.schemaVersion !== CATALOG_WRITE_PLAN_SCHEMA_VERSION || plan.phase !== 'Phase 7B-2F9E-B') throw new Error('Writeplan-schema is ongeldig.');
   if (plan.datasetVersion !== expected.datasetVersion || plan.datasetCommit !== expected.datasetCommit) throw new Error('Datasetcommit van het writeplan komt niet overeen.');
   if (plan.manifestHash !== expected.manifestHash) throw new Error('manifestHash van het writeplan komt niet overeen.');
   if (typeof plan.sourceReportHash !== 'string' || !/^[0-9a-f]{64}$/.test(plan.sourceReportHash)) throw new Error('Writeplan mist een geldige sourceReportHash.');

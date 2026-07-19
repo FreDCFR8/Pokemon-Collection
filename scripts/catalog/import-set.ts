@@ -47,7 +47,10 @@ type ExternalReferenceRow = {
 
 type CatalogCardRow = {
   id: string;
+  external_source?: string | null;
+  external_id?: string | null;
   set_code: string | null;
+  set_name?: string | null;
   number: string | null;
   pokemon: string | null;
   rarity: string | null;
@@ -592,12 +595,124 @@ async function fetchCatalogCardsByIds(supabase: SupabaseClient, cardIds: string[
   for (const batch of chunks(cardIds, SUPABASE_BATCH_SIZE)) {
     rows.push(
       ...(await readRows<CatalogCardRow>(
-        supabase.from('cards_catalog').select('id,set_code,number,pokemon,rarity,image_small,image_large').in('id', batch),
+        supabase.from('cards_catalog').select('id,external_source,external_id,set_code,set_name,number,pokemon,rarity,image_small,image_large,card_details').in('id', batch),
         'cards_catalog by id',
       )),
     );
   }
   return rows;
+}
+
+function expectedCatalogId(action: CanonicalCardAction): string {
+  if (action.action === 'existingIdentical') return action.cardCatalogId;
+  if (action.action === 'insertReference') return action.referenceInsert.card_catalog_id;
+  if (action.action === 'insertCardAndReference') return action.catalogInsert.id;
+  throw new UserFacingError(`Idempotency blokkeerde kaartactie ${action.externalId}: blocked/conflict.`);
+}
+
+function assertCatalogCardMatches(card: CatalogCardRow | undefined, expected: { action: CanonicalCardAction; incoming: PokemonCard; setCode: string }): void {
+  if (!card) throw new UserFacingError(`Idempotency vond geen cards_catalog-record voor ${expected.incoming.id}.`);
+  const { action, incoming } = expected;
+  const expectedId = expectedCatalogId(action);
+  const mismatches = [
+    card.id !== expectedId ? `UUID=${card.id}` : undefined,
+    card.external_source !== SOURCE ? `external_source=${String(card.external_source)}` : undefined,
+    card.external_id !== incoming.id ? `external_id=${String(card.external_id)}` : undefined,
+    card.set_code !== expected.setCode ? `set_code=${String(card.set_code)}` : undefined,
+    card.number !== normalizeRequired(incoming.number) ? `number=${String(card.number)}` : undefined,
+    card.pokemon !== normalizeRequired(incoming.name) ? `pokemon=${String(card.pokemon)}` : undefined,
+    card.rarity !== normalizeOptional(incoming.rarity) ? `rarity=${String(card.rarity)}` : undefined,
+    card.image_small !== normalizeOptional(incoming.images?.small) ? `image_small=${String(card.image_small)}` : undefined,
+    card.image_large !== normalizeOptional(incoming.images?.large) ? `image_large=${String(card.image_large)}` : undefined,
+    JSON.stringify(card.card_details ?? null) !== JSON.stringify(incoming.details) ? 'card_details' : undefined,
+  ].filter((value): value is string => Boolean(value));
+  if (mismatches.length > 0) throw new UserFacingError(`Idempotency metadata/identity mismatch voor ${incoming.id}: ${mismatches.join(', ')}.`);
+}
+
+type LocalPlanReconciliation = { writePlan: WritePlan; alreadyAppliedCatalogRecords: number; alreadyAppliedReferenceRecords: number };
+
+async function reconcileLocalWritePlan(params: { supabase: SupabaseClient; plan: CatalogWritePlan; setId: string; cards: PokemonCard[]; setCode: string }): Promise<LocalPlanReconciliation> {
+  const setPlan = params.plan.perSet.find((set) => set.setId === params.setId);
+  if (!setPlan || setPlan.setCode !== params.setCode || setPlan.setCatalogId === undefined) throw new UserFacingError(`Write-reconciliatie mist de juiste setmapping voor ${params.setId}.`);
+  if (setPlan.actions.length !== params.cards.length || setPlan.receivedCards !== params.cards.length || setPlan.expectedCards !== params.cards.length) throw new UserFacingError(`Write-reconciliatie kaarttotalen/writeplan komen niet overeen voor ${params.setId}.`);
+  const actions = new Map<string, CanonicalCardAction>();
+  for (const action of setPlan.actions) {
+    if (actions.has(action.externalId)) throw new UserFacingError(`Write-reconciliatie vond dubbele writeplan external_id ${action.externalId}.`);
+    if (action.setId !== params.setId || action.externalSource !== SOURCE || action.setCode !== params.setCode || action.setCatalogId !== setPlan.setCatalogId || action.action === 'blocked' || action.action === 'conflict') throw new UserFacingError(`Write-reconciliatie blokkeerde een ongeldige kaartactie voor ${action.externalId}.`);
+    actions.set(action.externalId, action);
+  }
+  const incomingIds = params.cards.map((card) => card.id);
+  if (new Set(incomingIds).size !== incomingIds.length) throw new UserFacingError(`Lokale dataset bevat dubbele external_id voor ${params.setId}.`);
+  const expectedIds = params.cards.map((card) => {
+    const action = actions.get(card.id);
+    if (!action || action.cardNumber !== card.number) throw new UserFacingError(`Write-reconciliatie external_id/card number ontbreekt of wijkt af voor ${card.id}.`);
+    return expectedCatalogId(action);
+  });
+  if (new Set(expectedIds).size !== expectedIds.length) throw new UserFacingError(`Write-reconciliatie bevat dubbele catalogus-UUID's voor ${params.setId}.`);
+  const identities = await fetchCatalogIdentities(params.supabase, incomingIds);
+  const identitiesByExternalId = new Map<string, CatalogIdentityRow[]>();
+  for (const identity of identities) identitiesByExternalId.set(identity.external_id ?? '', [...(identitiesByExternalId.get(identity.external_id ?? '') ?? []), identity]);
+  if ([...identitiesByExternalId.values()].some((rows) => rows.length > 1)) throw new UserFacingError(`Write-reconciliatie vond dubbele cards_catalog-identiteit voor ${params.setId}.`);
+  const catalogRows = await fetchCatalogCardsByIds(params.supabase, expectedIds);
+  const catalogById = new Map(catalogRows.map((row) => [row.id, row]));
+  const references = await fetchExternalReferences(params.supabase, incomingIds);
+  const referencesByExternalId = new Map<string, ExternalReferenceRow[]>();
+  for (const reference of references) referencesByExternalId.set(reference.external_id, [...(referencesByExternalId.get(reference.external_id) ?? []), reference]);
+  const linkedReferences = await fetchReferencesByCardIds(params.supabase, expectedIds);
+  const linkedByCatalogId = new Map<string, ExternalReferenceRow[]>();
+  for (const reference of linkedReferences) linkedByCatalogId.set(reference.card_catalog_id ?? '', [...(linkedByCatalogId.get(reference.card_catalog_id ?? '') ?? []), reference]);
+  const missingCatalogRows: PlannedCatalogInsert[] = [];
+  const missingNewReferences: PlannedReferenceInsert[] = [];
+  const missingExistingReferences: PlannedReferenceInsert[] = [];
+  let alreadyAppliedCatalogRecords = 0;
+  let alreadyAppliedReferenceRecords = 0;
+  for (const card of params.cards) {
+    const action = actions.get(card.id)!;
+    const expectedId = expectedCatalogId(action);
+    const identityRows = identitiesByExternalId.get(card.id) ?? [];
+    const catalog = catalogById.get(expectedId);
+    if (identityRows.length > 0 && (identityRows.length !== 1 || identityRows[0].id !== expectedId || identityRows[0].external_source !== SOURCE || identityRows[0].external_id !== card.id)) throw new UserFacingError(`Write-reconciliatie external_id/cataloguskaart-koppeling wijkt af voor ${card.id}.`);
+    if (catalog) {
+      assertCatalogCardMatches(catalog, { action, incoming: card, setCode: params.setCode });
+      alreadyAppliedCatalogRecords += 1;
+    } else if (action.action === 'insertCardAndReference') {
+      missingCatalogRows.push(action.catalogInsert);
+    } else {
+      throw new UserFacingError(`Write-reconciliatie mist een bestaande cataloguskaart voor niet-insertactie ${card.id}.`);
+    }
+    const externalRefs = referencesByExternalId.get(card.id) ?? [];
+    const cardRefs = linkedByCatalogId.get(expectedId) ?? [];
+    if (externalRefs.length > 1 || cardRefs.length > 1) throw new UserFacingError(`Write-reconciliatie vond dubbele reference-identiteit voor ${card.id}.`);
+    if (externalRefs.length === 1 || cardRefs.length === 1) {
+      const reference = externalRefs[0] ?? cardRefs[0];
+      if (!reference || reference.source !== SOURCE || reference.external_id !== card.id || reference.card_catalog_id !== expectedId || (externalRefs.length === 0 && cardRefs.length === 1 && cardRefs[0].external_id !== card.id)) throw new UserFacingError(`Write-reconciliatie reference-identiteit wijkt af voor ${card.id}.`);
+      alreadyAppliedReferenceRecords += 1;
+    } else if (action.action === 'insertCardAndReference') {
+      missingNewReferences.push(action.referenceInsert);
+    } else if (action.action === 'insertReference') {
+      missingExistingReferences.push(action.referenceInsert);
+    } else {
+      throw new UserFacingError(`Write-reconciliatie mist een bestaande reference voor existingIdentical ${card.id}.`);
+    }
+  }
+  return {
+    alreadyAppliedCatalogRecords,
+    alreadyAppliedReferenceRecords,
+    writePlan: {
+      existingMatches: setPlan.actions.filter((action) => action.action === 'existingIdentical').length,
+      newCatalogRows: missingCatalogRows,
+      referencesForNewCards: missingNewReferences,
+      referencesForExistingCandidates: missingExistingReferences,
+      blockedItems: 0,
+      plannedDatabaseWrites: missingCatalogRows.length + missingNewReferences.length + missingExistingReferences.length,
+      errors: [],
+    },
+  };
+}
+
+async function verifyLocalIdempotency(params: { supabase: SupabaseClient; plan: CatalogWritePlan; setId: string; cards: PokemonCard[]; setCode: string }): Promise<void> {
+  const reconciliation = await reconcileLocalWritePlan(params);
+  if (reconciliation.writePlan.plannedDatabaseWrites !== 0) throw new UserFacingError(`Idempotency vond nog ${reconciliation.writePlan.plannedDatabaseWrites} ontbrekende records.`);
 }
 
 async function fetchFallbackCandidates(supabase: SupabaseClient, setCode: string, numbers: string[]): Promise<CatalogCardRow[]> {
@@ -1285,15 +1400,34 @@ async function main(): Promise<number> {
     const uniqueExternalIds = new Set(cards.cards.map((card) => card.id).filter(Boolean)).size;
     let matching: MatchingReport;
     let writePlan: WritePlan;
+    let approvedPlan: CatalogWritePlan | undefined;
     if (options.writePlanPath) {
-      let approved: CatalogWritePlan;
-      try { approved = JSON.parse(readFileSync(options.writePlanPath, 'utf8')) as CatalogWritePlan; } catch { throw new UserFacingError('Goedgekeurd writeplan is geen geldige JSON.'); }
-      ({ matching, writePlan } = approvedSetPlan(approved, setId));
+      try { approvedPlan = JSON.parse(readFileSync(options.writePlanPath, 'utf8')) as CatalogWritePlan; } catch { throw new UserFacingError('Goedgekeurd writeplan is geen geldige JSON.'); }
+      ({ matching, writePlan } = approvedSetPlan(approvedPlan, setId));
     } else {
       matching = await matchCards(supabase, set, cards.cards);
       writePlan = buildWritePlan(matching, set.name, new Date().toISOString(), cards.cards.length);
     }
-    const allErrors = [...validation.errors, ...matching.errors, ...writePlan.errors];
+    const idempotencyErrors: string[] = [];
+    if (options.reconcile) {
+      try {
+        const reconciliation = await reconcileLocalWritePlan({ supabase, plan: approvedPlan!, setId, cards: cards.cards, setCode: matching.setCode! });
+        writePlan = reconciliation.writePlan;
+        matching = { ...matching, newCards: writePlan.newCatalogRows.length, safeFallbackCandidates: writePlan.referencesForExistingCandidates.length };
+      } catch (error) {
+        idempotencyErrors.push(error instanceof Error ? error.message : 'Onbekende write-reconciliatiefout.');
+      }
+    }
+    if (options.idempotency) {
+      try {
+        await verifyLocalIdempotency({ supabase, plan: approvedPlan!, setId, cards: cards.cards, setCode: matching.setCode! });
+      } catch (error) {
+        idempotencyErrors.push(error instanceof Error ? error.message : 'Onbekende lokale idempotency-fout.');
+      }
+      matching = { ...matching, newCards: 0, safeFallbackCandidates: 0, metadataUnchanged: cards.cards.length };
+      writePlan = { ...writePlan, newCatalogRows: [], referencesForNewCards: [], referencesForExistingCandidates: [], plannedDatabaseWrites: 0 };
+    }
+    const allErrors = [...validation.errors, ...matching.errors, ...writePlan.errors, ...idempotencyErrors];
     if (writePlan.blockedItems > 0 && !allErrors.includes('Minstens één item kon niet eenduidig in het writeplan worden opgenomen.')) {
       allErrors.push('Minstens één item kon niet eenduidig in het writeplan worden opgenomen.');
     }

@@ -10,15 +10,10 @@ import { analysisHash, reportHash } from './catalog-report-identity.ts';
 import { writeAtomicJson } from './checkpoint.ts';
 import { localManifestIdentity } from './catalog-manifest-identity.ts';
 import { createCatalogWritePlan } from './catalog-write-plan.ts';
+import { batchSetConfigurationFromReport, validateImportReadyBatchConfiguration, type ImportReadyBatch } from './catalog-batch-validation.ts';
 
 export const PHASE = 'Phase 7B-2F9E-B';
 export const REPORT_SCHEMA_VERSION = 1;
-export const BATCHES = {
-  'batch-1': ['bw9', 'cel25', 'me1', 'me2', 'me2pt5', 'me3', 'me4', 'pgo', 'rsv10pt5', 'sm1', 'sm12', 'sm2', 'sm35'],
-  'batch-2': ['sm4', 'sm7', 'sm8', 'sv1', 'sv10', 'sv3', 'sv3pt5', 'sv4', 'sv4pt5', 'sv6pt5', 'sv8', 'sv8pt5', 'swsh1'],
-  'batch-3': ['swsh10', 'swsh11', 'swsh12', 'swsh12pt5', 'swsh2', 'swsh3', 'swsh35', 'swsh4', 'swsh45', 'swsh5', 'swsh6', 'swsh7', 'xy11'],
-} as const;
-export const IMPORT_READY_SETS = [...BATCHES['batch-1'], ...BATCHES['batch-2'], ...BATCHES['batch-3']];
 export const EXPECTED_SETS = 173;
 export const EXPECTED_CARDS = 20324;
 const CARD_SOURCE = 'pokemon_tcg_api';
@@ -65,19 +60,29 @@ type Report = {
   startedAt: string; finishedAt: string; setsPlanned: number; setsProcessed: number; setsPassed: number; setsBlocked: number; setsNeedsManualReview: number;
   expectedCardsTotal: number; receivedCardsTotal: number; theoreticalWrites: { cardsCatalog: number; cardExternalReferences: number; total: number };
   actualWrites: number; conflicts: { identity: number; metadata: number; total: number }; operationalErrors: string[]; postcheckErrors: string[]; databaseWritesTotal: 0;
-  precheckCounts?: Counts; postcheckCounts?: Counts; importReadySets: string[]; blockedSets: string[]; reasonCodesBySet: Record<string, string[]>; results: SetResult[];
+  precheckCounts?: Counts; postcheckCounts?: Counts; mode: 'initial-phase-a' | 'approved-batch-analysis'; batch: BatchName | 'phase-a'; importReadySets: string[]; expectedImportReadySetCount: number; batches: ImportReadyBatch[]; blockedSets: string[]; reasonCodesBySet: Record<string, string[]>; results: SetResult[];
   checkpoint?: { path: string; resumed: boolean; skippedCompletedSets: number }; finalStatus: 'PASS' | 'BLOCKED' | 'FAIL'; reportHash?: string; analysisHash?: string;
 };
 
-export type BatchName = keyof typeof BATCHES;
-export function validateBatchLists(): void {
-  const batches = Object.values(BATCHES);
-  if (batches.some((batch) => batch.length !== 13) || new Set(IMPORT_READY_SETS).size !== 39 || IMPORT_READY_SETS.length !== 39) throw new RebaselineError('Batchlijsten moeten exact 3 x 13 unieke sets bevatten.');
-  if (IMPORT_READY_SETS.some((setId) => !setId || setId === 'sv9' || setId === 'swsh9' || setId === 'zsv10pt5')) throw new RebaselineError('Batchlijst bevat een geblokkeerde of NEEDS_MANUAL_REVIEW-set.');
+export type BatchName = 'batch-1' | 'batch-2' | 'batch-3';
+export type ApprovedBatchConfiguration = { officialImportReadySetIds: string[]; expectedImportReadySetCount: number; batches: Record<BatchName, string[]>; excludedSetIds?: string[] };
+export type RebaselineOptions =
+  | { mode: 'initial-phase-a'; dataset: string; report: string; checkpoint?: string; writePlan?: string; resume: boolean; help: boolean }
+  | { mode: 'approved-batch-analysis'; dataset: string; report: string; approvedReport: string; batch: BatchName; checkpoint?: string; writePlan: string; resume: boolean; help: boolean };
+
+/** Deterministically partitions only the report's own import-ready IDs into three canonical batches. */
+export function createCanonicalBatches(importReadySets: readonly string[]): ImportReadyBatch[] {
+  const setIds = [...importReadySets];
+  if (new Set(setIds).size !== setIds.length) throw new RebaselineError('importReadySets bevat dubbele set-ID’s.');
+  const width = Math.ceil(setIds.length / 3);
+  return ['batch-1', 'batch-2', 'batch-3'].map((name, index) => ({ name, setIds: setIds.slice(index * width, (index + 1) * width) }));
 }
-export function selectBatch(manifest: NonNullable<ReturnType<typeof inventoryLocalDataset>['manifest']>, batch: BatchName): NonNullable<ReturnType<typeof inventoryLocalDataset>['manifest']> {
-  validateBatchLists();
-  const expected = BATCHES[batch]; const byId = new Map(manifest.sets.map((set) => [set.setId, set]));
+export function validateBatchLists(config: ApprovedBatchConfiguration): void {
+  validateImportReadyBatchConfiguration({ ...config, batches: Object.entries(config.batches).map(([name, setIds]) => ({ name, setIds })) });
+}
+export function selectBatch(manifest: NonNullable<ReturnType<typeof inventoryLocalDataset>['manifest']>, batch: BatchName, config: ApprovedBatchConfiguration): NonNullable<ReturnType<typeof inventoryLocalDataset>['manifest']> {
+  validateBatchLists(config);
+  const expected = config.batches[batch]; const byId = new Map(manifest.sets.map((set) => [set.setId, set]));
   if (expected.some((setId) => !byId.has(setId))) throw new RebaselineError(`${batch} bevat een set die ontbreekt in de lokale dataset.`);
   return { ...manifest, sets: expected.map((setId) => byId.get(setId)!) };
 }
@@ -103,24 +108,39 @@ function rows<T>(query: PromiseLike<{ data: T[] | null; error: { message: string
   return query.then(({ data, error }) => { if (error) throw new RebaselineError(`Supabase SELECT mislukt (${label}): ${sanitise(error.message)}`); return data ?? []; });
 }
 
-export function parseArgs(argv: readonly string[]): { dataset: string; report: string; batch: BatchName; checkpoint?: string; writePlan?: string; resume: boolean; help: boolean } {
+export function parseArgs(argv: readonly string[]): RebaselineOptions {
   if (argv.some((arg) => ['--write', '--insert', '--update', '--upsert', '--delete', '--rpc', '--migrate', '--migration'].includes(arg) || arg.startsWith('--write='))) throw new RebaselineError('Deze runner is strikt read-only en weigert schrijfopties.');
   const values = new Map<string, string>(); let resume = false; let help = false;
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === '--help' || arg === '-h') { help = true; continue; }
     if (arg === '--resume') { if (resume) throw new RebaselineError('--resume mag slechts eenmaal worden opgegeven.'); resume = true; continue; }
-    const match = arg.match(/^--(dataset|report|batch|checkpoint|write-plan)(?:=(.*))?$/);
+    const match = arg.match(/^--(dataset|report|approved-report|batch|checkpoint|write-plan)(?:=(.*))?$/);
     if (!match) throw new RebaselineError(`Onbekend argument: ${arg}`);
     const value = match[2] ?? argv[++i]; if (!value || value.startsWith('--')) throw new RebaselineError(`Ontbrekende waarde voor --${match[1]}.`);
     if (values.has(match[1])) throw new RebaselineError(`--${match[1]} mag slechts eenmaal worden opgegeven.`); values.set(match[1], value);
   }
-  if (help) return { dataset: values.get('dataset') ?? '', report: values.get('report') ?? '', batch: (values.get('batch') ?? 'batch-1') as BatchName, ...(values.has('checkpoint') ? { checkpoint: values.get('checkpoint') } : {}), resume, help };
-  if (!values.has('dataset') || !values.has('report') || !values.has('batch')) throw new RebaselineError('--dataset, --batch en --report zijn verplicht.');
-  if (!values.has('write-plan')) throw new RebaselineError('--write-plan is verplicht voor writevoorbereiding.');
-  if (!(values.get('batch')! in BATCHES)) throw new RebaselineError('--batch moet batch-1, batch-2 of batch-3 zijn.');
+  if (help) return { mode: 'initial-phase-a', dataset: values.get('dataset') ?? '', report: values.get('report') ?? '', ...(values.has('checkpoint') ? { checkpoint: values.get('checkpoint') } : {}), ...(values.has('write-plan') ? { writePlan: values.get('write-plan') } : {}), resume, help };
+  if (!values.has('dataset') || !values.has('report')) throw new RebaselineError('--dataset en --report zijn verplicht.');
+  const hasApproved = values.has('approved-report'); const hasBatch = values.has('batch');
+  if (hasApproved !== hasBatch) throw new RebaselineError(hasApproved ? '--approved-report vereist --batch batch-1, batch-2 of batch-3.' : '--batch vereist --approved-report met de canonieke batchestructuur.');
+  if (hasBatch && !['batch-1', 'batch-2', 'batch-3'].includes(values.get('batch')!)) throw new RebaselineError('--batch moet batch-1, batch-2 of batch-3 zijn.');
+  if (hasApproved && !values.has('write-plan')) throw new RebaselineError('--write-plan is verplicht voor approved batch analysis.');
   if (resume && !values.has('checkpoint')) throw new RebaselineError('--resume vereist --checkpoint.');
-  return { dataset: resolve(values.get('dataset')!), report: resolve(values.get('report')!), batch: values.get('batch') as BatchName, ...(values.has('checkpoint') ? { checkpoint: resolve(values.get('checkpoint')!) } : {}), ...(values.has('write-plan') ? { writePlan: resolve(values.get('write-plan')!) } : {}), resume, help };
+  const common = { dataset: resolve(values.get('dataset')!), report: resolve(values.get('report')!), ...(values.has('checkpoint') ? { checkpoint: resolve(values.get('checkpoint')!) } : {}), resume, help };
+  if (!hasApproved) return { mode: 'initial-phase-a', ...common, ...(values.has('write-plan') ? { writePlan: resolve(values.get('write-plan')!) } : {}) };
+  return { mode: 'approved-batch-analysis', ...common, approvedReport: resolve(values.get('approved-report')!), batch: values.get('batch') as BatchName, writePlan: resolve(values.get('write-plan')!) };
+}
+
+export function loadApprovedBatchConfiguration(path: string): ApprovedBatchConfiguration {
+  let parsed: unknown;
+  try { parsed = JSON.parse(readFileSync(path, 'utf8')); } catch { throw new RebaselineError('Goedgekeurd Phase 7B-2F9E-A-rapport is geen geldige JSON.'); }
+  const configuration = batchSetConfigurationFromReport(parsed as { importReadySets?: unknown; expectedImportReadySetCount?: unknown; batches?: unknown });
+  const batches = Object.fromEntries(configuration.batches.map((batch) => [batch.name, batch.setIds])) as Record<BatchName, string[]>;
+  if (!batches['batch-1'] || !batches['batch-2'] || !batches['batch-3']) throw new RebaselineError('Goedgekeurd rapport moet exact batch-1, batch-2 en batch-3 bevatten.');
+  const result = { officialImportReadySetIds: [...configuration.officialImportReadySetIds], expectedImportReadySetCount: configuration.expectedImportReadySetCount, batches, excludedSetIds: [...(configuration.excludedSetIds ?? [])] };
+  validateBatchLists(result);
+  return result;
 }
 
 export function preflightDataset(dataset: string): { manifest: NonNullable<ReturnType<typeof inventoryLocalDataset>['manifest']>; manifestHash: string; warnings: unknown[] } {
@@ -194,17 +214,24 @@ export function finalizeReport(report: Report): Report & { reportHash: string; a
 }
 function saveCheckpoint(path: string, checkpoint: RunCheckpoint): void { writeAtomicJson(path, { ...checkpoint, updatedAt: new Date().toISOString() }); }
 function equalCounts(a: Counts, b: Counts): boolean { return TABLES.every((table) => a[table] === b[table]); }
-function help(): void { console.log('Gebruik: npm.cmd run catalog:rebaseline:read-only -- --dataset <pad> --batch batch-1|batch-2|batch-3 --report <pad> --write-plan <pad> [--checkpoint <pad>] [--resume]'); }
+function help(): void {
+  console.log('Initial Phase-A: npm.cmd run catalog:rebaseline:read-only -- --dataset <pinned-checkout> --report <phase-a-report.json> --checkpoint <phase-a-checkpoint.json>');
+  console.log('Approved batch: npm.cmd run catalog:rebaseline:read-only -- --dataset <pinned-checkout> --approved-report <phase-a-report.json> --batch batch-1|batch-2|batch-3 --report <batch-report.json> --write-plan <batch-writeplan.json> --checkpoint <batch-checkpoint.json>');
+}
 
 function failureReport(message: string, reportPath: string | undefined): number {
-  const now = new Date().toISOString(); const report: Report = { schemaVersion: REPORT_SCHEMA_VERSION, phase: PHASE, source: 'pokemon_tcg_data', datasetRepository: POKEMON_TCG_DATA_REPOSITORY, datasetVersion: PINNED_DATASET_VERSION, manifestHash: '', startedAt: now, finishedAt: now, setsPlanned: EXPECTED_SETS, setsProcessed: 0, setsPassed: 0, setsBlocked: EXPECTED_SETS, setsNeedsManualReview: 0, expectedCardsTotal: EXPECTED_CARDS, receivedCardsTotal: 0, theoreticalWrites: { cardsCatalog: 0, cardExternalReferences: 0, total: 0 }, actualWrites: 0, conflicts: { identity: 0, metadata: 0, total: 0 }, operationalErrors: [sanitise(message)], postcheckErrors: [], databaseWritesTotal: 0, importReadySets: [], blockedSets: [], reasonCodesBySet: {}, results: [], finalStatus: 'BLOCKED' }; if (reportPath) writeAtomicJson(reportPath, finalizeReport(report)); console.error(`Phase 7B-2F9E-B geblokkeerd: ${sanitise(message)}`); return 1;
+  const now = new Date().toISOString(); const report: Report = { schemaVersion: REPORT_SCHEMA_VERSION, phase: PHASE, source: 'pokemon_tcg_data', datasetRepository: POKEMON_TCG_DATA_REPOSITORY, datasetVersion: PINNED_DATASET_VERSION, manifestHash: '', startedAt: now, finishedAt: now, mode: 'initial-phase-a', batch: 'phase-a', setsPlanned: EXPECTED_SETS, setsProcessed: 0, setsPassed: 0, setsBlocked: EXPECTED_SETS, setsNeedsManualReview: 0, expectedCardsTotal: EXPECTED_CARDS, receivedCardsTotal: 0, theoreticalWrites: { cardsCatalog: 0, cardExternalReferences: 0, total: 0 }, actualWrites: 0, conflicts: { identity: 0, metadata: 0, total: 0 }, operationalErrors: [sanitise(message)], postcheckErrors: [], databaseWritesTotal: 0, importReadySets: [], expectedImportReadySetCount: 0, batches: [], blockedSets: [], reasonCodesBySet: {}, results: [], finalStatus: 'BLOCKED' }; if (reportPath) writeAtomicJson(reportPath, finalizeReport(report)); console.error(`Phase 7B-2F9E-B geblokkeerd: ${sanitise(message)}`); return 1;
 }
 
 export async function run(argv: readonly string[], env: NodeJS.ProcessEnv = process.env): Promise<number> {
   let options: ReturnType<typeof parseArgs> | undefined; let reportPath: string | undefined;
   try {
     options = parseArgs(argv); reportPath = options.report || undefined; if (options.help) { help(); return 0; }
-    const startedAt = new Date().toISOString(); const preflight = preflightDataset(options.dataset); const manifest = selectBatch(preflight.manifest, options.batch); const expectedCards = manifest.sets.reduce((sum, set) => sum + set.expectedCards, 0);
+    const startedAt = new Date().toISOString();
+    const preflight = preflightDataset(options.dataset);
+    const approvedConfiguration = options.mode === 'approved-batch-analysis' ? loadApprovedBatchConfiguration(options.approvedReport) : undefined;
+    const manifest = approvedConfiguration && options.mode === 'approved-batch-analysis' ? selectBatch(preflight.manifest, options.batch, approvedConfiguration) : preflight.manifest;
+    const expectedCards = manifest.sets.reduce((sum, set) => sum + set.expectedCards, 0);
     if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) throw new RebaselineError('SUPABASE_URL en SUPABASE_SERVICE_ROLE_KEY zijn vereist voor read-only SELECT-controles.');
     const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY); const before = await countTables(supabase);
     let checkpoint: RunCheckpoint; let resumed = false; let skipped = 0;
@@ -222,11 +249,15 @@ export async function run(argv: readonly string[], env: NodeJS.ProcessEnv = proc
     if (operationalErrors.length === 0) { try { after = await countTables(supabase); if (!equalCounts(before, after)) postcheckErrors.push('Read-only postcheck: beschermde tabeltellingen zijn gewijzigd.'); } catch (error) { postcheckErrors.push(sanitise(error instanceof Error ? error.message : 'Postcheck mislukt.')); } }
     const complete = operationalErrors.length === 0 && postcheckErrors.length === 0 && results.length === manifest.sets.length;
     const finalResults = results.sort((a, b) => a.setId.localeCompare(b.setId)); const contentPass = complete && finalResults.every((result) => result.classification === 'PASS' && result.expectedCards === result.receivedCards); const reasonCodesBySet = Object.fromEntries(finalResults.filter((result) => result.classification !== 'PASS').map((result) => [result.setId, result.reasonCodes])); const importReadySets = finalResults.filter((result) => result.importReady).map((result) => result.setId); const blockedSets = finalResults.filter((result) => result.classification === 'BLOCKED').map((result) => result.setId); const totals = finalResults.reduce((sum, result) => ({ cardsCatalog: sum.cardsCatalog + result.theoreticalNewCatalogCards, cardExternalReferences: sum.cardExternalReferences + result.theoreticalNewCardReferences, total: sum.total + result.theoreticalWrites }), { cardsCatalog: 0, cardExternalReferences: 0, total: 0 });
-    const report: Report = { schemaVersion: REPORT_SCHEMA_VERSION, phase: PHASE, source: 'pokemon_tcg_data', datasetRepository: manifest.datasetRepository, datasetVersion: manifest.datasetVersion, manifestHash: preflight.manifestHash, startedAt: checkpoint.startedAt, finishedAt: new Date().toISOString(), setsPlanned: manifest.sets.length, setsProcessed: finalResults.length, setsPassed: finalResults.filter((result) => result.classification === 'PASS').length, setsBlocked: finalResults.filter((result) => result.classification === 'BLOCKED').length, setsNeedsManualReview: finalResults.filter((result) => result.classification === 'NEEDS_MANUAL_REVIEW').length, expectedCardsTotal: expectedCards, receivedCardsTotal: finalResults.reduce((sum, result) => sum + result.receivedCards, 0), theoreticalWrites: totals, actualWrites: 0, conflicts: { identity: finalResults.reduce((sum, result) => sum + result.identityConflicts, 0), metadata: finalResults.reduce((sum, result) => sum + result.metadataConflicts, 0), total: finalResults.reduce((sum, result) => sum + result.identityConflicts + result.metadataConflicts, 0) }, operationalErrors, postcheckErrors, databaseWritesTotal: 0, precheckCounts: before, ...(after ? { postcheckCounts: after } : {}), importReadySets, blockedSets, reasonCodesBySet, results: finalResults, checkpoint: options.checkpoint ? { path: options.checkpoint, resumed, skippedCompletedSets: skipped } : undefined, finalStatus: contentPass ? 'PASS' : operationalErrors.length || postcheckErrors.length ? 'BLOCKED' : 'FAIL' };
+    const generatedImportReadySets = finalResults.filter((result) => result.importReady).map((result) => result.setId);
+    const generatedBatches = createCanonicalBatches(generatedImportReadySets);
+    const canonicalConfiguration = approvedConfiguration ?? { officialImportReadySetIds: generatedImportReadySets, expectedImportReadySetCount: generatedImportReadySets.length, batches: Object.fromEntries(generatedBatches.map((batch) => [batch.name, batch.setIds])) as Record<BatchName, string[]> };
+    validateBatchLists(canonicalConfiguration);
+    const report: Report = { schemaVersion: REPORT_SCHEMA_VERSION, phase: PHASE, source: 'pokemon_tcg_data', datasetRepository: manifest.datasetRepository, datasetVersion: manifest.datasetVersion, manifestHash: preflight.manifestHash, startedAt: checkpoint.startedAt, finishedAt: new Date().toISOString(), mode: options.mode, batch: options.mode === 'approved-batch-analysis' ? options.batch : 'phase-a', setsPlanned: manifest.sets.length, setsProcessed: finalResults.length, setsPassed: finalResults.filter((result) => result.classification === 'PASS').length, setsBlocked: finalResults.filter((result) => result.classification === 'BLOCKED').length, setsNeedsManualReview: finalResults.filter((result) => result.classification === 'NEEDS_MANUAL_REVIEW').length, expectedCardsTotal: expectedCards, receivedCardsTotal: finalResults.reduce((sum, result) => sum + result.receivedCards, 0), theoreticalWrites: totals, actualWrites: 0, conflicts: { identity: finalResults.reduce((sum, result) => sum + result.identityConflicts, 0), metadata: finalResults.reduce((sum, result) => sum + result.metadataConflicts, 0), total: finalResults.reduce((sum, result) => sum + result.identityConflicts + result.metadataConflicts, 0) }, operationalErrors, postcheckErrors, databaseWritesTotal: 0, precheckCounts: before, ...(after ? { postcheckCounts: after } : {}), importReadySets: canonicalConfiguration.officialImportReadySetIds, expectedImportReadySetCount: canonicalConfiguration.expectedImportReadySetCount, batches: Object.entries(canonicalConfiguration.batches).map(([name, setIds]) => ({ name, setIds })), blockedSets, reasonCodesBySet, results: finalResults, checkpoint: options.checkpoint ? { path: options.checkpoint, resumed, skippedCompletedSets: skipped } : undefined, finalStatus: contentPass ? 'PASS' : operationalErrors.length || postcheckErrors.length ? 'BLOCKED' : 'FAIL' };
     const finalizedReport = finalizeReport(report);
     writeAtomicJson(options.report, finalizedReport);
     if (options.writePlan && report.finalStatus === 'PASS' && operationalErrors.length === 0 && analyses.length === manifest.sets.length) {
-      const plan = createCatalogWritePlan({ datasetRepository: manifest.datasetRepository, datasetVersion: manifest.datasetVersion, datasetCommit: manifest.datasetVersion, manifestHash: preflight.manifestHash, sourceReportHash: finalizedReport.reportHash, batch: options.batch, sets: manifest.sets.map((set) => set.setId), expectedCardsTotal: analyses.reduce((sum, set) => sum + set.expectedCards, 0), existingCardsTotal: analyses.reduce((sum, set) => sum + set.actions.filter((action) => action.action === 'existingIdentical').length, 0), plannedCatalogInserts: analyses.reduce((sum, set) => sum + set.plannedCatalogInserts, 0), plannedReferenceInserts: analyses.reduce((sum, set) => sum + set.plannedReferenceInserts, 0), conflicts: analyses.flatMap((set) => set.actions.filter((action) => action.action === 'conflict')), blockedItems: analyses.flatMap((set) => set.actions.filter((action) => action.action === 'blocked')), perSet: analyses });
+      const plan = createCatalogWritePlan({ datasetRepository: manifest.datasetRepository, datasetVersion: manifest.datasetVersion, datasetCommit: manifest.datasetVersion, manifestHash: preflight.manifestHash, sourceReportHash: finalizedReport.reportHash, batch: report.batch, sets: manifest.sets.map((set) => set.setId), expectedCardsTotal: analyses.reduce((sum, set) => sum + set.expectedCards, 0), existingCardsTotal: analyses.reduce((sum, set) => sum + set.actions.filter((action) => action.action === 'existingIdentical').length, 0), plannedCatalogInserts: analyses.reduce((sum, set) => sum + set.plannedCatalogInserts, 0), plannedReferenceInserts: analyses.reduce((sum, set) => sum + set.plannedReferenceInserts, 0), conflicts: analyses.flatMap((set) => set.actions.filter((action) => action.action === 'conflict')), blockedItems: analyses.flatMap((set) => set.actions.filter((action) => action.action === 'blocked')), perSet: analyses });
       writeAtomicJson(options.writePlan, plan);
     }
     console.log(`Phase 7B-2F9E-B: ${report.finalStatus}; sets=${report.setsProcessed}/${report.setsPlanned}; cards=${report.receivedCardsTotal}/${report.expectedCardsTotal}; databaseWritesTotal=0`); return report.finalStatus === 'PASS' ? 0 : 1;
