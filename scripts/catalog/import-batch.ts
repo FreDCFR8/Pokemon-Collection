@@ -184,6 +184,14 @@ function failClosedStep(params: { setId: string; step: StepName; exitCode: numbe
   return { step: params.step, exitCode: params.exitCode, output: params.output, passed: false, error: `${params.error} failureCode=unexpected_runner_failure`, databaseWrites: 0, diagnostic };
 }
 
+function sanitizeSubprocessOutput(output: string): string {
+  let sanitized = output.replace(/([?&](?:apikey|key|token|access_token)=)[^&\s]+/gi, '$1[REDACTED]');
+  for (const secret of [process.env.POKEMON_TCG_API_KEY, process.env.SUPABASE_SERVICE_ROLE_KEY]) {
+    if (secret && secret.length >= 8) sanitized = sanitized.split(secret).join('[REDACTED]');
+  }
+  return sanitized.trim();
+}
+
 function validateStepOutput(params: { step: StepName; exitCode: number; output: string; diagnostic: SingleSetDiagnosticResult }): StepResult {
   const errors: string[] = [];
   const unexpectedRunnerFailure = new Set<string>();
@@ -197,6 +205,8 @@ function validateStepOutput(params: { step: StepName; exitCode: number; output: 
     errors.push(`exitcode ${params.exitCode}`);
     const subprocessReasons = Object.values(diagnostic.examples).flat().map((example) => example.reason).filter((reason): reason is string => typeof reason === 'string' && reason.length > 0);
     if (subprocessReasons.length > 0) errors.push(`subprocessfout: ${[...new Set(subprocessReasons)].join(' | ')}`);
+    const subprocessOutput = sanitizeSubprocessOutput(params.output);
+    if (subprocessOutput) errors.push(`volledige subprocessfout: ${subprocessOutput}`);
   }
   if (diagnostic.status !== (params.exitCode === 0 ? 'PASS' : 'FAIL')) {
     errors.push('JSON-status komt niet overeen met exitcode.');

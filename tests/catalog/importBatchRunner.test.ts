@@ -38,6 +38,7 @@ function writeLocalFixture(dir: string, received: Record<string, number>): { man
     "if (process.env.BATCH_STUB_EXECUTION_MARKER) writeFileSync(process.env.BATCH_STUB_EXECUTION_MARKER, new Date().toISOString());",
     "const diagnostic = {schemaVersion: 1, setId: set, expectedCards: Number(process.env.BATCH_STUB_EXPECTED_CARDS ?? counts[set]), receivedCards: Number(process.env.BATCH_STUB_RECEIVED_CARDS ?? counts[set]), status: failed ? 'FAIL' : 'PASS', setMappingStatus: 'already_reliable', setCode: set, setMapping: {status: 'already_reliable', reliableSetCode: set, candidates: [], evidence: []}, externalReferenceMatches: counts[set], fallbackCandidatesQueried: 0, safeFallbackCandidates: 0, newCards: 0, ambiguousItems: 0, conflicts: 0, unresolvedWithoutSetMapping: 0, metadataUnchanged: counts[set], metadataChanged: 0, blockedItems: 0, plannedDatabaseWrites: Number(plannedWrites), databaseWrites: Number(databaseWrites), failureReasons: failed ? ['missing_set_mapping'] : [], examples: {}};",
     "writeFileSync(resultPath, JSON.stringify(diagnostic));",
+    "if (process.env.BATCH_STUB_ERROR) console.error(process.env.BATCH_STUB_ERROR);",
     "console.log('Database writes: ' + databaseWrites);",
     "process.exit(failed ? 1 : 0);",
   ].join('\n'));
@@ -93,6 +94,15 @@ test('continues after one failed local set and exits non-zero for partial failur
   assert.match(result.stdout, /sv3pt5 \/ dry-run/);
   assert.match(result.stdout, /sv3 \/ dry-run/);
   assert.match(result.stdout, /Expected\/received mismatch/);
+});
+
+test('rapport bevat de volledige veilige subprocessfout naast de exitcode', () => {
+  const paths = writeLocalFixture(makeTmp(), { sv3pt5: 207, sv3: 230 });
+  const result = runLocalBatch(paths, ['--sets', 'sv3pt5', '--report', paths.report], { BATCH_STUB_FAIL_SET: 'sv3pt5', BATCH_STUB_ERROR: 'Idempotency metadata mismatch: token=secret-value' });
+  assert.equal(result.status, 1);
+  const report = JSON.parse(readFileSync(paths.report, 'utf8'));
+  assert.match(report.results[0].error, /exitcode 1/);
+  assert.match(report.results[0].error, /Idempotency metadata mismatch: token=secret-value/);
 });
 
 test('local dry-run reports zero database writes and JSON report contains no sensitive values', () => {
