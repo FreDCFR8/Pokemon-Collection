@@ -8,7 +8,7 @@ export type BatchConfiguration = {
 };
 
 export const PHASE_A_BATCH_STRUCTURE_ERROR = 'Phase-A-rapport mist de canonieke batchestructuur; genereer Phase A opnieuw.';
-export const PHASE_A_REGENERATION_COMMAND = 'npm.cmd run catalog:rebaseline:read-only -- --dataset <pinned-checkout> --approved-report <volledig-phase-a-rapport.json> --batch batch-1 --report <nieuw-phase-a-rapport.json> --write-plan <nieuw-phase-a-writeplan.json>';
+export const PHASE_A_REGENERATION_COMMAND = 'npm.cmd run catalog:rebaseline:read-only -- --dataset <pinned-checkout> --report <phase-a-report.json> --checkpoint <phase-a-checkpoint.json>';
 
 export class PhaseAReportValidationError extends Error {
   readonly field: string;
