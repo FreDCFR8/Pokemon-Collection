@@ -14,8 +14,9 @@ test('read-only runner rejects every write-shaped option', () => {
 test('read-only runner requires dataset, batch and report and supports help', () => {
   assert.throws(() => parseArgs([]), /--dataset, --batch en --report zijn verplicht/);
   assert.equal(parseArgs(['--help']).help, true);
-  assert.throws(() => parseArgs(['--dataset', dataset, '--batch', 'batch-1', '--report', 'report.json', '--resume']), /--resume vereist/);
-  assert.throws(() => parseArgs(['--dataset', dataset, '--batch', 'other', '--report', 'report.json']), /batch-1/);
+  assert.throws(() => parseArgs(['--dataset', dataset, '--batch', 'batch-1', '--report', 'report.json']), /--write-plan is verplicht/);
+  assert.throws(() => parseArgs(['--dataset', dataset, '--batch', 'batch-1', '--report', 'report.json', '--write-plan', 'plan.json', '--resume']), /--resume vereist/);
+  assert.throws(() => parseArgs(['--dataset', dataset, '--batch', 'other', '--report', 'report.json', '--write-plan', 'plan.json']), /batch-1/);
 });
 
 test('dataset profile enforces the pinned complete dataset', () => {

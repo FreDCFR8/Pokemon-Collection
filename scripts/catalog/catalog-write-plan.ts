@@ -45,6 +45,19 @@ export function validateCatalogWritePlan(value: unknown, expected: { datasetVers
   delete withoutHash.analysisHash;
   if (typeof plan.analysisHash !== 'string' || analysisHash(withoutHash) !== plan.analysisHash) throw new Error('analysisHash van het writeplan komt niet overeen.');
   if (plan.expectedCardsTotal !== plan.perSet.reduce((sum, set) => sum + set.expectedCards, 0) || plan.perSet.some((set) => set.receivedCards !== set.expectedCards)) throw new Error('Expected/received kaarttotalen van het writeplan kloppen niet.');
+  if (plan.perSet.some((set) => set.actions.length !== set.receivedCards)) throw new Error('Writeplan bevat niet exact één actie per ontvangen kaart.');
+  if (plan.plannedCatalogInserts !== plan.perSet.reduce((sum, set) => sum + set.plannedCatalogInserts, 0) || plan.plannedReferenceInserts !== plan.perSet.reduce((sum, set) => sum + set.plannedReferenceInserts, 0)) throw new Error('Writeplan-totalen komen niet overeen met de per-setacties.');
+  for (const set of plan.perSet) {
+    for (const action of set.actions) {
+      if (!['existingIdentical', 'insertReference', 'insertCardAndReference', 'blocked', 'conflict'].includes(action.action)) throw new Error('Writeplan bevat een onbekende kaartactie.');
+      if (action.setId !== set.setId || action.externalSource !== 'pokemon_tcg_api' || !action.externalId || !action.cardNumber) throw new Error('Kaartactie bevat ongeldige bron- of kaartidentiteit.');
+      if (action.action === 'blocked' || action.action === 'conflict') throw new Error('Writeplan bevat een blocked/conflict-kaartactie.');
+      if (!set.setCatalogId || !set.setCode || action.setCatalogId !== set.setCatalogId || ('setCode' in action && action.setCode !== set.setCode)) throw new Error('Writeplan mist setCatalogId of setCode voor een uitvoerbare kaartactie.');
+      if (action.action === 'existingIdentical' && !action.cardCatalogId) throw new Error('existingIdentical mist cardCatalogId.');
+      if (action.action === 'insertReference' && !action.referenceInsert.card_catalog_id) throw new Error('insertReference mist reference-data.');
+      if (action.action === 'insertCardAndReference' && (!action.catalogInsert || !action.referenceInsert || action.referenceInsert.card_catalog_id !== action.catalogInsert.id)) throw new Error('insertCardAndReference mist gekoppelde catalogus- en reference-data.');
+    }
+  }
   return plan;
 }
 

@@ -103,7 +103,8 @@ export function parseCatalogBatchArgs(argv: readonly string[]): CatalogBatchOpti
     if (!manifestPath) throw new CatalogBatchArgumentError('Bron pokemon_tcg_data vereist --manifest.');
     if (!inputRoot) throw new CatalogBatchArgumentError('Bron pokemon_tcg_data vereist --input-root.');
     if (mode === 'write-approved') {
-      if (!approvedDryRunReportPath && !writePlanPath) throw new CatalogBatchArgumentError('Lokale write-approved vereist een goedgekeurd writeplan.');
+      if (!approvedDryRunReportPath) throw new CatalogBatchArgumentError('Lokale write-approved vereist --approved-dry-run-report.');
+      if (!writePlanPath) throw new CatalogBatchArgumentError('Lokale write-approved vereist --write-plan.');
       if (confirmWriteBatch !== 'batch-1') throw new CatalogBatchArgumentError('Lokale write-approved vereist --confirm-write batch-1.');
       if (!setIds || setIds.length !== BATCH_1_SET_IDS.length || setIds.some((setId, index) => setId !== BATCH_1_SET_IDS[index])) throw new CatalogBatchArgumentError('Lokale write-approved vereist exact de Batch 1-setlijst; Batch 2/3 of een andere volgorde is geblokkeerd.');
     }

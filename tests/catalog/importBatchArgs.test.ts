@@ -55,15 +55,21 @@ test('blocks local write attempts and incomplete local batch arguments', () => {
   ]) rejects(args);
 });
 
-test('allows only the explicit local Batch 1 write approval', () => {
-  const args = ['--source', 'pokemon_tcg_data', '--mode', 'write-approved', '--manifest', 'm.json', '--input-root', 'data', '--sets', 'bw9,cel25,me1,me2,me2pt5,me3,me4,pgo,rsv10pt5,sm1,sm12,sm2,sm35', '--approved-dry-run-report', 'approved.json', '--confirm-write', 'batch-1'];
-  assert.deepEqual(parses(args), { mode: 'write-approved', source: 'pokemon_tcg_data', configPath: DEFAULT_CATALOG_BATCH_CONFIG_PATH, manifestPath: 'm.json', inputRoot: 'data', setIds: ['bw9','cel25','me1','me2','me2pt5','me3','me4','pgo','rsv10pt5','sm1','sm12','sm2','sm35'], approvedDryRunReportPath: 'approved.json', confirmWriteBatch: 'batch-1' });
+test('requires separate report and writeplan approval for local Batch 1', () => {
+  const args = ['--source', 'pokemon_tcg_data', '--mode', 'write-approved', '--manifest', 'm.json', '--input-root', 'data', '--sets', 'bw9,cel25,me1,me2,me2pt5,me3,me4,pgo,rsv10pt5,sm1,sm12,sm2,sm35', '--approved-dry-run-report', 'approved.json', '--write-plan', 'plan.json', '--confirm-write', 'batch-1'];
+  assert.deepEqual(parses(args), { mode: 'write-approved', source: 'pokemon_tcg_data', configPath: DEFAULT_CATALOG_BATCH_CONFIG_PATH, manifestPath: 'm.json', inputRoot: 'data', setIds: ['bw9','cel25','me1','me2','me2pt5','me3','me4','pgo','rsv10pt5','sm1','sm12','sm2','sm35'], approvedDryRunReportPath: 'approved.json', writePlanPath: 'plan.json', confirmWriteBatch: 'batch-1' });
 });
 
 test('blocks missing approval, altered set list, and Batch 2/3 selection', () => {
-  const base = ['--source', 'pokemon_tcg_data', '--mode', 'write-approved', '--manifest', 'm.json', '--input-root', 'data', '--approved-dry-run-report', 'approved.json', '--confirm-write', 'batch-1'];
+  const base = ['--source', 'pokemon_tcg_data', '--mode', 'write-approved', '--manifest', 'm.json', '--input-root', 'data', '--approved-dry-run-report', 'approved.json', '--write-plan', 'plan.json', '--confirm-write', 'batch-1'];
   for (const extra of [[], ['--sets', 'bw9'], ['--sets', 'sm4,sm7,sm8,sv1,sv10,sv3,sv3pt5,sv4,sv4pt5,sv6pt5,sv8,sv8pt5,swsh1'], ['--sets', 'swsh10,swsh11,swsh12,swsh12pt5,swsh2,swsh3,swsh35,swsh4,swsh45,swsh5,swsh6,swsh7,xy11'], ['--confirm-write', 'batch-2']]) rejects([...base, ...extra]);
   rejects([...base, '--sets', 'bw9,cel25,me1,me2,me2pt5,me3,me4,pgo,rsv10pt5,sm1,sm12,sm2,sm35', '--approved-dry-run-report', '']);
+});
+
+test('requires both report and card-level writeplan', () => {
+  const base = ['--source', 'pokemon_tcg_data', '--mode', 'write-approved', '--manifest', 'm.json', '--input-root', 'data', '--sets', 'bw9,cel25,me1,me2,me2pt5,me3,me4,pgo,rsv10pt5,sm1,sm12,sm2,sm35', '--confirm-write', 'batch-1'];
+  rejects([...base, '--approved-dry-run-report', 'report.json']);
+  rejects([...base, '--write-plan', 'plan.json']);
 });
 
 test('rejects unsafe or malformed batch arguments', () => {

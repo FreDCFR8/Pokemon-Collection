@@ -435,9 +435,19 @@ export async function main(): Promise<number> {
       console.log(`Sets: ${local.sets.map((set) => set.setId).join(', ')}`);
 
       const identity = localIdentity(local, options.manifestPath!);
-      const approvedReport = options.mode === 'write-approved' && options.approvedDryRunReportPath ? readApprovedReport(options.approvedDryRunReportPath) : undefined;
-      const approvedPlan = options.mode === 'write-approved' ? readApprovedWritePlan(options.writePlanPath ?? options.approvedDryRunReportPath!, local, identity.manifestHash) : undefined;
+      const approvedReport = options.mode === 'write-approved' ? readApprovedReport(options.approvedDryRunReportPath!) : undefined;
+      const approvedPlan = options.mode === 'write-approved' ? readApprovedWritePlan(options.writePlanPath!, local, identity.manifestHash) : undefined;
       if (approvedReport && (local.datasetVersion !== approvedReport.datasetVersion || identity.manifestHash !== approvedReport.manifestHash)) throw new Error('Actuele dataset- of manifestHash-identiteit wijkt af van het goedgekeurde rapport.');
+      if (approvedReport && approvedPlan && (
+        approvedReport.datasetVersion !== approvedPlan.datasetVersion ||
+        approvedReport.manifestHash !== approvedPlan.manifestHash ||
+        JSON.stringify(approvedReport.importReadySets) !== JSON.stringify(approvedPlan.sets) ||
+        approvedReport.expectedCardsTotal !== approvedPlan.expectedCardsTotal ||
+        approvedReport.receivedCardsTotal !== approvedPlan.perSet.reduce((sum, set) => sum + set.receivedCards, 0) ||
+        approvedReport.theoreticalWrites?.cardsCatalog !== approvedPlan.plannedCatalogInserts ||
+        approvedReport.theoreticalWrites?.cardExternalReferences !== approvedPlan.plannedReferenceInserts ||
+        approvedReport.theoreticalWrites?.total !== approvedPlan.plannedCatalogInserts + approvedPlan.plannedReferenceInserts
+      )) throw new Error('Goedgekeurd rapport en writeplan hebben geen identieke dataset-, batch-, kaart- of write-identiteit.');
       const precheckCounts = options.mode === 'write-approved' ? await readTableCounts() : undefined;
       if (approvedReport?.precheckCounts) assertCountsEqual(precheckCounts!, approvedReport.precheckCounts as TableCounts, 'Read-only Supabase-precheck wijkt af van het goedgekeurde rapport');
 
@@ -495,7 +505,7 @@ export async function main(): Promise<number> {
         for (const set of local.sets) results.push({ setId: set.setId, expectedCards: set.expectedCards });
         for (const set of local.sets) {
           const result = results.find((item) => item.setId === set.setId)!;
-          result.write = runImportSet(set.setId, true, set.inputPath, 'write', { name: set.name, series: set.series }, set.expectedCards, 'batch-1', options.writePlanPath ?? options.approvedDryRunReportPath);
+          result.write = runImportSet(set.setId, true, set.inputPath, 'write', { name: set.name, series: set.series }, set.expectedCards, 'batch-1', options.writePlanPath);
           printStep(set.setId, result.write);
           if (!result.write.passed) break;
         }
@@ -515,7 +525,7 @@ export async function main(): Promise<number> {
         }
         const localReport = {
           phase: 'controlled-local-write', source: 'pokemon_tcg_data', mode, batch: 'batch-1', datasetRepository: local.datasetRepository, datasetVersion: local.datasetVersion,
-          manifestHash: identity.manifestHash, approvedDryRunReport: options.approvedDryRunReportPath, approvedWritePlan: options.writePlanPath ?? options.approvedDryRunReportPath, sourceReportHash: approvedReport?.reportHash, analysisHash: approvedPlan!.analysisHash,
+          manifestHash: identity.manifestHash, approvedDryRunReport: options.approvedDryRunReportPath, approvedWritePlan: options.writePlanPath, sourceReportHash: approvedReport!.reportHash, analysisHash: approvedPlan!.analysisHash,
           setsPlanned: local.sets.map((set) => set.setId), setsProcessed: results.filter((result) => result.write?.passed).map((result) => result.setId), expectedCardsTotal: 1973, receivedCardsTotal: 1973,
           plannedCatalogWrites: 1808, plannedReferenceWrites: 1808, actualCatalogWrites, actualReferenceWrites: results.reduce((sum, result) => sum + (result.write?.databaseWrites ?? 0) - (result.write?.diagnostic?.newCards ?? 0), 0),
           databaseWritesTotal: results.reduce((sum, result) => sum + (result.write?.databaseWrites ?? 0), 0), conflicts: 0, operationalErrors: [], precheckCounts, postcheckCounts: results.every((result) => result.idempotency?.passed) ? EXPECTED_POSTCHECK_COUNTS : undefined,

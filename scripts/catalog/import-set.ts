@@ -6,7 +6,7 @@ import { classifyFallbackCandidates } from './fallback-classification.ts';
 import { parseCardDetails, type CardDetails } from './card-details.ts';
 import { assertWriteAuthorized, getWritePlanTitle, parseCatalogImportArgs, type CatalogImportOptions } from './import-args.ts';
 import { failureCodesForConflictReasons, mappingFailureReasons, writeDiagnosticResult, type DiagnosticExample, type FailureCode, type SetMappingCandidate, type SetMappingStatus, type SingleSetDiagnosticResult } from './diagnostic-result.ts';
-import type { CatalogWritePlan } from './catalog-write-plan.ts';
+import { validateCatalogWritePlan, type CatalogWritePlan } from './catalog-write-plan.ts';
 
 const SOURCE = 'pokemon_tcg_api';
 const API_BASE_URL = 'https://api.pokemontcg.io/v2';
@@ -132,9 +132,9 @@ type WritePlan = {
 };
 
 export type CanonicalCardAction =
-  | { action: 'existingIdentical'; externalSource: string; externalId: string; setId: string; setCatalogId: string; cardCatalogId: string; cardNumber: string; name: string; rarity: string | null; image_small: string | null; image_large: string | null }
-  | { action: 'insertReference'; externalSource: string; externalId: string; setId: string; setCatalogId: string; cardNumber: string; referenceInsert: PlannedReferenceInsert }
-  | { action: 'insertCardAndReference'; externalSource: string; externalId: string; setId: string; setCatalogId: string; cardNumber: string; catalogInsert: PlannedCatalogInsert; referenceInsert: PlannedReferenceInsert }
+  | { action: 'existingIdentical'; externalSource: string; externalId: string; setId: string; setCode: string; setCatalogId: string; cardCatalogId: string; cardNumber: string; name: string; rarity: string | null; image_small: string | null; image_large: string | null }
+  | { action: 'insertReference'; externalSource: string; externalId: string; setId: string; setCode: string; setCatalogId: string; cardNumber: string; referenceInsert: PlannedReferenceInsert }
+  | { action: 'insertCardAndReference'; externalSource: string; externalId: string; setId: string; setCode: string; setCatalogId: string; cardNumber: string; catalogInsert: PlannedCatalogInsert; referenceInsert: PlannedReferenceInsert }
   | { action: 'blocked' | 'conflict'; externalSource: string; externalId: string; setId: string; cardNumber: string; reason: string };
 
 export type CanonicalSetAnalysis = {
@@ -1421,20 +1421,20 @@ export function buildCanonicalSetAnalysis(params: { setId: string; setName: stri
   for (const externalCard of [...params.matching.classifications.map((item) => item.externalCard)].sort((a, b) => a.id.localeCompare(b.id))) {
     const classification = classifications.get(externalCard.id)!;
     if (!setCatalogId || !params.matching.setCode) {
-      actions.push({ action: 'blocked', externalSource: SOURCE, externalId: externalCard.id, setId: params.setId, cardNumber: externalCard.number, reason: 'missing_set_catalog_id' });
+      actions.push({ action: 'blocked', externalSource: SOURCE, externalId: externalCard.id, setId: params.setId, cardNumber: externalCard.number, reason: 'missing_set_catalog_identity' });
       continue;
     }
     if (classification.kind === 'existing') {
-      actions.push({ action: 'existingIdentical', externalSource: SOURCE, externalId: externalCard.id, setId: params.setId, setCatalogId, cardCatalogId: classification.catalogCard.id, cardNumber: externalCard.number, name: externalCard.name, rarity: externalCard.rarity ?? null, image_small: externalCard.images?.small ?? null, image_large: externalCard.images?.large ?? null });
+      actions.push({ action: 'existingIdentical', externalSource: SOURCE, externalId: externalCard.id, setId: params.setId, setCode: params.matching.setCode, setCatalogId, cardCatalogId: classification.catalogCard.id, cardNumber: externalCard.number, name: externalCard.name, rarity: externalCard.rarity ?? null, image_small: externalCard.images?.small ?? null, image_large: externalCard.images?.large ?? null });
       continue;
     }
     if (classification.kind === 'fallback') {
-      actions.push({ action: 'insertReference', externalSource: SOURCE, externalId: externalCard.id, setId: params.setId, setCatalogId, cardNumber: externalCard.number, referenceInsert: { card_catalog_id: classification.catalogCard.id, source: SOURCE, external_id: externalCard.id, source_url: null, last_seen_at: importedAt } });
+      actions.push({ action: 'insertReference', externalSource: SOURCE, externalId: externalCard.id, setId: params.setId, setCode: params.matching.setCode, setCatalogId, cardNumber: externalCard.number, referenceInsert: { card_catalog_id: classification.catalogCard.id, source: SOURCE, external_id: externalCard.id, source_url: null, last_seen_at: importedAt } });
       continue;
     }
     const id = createHash('sha256').update(`pokemon-catalog-card:${SOURCE}:${externalCard.id}`, 'utf8').digest('hex').replace(/^(....)(....)(....)(....)(.*)$/, '$1-$2-4$3-8$4-$5').slice(0, 36);
     const catalogInsert: PlannedCatalogInsert = { id, external_source: SOURCE, external_id: externalCard.id, pokemon: normalizeRequired(externalCard.name), set_name: normalizeRequired(params.setName), number: normalizeRequired(externalCard.number), rarity: normalizeOptional(externalCard.rarity), image_small: normalizeOptional(externalCard.images?.small), image_large: normalizeOptional(externalCard.images?.large), card_details: externalCard.details, set_code: params.matching.setCode };
-    actions.push({ action: 'insertCardAndReference', externalSource: SOURCE, externalId: externalCard.id, setId: params.setId, setCatalogId, cardNumber: externalCard.number, catalogInsert, referenceInsert: { card_catalog_id: id, source: SOURCE, external_id: externalCard.id, source_url: null, last_seen_at: importedAt } });
+    actions.push({ action: 'insertCardAndReference', externalSource: SOURCE, externalId: externalCard.id, setId: params.setId, setCode: params.matching.setCode, setCatalogId, cardNumber: externalCard.number, catalogInsert, referenceInsert: { card_catalog_id: id, source: SOURCE, external_id: externalCard.id, source_url: null, last_seen_at: importedAt } });
   }
   const classifiedIds = new Set(actions.map((action) => action.externalId));
   for (const item of params.matching.ambiguousExamples.concat(params.matching.conflictExamples, params.matching.unresolvedWithoutSetMappingExamples)) {
@@ -1447,6 +1447,7 @@ export function buildCanonicalSetAnalysis(params: { setId: string; setName: stri
 }
 
 function approvedSetPlan(plan: CatalogWritePlan, setId: string): { matching: MatchingReport; writePlan: WritePlan } {
+  validateCatalogWritePlan(plan, { datasetVersion: plan.datasetVersion, datasetCommit: plan.datasetCommit, manifestHash: plan.manifestHash, sets: plan.sets });
   if (plan.finalStatus !== 'PASS' || plan.conflicts.length !== 0 || plan.blockedItems.length !== 0) throw new UserFacingError('Goedgekeurd writeplan is niet PASS of bevat geblokkeerde items.');
   const set = plan.perSet.find((item) => item.setId === setId);
   if (!set || set.receivedCards !== set.expectedCards || set.conflicts !== 0 || set.blockedItems !== 0 || !set.setCode) throw new UserFacingError(`Goedgekeurd writeplan bevat geen uitvoerbaar plan voor ${setId}.`);
