@@ -1,9 +1,10 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { randomUUID } from 'node:crypto';
 import { loadPokemonTcgDataJson } from './local-json.ts';
+import { classifyFallbackCandidates } from './fallback-classification.ts';
 import { parseCardDetails, type CardDetails } from './card-details.ts';
 import { assertWriteAuthorized, getWritePlanTitle, parseCatalogImportArgs, type CatalogImportOptions } from './import-args.ts';
-import { mappingFailureReasons, writeDiagnosticResult, type DiagnosticExample, type FailureCode, type SetMappingCandidate, type SetMappingStatus, type SingleSetDiagnosticResult } from './diagnostic-result.ts';
+import { failureCodesForConflictReasons, mappingFailureReasons, writeDiagnosticResult, type DiagnosticExample, type FailureCode, type SetMappingCandidate, type SetMappingStatus, type SingleSetDiagnosticResult } from './diagnostic-result.ts';
 
 const SOURCE = 'pokemon_tcg_api';
 const API_BASE_URL = 'https://api.pokemontcg.io/v2';
@@ -67,7 +68,7 @@ type MatchingReport = {
   catalogCardsQueried: number;
   fallbackCandidatesQueried: number;
   matchedByExternalReference: number;
-  candidateBySetAndNumber: number;
+  safeFallbackCandidates: number;
   newCards: number;
   ambiguous: number;
   conflicts: number;
@@ -673,7 +674,7 @@ async function matchCards(supabase: SupabaseClient, incomingSet: PokemonSet, ext
     catalogCardsQueried: linkedCatalogCards.length,
     fallbackCandidatesQueried: fallbackCards.length,
     matchedByExternalReference: 0,
-    candidateBySetAndNumber: 0,
+    safeFallbackCandidates: 0,
     newCards: 0,
     ambiguous: 0,
     conflicts: 0,
@@ -744,25 +745,25 @@ async function matchCards(supabase: SupabaseClient, incomingSet: PokemonSet, ext
     }
 
     const candidates = fallbackByNumber.get(normalizeRequired(externalCard.number)) ?? [];
-    if (candidates.length === 1) {
+    const candidateDecision = classifyFallbackCandidates(candidates.map((candidate) => ({ id: candidate.id, changedFields: compareMetadata(externalCard, candidate, setCode), hasSourceReference: (fallbackReferencesByCardId.get(candidate.id) ?? []).length > 0 })));
+    if (candidateDecision === 'safe') {
+      const candidate = candidates[0];
+      report.safeFallbackCandidates += 1;
+      report.metadataUnchanged += 1;
+      addExample(report.candidateExamples, { ...baseExample, card_catalog_id: candidate.id });
+      report.classifications.push({ kind: 'fallback', externalCard, catalogCard: candidate });
+    } else if (candidateDecision === 'metadata_mismatch') {
       const candidate = candidates[0];
       const changedFields = compareMetadata(externalCard, candidate, setCode);
-      const conflictingReferences = fallbackReferencesByCardId.get(candidate.id) ?? [];
-      if (changedFields.length > 0) {
-        report.conflicts += 1;
-        report.metadataChanged += 1;
-        addExample(report.metadataChangedExamples, { ...baseExample, card_catalog_id: candidate.id, changed_fields: changedFields });
-        addExample(report.conflictExamples, { ...baseExample, card_catalog_id: candidate.id, changed_fields: changedFields, reason: 'fallback_metadata_mismatch' });
-      } else if (conflictingReferences.length > 0) {
-        report.conflicts += 1;
-        addExample(report.conflictExamples, { ...baseExample, card_catalog_id: candidate.id, reason: 'fallback_candidate_already_has_source_reference' });
-      } else {
-        report.candidateBySetAndNumber += 1;
-        report.metadataUnchanged += 1;
-        addExample(report.candidateExamples, { ...baseExample, card_catalog_id: candidate.id });
-        report.classifications.push({ kind: 'fallback', externalCard, catalogCard: candidate });
-      }
-    } else if (candidates.length > 1) {
+      report.conflicts += 1;
+      report.metadataChanged += 1;
+      addExample(report.metadataChangedExamples, { ...baseExample, card_catalog_id: candidate.id, changed_fields: changedFields });
+      addExample(report.conflictExamples, { ...baseExample, card_catalog_id: candidate.id, changed_fields: changedFields, reason: 'fallback_metadata_mismatch' });
+    } else if (candidateDecision === 'existing_source_reference') {
+      const candidate = candidates[0];
+      report.conflicts += 1;
+      addExample(report.conflictExamples, { ...baseExample, card_catalog_id: candidate.id, reason: 'fallback_candidate_already_has_source_reference' });
+    } else if (candidateDecision === 'ambiguous') {
       report.ambiguous += 1;
       addExample(report.ambiguousExamples, { ...baseExample, reason: `${candidates.length}_fallback_candidates` });
     } else {
@@ -774,13 +775,13 @@ async function matchCards(supabase: SupabaseClient, incomingSet: PokemonSet, ext
 
   const classified =
     report.matchedByExternalReference +
-    report.candidateBySetAndNumber +
+    report.safeFallbackCandidates +
     report.newCards +
     report.ambiguous +
     report.conflicts +
     report.unresolvedWithoutSetMapping;
   if (classified !== externalCards.length) errors.push('Niet iedere externe kaart kreeg exact één primaire matchingstatus.');
-  if (report.conflicts > 0) errors.push('Conflicten gevonden in externe referenties.');
+  if (report.conflicts > 0) errors.push('Conflicten of metadata-afwijkingen gevonden; automatische updates blijven geblokkeerd.');
   if (report.ambiguous > 0) errors.push('Ambigue fallbackmatches gevonden.');
   if (report.unresolvedWithoutSetMapping > 0) errors.push('Niet-gematchte kaarten zonder betrouwbare setmapping gevonden.');
   if (report.metadataChanged > 0) errors.push('Bestaande catalogusmetadata wijkt af; automatische metadata-updates zijn niet toegestaan.');
@@ -1075,7 +1076,7 @@ function printReport(params: {
     console.log(`Catalog cards queried: ${params.matching.catalogCardsQueried}`);
     console.log(`Fallback candidates queried: ${params.matching.fallbackCandidatesQueried}`);
     console.log(`Matched by external reference: ${params.matching.matchedByExternalReference}`);
-    console.log(`Candidate by set and number: ${params.matching.candidateBySetAndNumber}`);
+    console.log(`Safe fallback candidates: ${params.matching.safeFallbackCandidates}`);
     console.log(`New: ${params.matching.newCards}`);
     console.log(`Ambiguous: ${params.matching.ambiguous}`);
     console.log(`Conflicts: ${params.matching.conflicts}`);
@@ -1116,7 +1117,7 @@ function diagnosticExamples(matching: MatchingReport): Partial<Record<FailureCod
     ...(matching.unresolvedWithoutSetMappingExamples.length ? { missing_set_mapping: map(matching.unresolvedWithoutSetMappingExamples) } : {}),
     ...(matching.ambiguousExamples.length ? { ambiguous_fallback_candidate: map(matching.ambiguousExamples) } : {}),
     ...(matching.conflictExamples.some((item) => item.reason === 'fallback_metadata_mismatch') ? { fallback_metadata_mismatch: map(matching.conflictExamples.filter((item) => item.reason === 'fallback_metadata_mismatch')) } : {}),
-    ...(matching.conflictExamples.length ? { external_reference_conflict: map(matching.conflictExamples) } : {}),
+    ...(matching.conflictExamples.some((item) => failureCodesForConflictReasons([item.reason ?? '']).includes('external_reference_conflict')) ? { external_reference_conflict: map(matching.conflictExamples.filter((item) => failureCodesForConflictReasons([item.reason ?? '']).includes('external_reference_conflict'))) } : {}),
     ...(matching.metadataChangedExamples.length ? { card_identity_conflict: map(matching.metadataChangedExamples) } : {}),
   };
 }
@@ -1126,8 +1127,7 @@ function buildDiagnosticResult(params: { set: PokemonSet; receivedCards: number;
   if (params.validation.errors.length > 0) reasons.add('input_validation_failure');
   if (params.validation.duplicateIds.length > 0) reasons.add('card_identity_conflict');
   if (params.matching.ambiguous > 0) reasons.add('ambiguous_fallback_candidate');
-  if (params.matching.conflicts > 0) reasons.add('external_reference_conflict');
-  if (params.matching.conflictExamples.some((item) => item.reason === 'fallback_metadata_mismatch')) reasons.add('fallback_metadata_mismatch');
+  for (const code of failureCodesForConflictReasons(params.matching.conflictExamples.map((item) => item.reason ?? ''))) reasons.add(code);
   if (params.matching.metadataChanged > 0) reasons.add('card_identity_conflict');
   if (!params.passed && reasons.size === 0) reasons.add('unexpected_runner_failure');
   const status = params.passed && reasons.size === 0 ? 'PASS' : 'FAIL';
@@ -1147,7 +1147,8 @@ function buildDiagnosticResult(params: { set: PokemonSet; receivedCards: number;
       evidence: params.matching.setMappingEvidence,
     },
     externalReferenceMatches: params.matching.matchedByExternalReference,
-    fallbackCandidates: params.matching.candidateBySetAndNumber,
+    fallbackCandidatesQueried: params.matching.fallbackCandidatesQueried,
+    safeFallbackCandidates: params.matching.safeFallbackCandidates,
     newCards: params.matching.newCards,
     ambiguousItems: params.matching.ambiguous,
     conflicts: params.matching.conflicts,
@@ -1339,7 +1340,8 @@ async function main(): Promise<number> {
       setMappingStatus: 'no_candidate',
       setMapping: { status: 'no_candidate', candidates: [], evidence: [] },
       externalReferenceMatches: 0,
-      fallbackCandidates: 0,
+      fallbackCandidatesQueried: 0,
+      safeFallbackCandidates: 0,
       newCards: 0,
       ambiguousItems: 0,
       conflicts: 0,

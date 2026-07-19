@@ -96,7 +96,7 @@ function runIdempotency(setId: string): StepResult {
 }
 
 function failClosedStep(params: { setId: string; step: StepName; exitCode: number; output: string; error: string }): StepResult {
-  const diagnostic: SingleSetDiagnosticResult = { schemaVersion: 1, setId: params.setId, status: 'FAIL', receivedCards: 0, setMappingStatus: 'no_candidate', setMapping: { status: 'no_candidate', candidates: [], evidence: [] }, externalReferenceMatches: 0, fallbackCandidates: 0, newCards: 0, ambiguousItems: 0, conflicts: 0, unresolvedWithoutSetMapping: 0, metadataUnchanged: 0, metadataChanged: 0, blockedItems: 0, plannedDatabaseWrites: 0, databaseWrites: 0, failureReasons: ['unexpected_runner_failure'], examples: { unexpected_runner_failure: [{ reason: params.error }] } };
+  const diagnostic: SingleSetDiagnosticResult = { schemaVersion: 1, setId: params.setId, status: 'FAIL', receivedCards: 0, setMappingStatus: 'no_candidate', setMapping: { status: 'no_candidate', candidates: [], evidence: [] }, externalReferenceMatches: 0, fallbackCandidatesQueried: 0, safeFallbackCandidates: 0, newCards: 0, ambiguousItems: 0, conflicts: 0, unresolvedWithoutSetMapping: 0, metadataUnchanged: 0, metadataChanged: 0, blockedItems: 0, plannedDatabaseWrites: 0, databaseWrites: 0, failureReasons: ['unexpected_runner_failure'], examples: { unexpected_runner_failure: [{ reason: params.error }] } };
   return { step: params.step, exitCode: params.exitCode, output: params.output, passed: false, error: `${params.error} failureCode=unexpected_runner_failure`, databaseWrites: 0, diagnostic };
 }
 
@@ -285,7 +285,7 @@ function checkpointSet(checkpoint: CatalogBatchCheckpoint, setId: string): Check
   return set;
 }
 
-function reportTotals(results: SetResult[]): { expectedCardsTotal: number; receivedCardsTotal: number; plannedWritesTotal: number; databaseWritesTotal: number } {
+function reportTotals(results: SetResult[]): { expectedCardsTotal: number; receivedCardsTotal: number; plannedWritesTotal: number; databaseWritesTotal: number; fallbackCandidatesQueriedTotal: number; safeFallbackCandidatesTotal: number } {
   return results.reduce((totals, result) => {
     const step = latestStep(result);
     return {
@@ -293,8 +293,10 @@ function reportTotals(results: SetResult[]): { expectedCardsTotal: number; recei
       receivedCardsTotal: totals.receivedCardsTotal + (step?.receivedCards ?? 0),
       plannedWritesTotal: totals.plannedWritesTotal + (step?.plannedWrites ?? 0),
       databaseWritesTotal: totals.databaseWritesTotal + (step?.databaseWrites ?? 0),
+      fallbackCandidatesQueriedTotal: totals.fallbackCandidatesQueriedTotal + (step?.diagnostic?.fallbackCandidatesQueried ?? 0),
+      safeFallbackCandidatesTotal: totals.safeFallbackCandidatesTotal + (step?.diagnostic?.safeFallbackCandidates ?? 0),
     };
-  }, { expectedCardsTotal: 0, receivedCardsTotal: 0, plannedWritesTotal: 0, databaseWritesTotal: 0 });
+  }, { expectedCardsTotal: 0, receivedCardsTotal: 0, plannedWritesTotal: 0, databaseWritesTotal: 0, fallbackCandidatesQueriedTotal: 0, safeFallbackCandidatesTotal: 0 });
 }
 
 function toReportStep(step: StepResult): ReportStep {

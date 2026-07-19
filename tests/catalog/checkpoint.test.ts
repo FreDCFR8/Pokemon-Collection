@@ -11,7 +11,7 @@ const identity: CheckpointIdentity = {
 };
 
 function diagnostic(setId: string, status: 'PASS' | 'FAIL' = 'PASS'): SingleSetDiagnosticResult {
-  return { schemaVersion: 1, setId, expectedCards: 1, receivedCards: 1, status, setCode: status === 'PASS' ? setId : undefined, setMappingStatus: status === 'PASS' ? 'already_reliable' : 'no_candidate', setMapping: status === 'PASS' ? { status: 'already_reliable', reliableSetCode: setId, candidates: [], evidence: [] } : { status: 'no_candidate', candidates: [], evidence: [] }, externalReferenceMatches: 1, fallbackCandidates: 0, newCards: 0, ambiguousItems: 0, conflicts: 0, unresolvedWithoutSetMapping: 0, metadataUnchanged: 1, metadataChanged: 0, blockedItems: status === 'PASS' ? 0 : 1, plannedDatabaseWrites: 0, databaseWrites: 0, failureReasons: status === 'PASS' ? [] : ['unexpected_runner_failure'], examples: status === 'PASS' ? {} : { unexpected_runner_failure: [{ reason: 'test' }] } };
+  return { schemaVersion: 1, setId, expectedCards: 1, receivedCards: 1, status, setCode: status === 'PASS' ? setId : undefined, setMappingStatus: status === 'PASS' ? 'already_reliable' : 'no_candidate', setMapping: status === 'PASS' ? { status: 'already_reliable', reliableSetCode: setId, candidates: [], evidence: [] } : { status: 'no_candidate', candidates: [], evidence: [] }, externalReferenceMatches: 1, fallbackCandidatesQueried: 0, safeFallbackCandidates: 0, newCards: 0, ambiguousItems: 0, conflicts: 0, unresolvedWithoutSetMapping: 0, metadataUnchanged: 1, metadataChanged: 0, blockedItems: status === 'PASS' ? 0 : 1, plannedDatabaseWrites: 0, databaseWrites: 0, failureReasons: status === 'PASS' ? [] : ['unexpected_runner_failure'], examples: status === 'PASS' ? {} : { unexpected_runner_failure: [{ reason: 'test' }] } };
 }
 
 test('checkpoint identity includes normalized Supabase project URL without secrets', () => {
@@ -89,6 +89,14 @@ test('passed and failed checkpoint sets require full diagnostics', () => {
   assert.throws(() => readCheckpoint(writeTemp(invalidPassed)), /vereist volledige diagnostiek/);
   const invalidPending = validCheckpoint(); invalidPending.sets[1].diagnostic = diagnostic('sv2');
   assert.throws(() => readCheckpoint(writeTemp(invalidPending)), /mag geen diagnostiek/);
+});
+
+test('checkpoint v2 preserves both fallback counters exactly', () => {
+  const value = validCheckpoint();
+  value.sets[0].diagnostic = { ...diagnostic('sv1'), fallbackCandidatesQueried: 1, safeFallbackCandidates: 0 };
+  const loaded = readCheckpoint(writeTemp(value));
+  assert.equal(loaded.sets[0].diagnostic?.fallbackCandidatesQueried, 1);
+  assert.equal(loaded.sets[0].diagnostic?.safeFallbackCandidates, 0);
 });
 
 function writeTemp(value: unknown): string {

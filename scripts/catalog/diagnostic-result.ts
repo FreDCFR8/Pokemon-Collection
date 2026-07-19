@@ -34,7 +34,8 @@ export type SingleSetDiagnosticResult = {
   setMappingStatus: SetMappingStatus;
   setMapping: SetMappingProposal;
   externalReferenceMatches: number;
-  fallbackCandidates: number;
+  fallbackCandidatesQueried: number;
+  safeFallbackCandidates: number;
   newCards: number;
   ambiguousItems: number;
   conflicts: number;
@@ -47,6 +48,21 @@ export type SingleSetDiagnosticResult = {
   failureReasons: FailureCode[];
   examples: Partial<Record<FailureCode, DiagnosticExample[]>>;
 };
+
+export type InternalConflictReason = 'multiple_external_references' | 'missing_card_catalog_id' | 'dangling_card_catalog_id' | 'catalog_card_has_multiple_source_references' | 'fallback_candidate_already_has_source_reference' | 'fallback_metadata_mismatch';
+
+export function failureCodesForConflictReasons(reasons: readonly string[]): FailureCode[] {
+  const codes = new Set<FailureCode>();
+  for (const reason of reasons) {
+    if (reason === 'fallback_metadata_mismatch') {
+      codes.add('fallback_metadata_mismatch');
+      codes.add('card_identity_conflict');
+    } else if (reason === 'multiple_external_references' || reason === 'missing_card_catalog_id' || reason === 'dangling_card_catalog_id' || reason === 'catalog_card_has_multiple_source_references' || reason === 'fallback_candidate_already_has_source_reference') {
+      codes.add('external_reference_conflict');
+    }
+  }
+  return [...codes].sort();
+}
 
 export function mappingFailureReasons(status: SetMappingStatus): FailureCode[] {
   if (status === 'already_reliable') return [];
@@ -116,9 +132,10 @@ function assertMapping(value: unknown, status: SetMappingStatus, setCode: string
 
 export function assertValidDiagnosticResult(value: unknown): asserts value is SingleSetDiagnosticResult {
   if (!isObject(value)) throw new Error('Subprocessresultaat moet een JSON-object zijn.');
-  assertAllowed(value, ['schemaVersion', 'setId', 'setName', 'expectedCards', 'receivedCards', 'status', 'setCode', 'setMappingStatus', 'setMapping', 'externalReferenceMatches', 'fallbackCandidates', 'newCards', 'ambiguousItems', 'conflicts', 'unresolvedWithoutSetMapping', 'metadataUnchanged', 'metadataChanged', 'blockedItems', 'plannedDatabaseWrites', 'databaseWrites', 'failureReasons', 'examples'], 'subprocessresultaat');
+  assertAllowed(value, ['schemaVersion', 'setId', 'setName', 'expectedCards', 'receivedCards', 'status', 'setCode', 'setMappingStatus', 'setMapping', 'externalReferenceMatches', 'fallbackCandidatesQueried', 'safeFallbackCandidates', 'newCards', 'ambiguousItems', 'conflicts', 'unresolvedWithoutSetMapping', 'metadataUnchanged', 'metadataChanged', 'blockedItems', 'plannedDatabaseWrites', 'databaseWrites', 'failureReasons', 'examples'], 'subprocessresultaat');
   if (value.schemaVersion !== DIAGNOSTIC_SCHEMA_VERSION || typeof value.setId !== 'string' || !isValidSetId(value.setId) || (value.setName !== undefined && !isString(value.setName)) || (value.setCode !== undefined && (!isString(value.setCode, 32) || !isValidSetId(value.setCode))) || (value.status !== 'PASS' && value.status !== 'FAIL') || !['already_reliable', 'exact_candidate', 'ambiguous_candidate', 'no_candidate', 'conflicting_candidate'].includes(String(value.setMappingStatus))) throw new Error('Subprocessresultaat bevat ongeldige identiteit of status.');
-  for (const key of ['receivedCards', 'externalReferenceMatches', 'fallbackCandidates', 'newCards', 'ambiguousItems', 'conflicts', 'unresolvedWithoutSetMapping', 'metadataUnchanged', 'metadataChanged', 'blockedItems', 'plannedDatabaseWrites', 'databaseWrites']) if (!isNonNegativeInteger(value[key])) throw new Error(`Ongeldige diagnostische teller: ${key}.`);
+  for (const key of ['receivedCards', 'externalReferenceMatches', 'fallbackCandidatesQueried', 'safeFallbackCandidates', 'newCards', 'ambiguousItems', 'conflicts', 'unresolvedWithoutSetMapping', 'metadataUnchanged', 'metadataChanged', 'blockedItems', 'plannedDatabaseWrites', 'databaseWrites']) if (!isNonNegativeInteger(value[key])) throw new Error(`Ongeldige diagnostische teller: ${key}.`);
+  if ((value.safeFallbackCandidates as number) > (value.fallbackCandidatesQueried as number)) throw new Error('safeFallbackCandidates mag niet groter zijn dan fallbackCandidatesQueried.');
   if (value.expectedCards !== undefined && !isNonNegativeInteger(value.expectedCards)) throw new Error('Ongeldige expectedCards.');
   if (!Array.isArray(value.failureReasons) || value.failureReasons.length > FAILURE_CODES.length || value.failureReasons.some((code) => !isFailureCode(code)) || new Set(value.failureReasons).size !== value.failureReasons.length) throw new Error('Ongeldige failureReasons.');
   if (value.status === 'PASS' && value.failureReasons.length !== 0) throw new Error('PASS mag geen failureReasons bevatten.');
