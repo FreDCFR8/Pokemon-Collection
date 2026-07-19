@@ -1453,7 +1453,7 @@ export function buildCanonicalSetAnalysis(params: { setId: string; setName: stri
 }
 
 function approvedSetPlan(plan: CatalogWritePlan, setId: string): { matching: MatchingReport; writePlan: WritePlan } {
-  validateCatalogWritePlan(plan, { datasetVersion: plan.datasetVersion, datasetCommit: plan.datasetCommit, manifestHash: plan.manifestHash, sets: plan.sets });
+  validateCatalogWritePlan(plan, { datasetVersion: plan.datasetVersion, datasetCommit: plan.datasetCommit, manifestHash: plan.manifestHash, sourceReportHash: plan.sourceReportHash, sets: plan.sets });
   if (plan.finalStatus !== 'PASS' || plan.conflicts.length !== 0 || plan.blockedItems.length !== 0) throw new UserFacingError('Goedgekeurd writeplan is niet PASS of bevat geblokkeerde items.');
   const set = plan.perSet.find((item) => item.setId === setId);
   if (!set || set.receivedCards !== set.expectedCards || set.conflicts !== 0 || set.blockedItems !== 0 || !set.setCode) throw new UserFacingError(`Goedgekeurd writeplan bevat geen uitvoerbaar plan voor ${setId}.`);

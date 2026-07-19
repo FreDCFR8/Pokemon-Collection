@@ -11,6 +11,7 @@ export type CatalogWritePlan = {
   datasetVersion: string;
   datasetCommit: string;
   manifestHash: string;
+  sourceReportHash: string;
   batch: string;
   sets: string[];
   expectedCardsTotal: number;
@@ -31,12 +32,14 @@ export function createCatalogWritePlan(params: Omit<CatalogWritePlan, 'schemaVer
   return { ...withStatus, analysisHash: analysisHash(withStatus) };
 }
 
-export function validateCatalogWritePlan(value: unknown, expected: { datasetVersion: string; datasetCommit: string; manifestHash: string; sets: readonly string[] }): CatalogWritePlan {
+export function validateCatalogWritePlan(value: unknown, expected: { datasetVersion: string; datasetCommit: string; manifestHash: string; sourceReportHash: string; sets: readonly string[] }): CatalogWritePlan {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Writeplan heeft een ongeldig formaat.');
   const plan = value as CatalogWritePlan;
   if (plan.schemaVersion !== CATALOG_WRITE_PLAN_SCHEMA_VERSION || plan.phase !== 'Phase 7B-2F9E-B' || plan.source !== 'pokemon_tcg_data') throw new Error('Writeplan-schema of bron is ongeldig.');
   if (plan.datasetVersion !== expected.datasetVersion || plan.datasetCommit !== expected.datasetCommit) throw new Error('Datasetcommit van het writeplan komt niet overeen.');
   if (plan.manifestHash !== expected.manifestHash) throw new Error('manifestHash van het writeplan komt niet overeen.');
+  if (typeof plan.sourceReportHash !== 'string' || !/^[0-9a-f]{64}$/.test(plan.sourceReportHash)) throw new Error('Writeplan mist een geldige sourceReportHash.');
+  if (plan.sourceReportHash !== expected.sourceReportHash) throw new Error('sourceReportHash van het writeplan komt niet overeen met het goedgekeurde dry-runrapport.');
   if (JSON.stringify(plan.sets) !== JSON.stringify(expected.sets)) throw new Error('Exacte setlijst van het writeplan komt niet overeen.');
   if (plan.finalStatus !== 'PASS') throw new Error('Writeplan is niet PASS.');
   if (!Array.isArray(plan.conflicts) || plan.conflicts.length !== 0) throw new Error('Writeplan bevat conflicten.');

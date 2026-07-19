@@ -120,11 +120,11 @@ function readApprovedReport(path: string): Record<string, any> {
   return validateApprovedDryRunReportText(readFileSync(path, 'utf8'));
 }
 
-function readApprovedWritePlan(path: string, local: LocalBatchSelection, manifestHash: string): CatalogWritePlan {
+function readApprovedWritePlan(path: string, local: LocalBatchSelection, manifestHash: string, sourceReportHash: string): CatalogWritePlan {
   if (!existsSync(path)) throw new Error(`Goedgekeurd writeplan ontbreekt: ${path}`);
   let value: unknown;
   try { value = JSON.parse(readFileSync(path, 'utf8')); } catch { throw new Error('Goedgekeurd writeplan is geen geldige JSON.'); }
-  return validateCatalogWritePlan(value, { datasetVersion: local.datasetVersion, datasetCommit: local.datasetVersion, manifestHash, sets: local.sets.map((set) => set.setId) });
+  return validateCatalogWritePlan(value, { datasetVersion: local.datasetVersion, datasetCommit: local.datasetVersion, manifestHash, sourceReportHash, sets: local.sets.map((set) => set.setId) });
 }
 
 async function readTableCounts(): Promise<TableCounts> {
@@ -436,7 +436,7 @@ export async function main(): Promise<number> {
 
       const identity = localIdentity(local, options.manifestPath!);
       const approvedReport = options.mode === 'write-approved' ? readApprovedReport(options.approvedDryRunReportPath!) : undefined;
-      const approvedPlan = options.mode === 'write-approved' ? readApprovedWritePlan(options.writePlanPath!, local, identity.manifestHash) : undefined;
+      const approvedPlan = options.mode === 'write-approved' ? readApprovedWritePlan(options.writePlanPath!, local, identity.manifestHash, approvedReport!.reportHash) : undefined;
       if (approvedReport && (local.datasetVersion !== approvedReport.datasetVersion || identity.manifestHash !== approvedReport.manifestHash)) throw new Error('Actuele dataset- of manifestHash-identiteit wijkt af van het goedgekeurde rapport.');
       if (approvedReport && approvedPlan && (
         approvedReport.datasetVersion !== approvedPlan.datasetVersion ||
@@ -448,6 +448,7 @@ export async function main(): Promise<number> {
         approvedReport.theoreticalWrites?.cardExternalReferences !== approvedPlan.plannedReferenceInserts ||
         approvedReport.theoreticalWrites?.total !== approvedPlan.plannedCatalogInserts + approvedPlan.plannedReferenceInserts
       )) throw new Error('Goedgekeurd rapport en writeplan hebben geen identieke dataset-, batch-, kaart- of write-identiteit.');
+      if (approvedReport && approvedPlan && approvedReport.reportHash !== approvedPlan.sourceReportHash) throw new Error('Goedgekeurd dry-runrapport en writeplan hebben verschillende reportHash/sourceReportHash-identiteit.');
       const precheckCounts = options.mode === 'write-approved' ? await readTableCounts() : undefined;
       if (approvedReport?.precheckCounts) assertCountsEqual(precheckCounts!, approvedReport.precheckCounts as TableCounts, 'Read-only Supabase-precheck wijkt af van het goedgekeurde rapport');
 
