@@ -6,6 +6,10 @@ This document contains current operational state only. Historical direction belo
 
 ## Current phase
 
+**Phase 7B-2F9D-A — Read-only validatie van exacte setmappings (actief)**
+
+De validator leest uitsluitend de 44 `exact_candidate`-resultaten uit het PR138-rapport tegen hetzelfde gepinde manifest en datasetprofiel. Per kandidaat worden `sets_catalog`, naam/serie, provenance, kaartnummerdekking, externe kaartreferenties en set-/bronconflicten read-only gecontroleerd. De uitkomst is deterministisch, bevat machineleesbare reason codes en rapporteert altijd `databaseWritesTotal: 0`.
+
 **Phase 7B-2F9C — Read-only failure-classificatie en setmappingplan (afgerond)**
 
 De volledige vastgepinde lokale dataset is verwerkt met getypeerde, hervatbare en volledig read-only diagnostiek. Alle inhoudelijke blokkades zijn machineleesbaar geclassificeerd zonder catalogus- of collectiewrites.
@@ -95,5 +99,9 @@ Phase 7B-2F9C adds typed, atomic per-set diagnostic JSON results and makes the b
 De operationele 2F9C-run is afgerond: 173 sets verwerkt, 7 inhoudelijke PASS, 166 inhoudelijke blokkades, 20.324/20.324 kaarten ontvangen, 0 runnerfouten en `databaseWritesTotal: 0`. Een globale FAIL blijft correct zolang inhoudelijke blokkades bestaan.
 
 ## Next phase scope
+
+Phase 7B-2F9D-A: kandidaatclassificaties blijven inhoudelijke analyse-uitvoer; mappingpromotie, bredere cataloguswrites en een eventuele `set_external_references`-tabel zijn expliciet uitgesloten.
+
+De live 44-kandidatenrun is lokaal nog niet uitgevoerd: deze checkout bevat geen `PokemonTCG/pokemon-tcg-data`-input-root, PR138-bronrapport of Supabase-leescredentials. De CLI faalt hiervoor gesloten en produceert geen gedeeltelijk of fictief rapport.
 
 Voorgestelde Phase 7B-2F9D beoordeelt de 44 `exact_candidate`-setmappings gecontroleerd en read-only. Kandidaten worden niet automatisch betrouwbaar gemaakt; iedere mappingwijziging en iedere bredere cataloguswrite vereist een afzonderlijke analyse, expliciete goedkeuring en eigen PR. De 118 sets zonder kandidaat blijven geblokkeerd. Trade remains a separate future area and the lowest product priority.

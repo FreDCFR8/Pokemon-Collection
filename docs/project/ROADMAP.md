@@ -28,6 +28,8 @@ This document shows product direction and phase status. It intentionally avoids 
 
 ## Catalog and imports
 
+- 🚧 Phase 7B-2F9D-A — read-only validatie en beoordelingsrapport voor 44 exacte setmappingkandidaten
+
 - ✅ `cards_catalog` runtime source of truth
 - ✅ `sets_catalog` canonical set metadata
 - ✅ external-reference model
