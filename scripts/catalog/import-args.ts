@@ -1,4 +1,5 @@
 const WRITE_ALLOWED_SET_IDS = new Set(['sv3pt5', 'sv3']);
+const LOCAL_BATCH_1_WRITE_ALLOWED_SET_IDS = new Set(['bw9', 'cel25', 'me1', 'me2', 'me2pt5', 'me3', 'me4', 'pgo', 'rsv10pt5', 'sm1', 'sm12', 'sm2', 'sm35']);
 export const MAX_SET_ID_LENGTH = 32;
 
 export type CatalogImportSource = 'pokemon_tcg_api' | 'pokemon_tcg_data';
@@ -8,8 +9,10 @@ export type CatalogImportOptions = {
   source: CatalogImportSource;
   inputPath?: string;
   diagnosticResultPath?: string;
+  writePlanPath?: string;
   setName?: string;
   setSeries?: string;
+  batchApproval?: 'batch-1';
 };
 
 export class CatalogImportArgumentError extends Error {}
@@ -34,8 +37,10 @@ export function parseCatalogImportArgs(argv: readonly string[]): CatalogImportOp
   let sourceSpecified = false;
   let inputPath: string | undefined;
   let diagnosticResultPath: string | undefined;
+  let writePlanPath: string | undefined;
   let setName: string | undefined;
   let setSeries: string | undefined;
+  let batchApproval: 'batch-1' | undefined;
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -134,6 +139,29 @@ export function parseCatalogImportArgs(argv: readonly string[]): CatalogImportOp
       continue;
     }
 
+    if (arg === '--write-plan') {
+      if (writePlanPath !== undefined) throw new CatalogImportArgumentError('--write-plan mag slechts eenmaal worden opgegeven.');
+      const value = argv[index + 1];
+      if (value === undefined || value.startsWith('--')) throw new CatalogImportArgumentError('Ontbrekende waarde voor --write-plan.');
+      writePlanPath = value;
+      index += 1;
+      continue;
+    }
+
+    if (arg.startsWith('--write-plan=')) {
+      if (writePlanPath !== undefined) throw new CatalogImportArgumentError('--write-plan mag slechts eenmaal worden opgegeven.');
+      writePlanPath = arg.slice('--write-plan='.length);
+      if (!writePlanPath) throw new CatalogImportArgumentError('Ontbrekende waarde voor --write-plan.');
+      continue;
+    }
+
+    if (arg === '--batch-approval') {
+      if (batchApproval) throw new CatalogImportArgumentError('--batch-approval mag slechts eenmaal worden opgegeven.');
+      const value = argv[index + 1];
+      if (value !== 'batch-1') throw new CatalogImportArgumentError('--batch-approval vereist exact batch-1.');
+      batchApproval = 'batch-1'; index += 1; continue;
+    }
+
     if (arg.startsWith('--write=')) {
       throw new CatalogImportArgumentError('Ongeldige --write-variant. Alleen het exacte argument --write is toegestaan.');
     }
@@ -156,13 +184,15 @@ export function parseCatalogImportArgs(argv: readonly string[]): CatalogImportOp
     throw new CatalogImportArgumentError('--input is alleen toegestaan met bron pokemon_tcg_data.');
   }
 
-  return { setId, write, source, ...(inputPath ? { inputPath } : {}), ...(diagnosticResultPath ? { diagnosticResultPath } : {}), ...(setName ? { setName } : {}), ...(setSeries ? { setSeries } : {}) };
+  if (writePlanPath && (!write || source !== 'pokemon_tcg_data')) throw new CatalogImportArgumentError('--write-plan is alleen toegestaan voor lokale write-approved uitvoer.');
+  return { setId, write, source, ...(inputPath ? { inputPath } : {}), ...(diagnosticResultPath ? { diagnosticResultPath } : {}), ...(writePlanPath ? { writePlanPath } : {}), ...(setName ? { setName } : {}), ...(setSeries ? { setSeries } : {}), ...(batchApproval ? { batchApproval } : {}) };
 }
 
 export function assertWriteAuthorized(options: CatalogImportOptions): void {
   if (!options.write) return;
   if (options.source !== 'pokemon_tcg_api') {
-    throw new CatalogImportArgumentError('Write geblokkeerd: lokale JSON-bron is in deze fase read-only. Gebruik eerst een dry-run met --source pokemon_tcg_data.');
+    if (options.batchApproval !== 'batch-1' || !LOCAL_BATCH_1_WRITE_ALLOWED_SET_IDS.has(options.setId)) throw new CatalogImportArgumentError('Write geblokkeerd: lokale JSON-bron blijft read-only tenzij de expliciete Batch 1-goedkeuring aanwezig is.');
+    return;
   }
   if (!WRITE_ALLOWED_SET_IDS.has(options.setId)) {
     throw new CatalogImportArgumentError(

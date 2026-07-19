@@ -184,7 +184,7 @@ test('resume rejects a manifest fingerprint mismatch before subprocesses', () =>
   const checkpoint = join(makeTmp(), 'checkpoint.json');
   const first = runLocalBatch(paths, ['--checkpoint', checkpoint], { BATCH_STUB_FAIL_SET: 'sv3' });
   assert.equal(first.status, 1, first.stderr);
-  writeFileSync(paths.manifest, `${readFileSync(paths.manifest, 'utf8')}\n`);
+  writeFileSync(paths.manifest, readFileSync(paths.manifest, 'utf8').replace('"expectedCards":230', '"expectedCards":231'));
   const resumed = runLocalBatch(paths, ['--checkpoint', checkpoint, '--resume']);
   assert.equal(resumed.status, 1);
   assert.match(resumed.stderr, /manifestHash/);

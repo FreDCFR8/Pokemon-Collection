@@ -1,4 +1,5 @@
-import { createHash } from 'node:crypto';
+export { analysisHash, analysisHashFromText, canonicalAnalysisJson, canonicalReportJson, parseReportJson, reportHash, reportHashFromText } from './catalog-report-identity.ts';
+import { canonicalReportJson } from './catalog-report-identity.ts';
 
 export const SETMAPPING_VALIDATION_SCHEMA_VERSION = 2;
 export const SET_EXTERNAL_SOURCE = 'pokemon_tcg_api';
@@ -78,13 +79,10 @@ export function validateSetMappingCandidate(input: SetMappingCandidateInput): Se
   return { classification: hardBlock ? 'blocked' : safe ? 'safe_for_mapping_review' : 'needs_manual_review', reasonCodes: [...new Set(reasons)].sort(), metrics };
 }
 
-export function stableJson(value: unknown): string {
-  if (value === undefined) return 'null';
-  if (Array.isArray(value)) return `[${value.map((item) => stableJson(item)).join(',')}]`;
-  if (value && typeof value === 'object') {
-    const objectValue = value as Record<string, unknown>;
-    return `{${Object.keys(objectValue).filter((key) => objectValue[key] !== undefined).sort().map((key) => `${JSON.stringify(key)}:${stableJson(objectValue[key])}`).join(',')}}`;
-  }
-  return JSON.stringify(value) ?? 'null';
-}
-export function reportHash(value: unknown): string { return createHash('sha256').update(stableJson(value)).digest('hex'); }
+/**
+ * Canonical JSON for reports: object keys are sorted and undefined object
+ * properties are omitted, matching JSON.stringify. The top-level reportHash
+ * is deliberately excluded so hashing a report before or after adding its
+ * hash produces the same digest and a JSON round-trip cannot change it.
+ */
+export function stableJson(value: unknown, topLevel = true): string { return canonicalReportJson(value, topLevel); }
