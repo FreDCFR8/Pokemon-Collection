@@ -13,7 +13,7 @@ export type CandidateRecord = { setId: string; sourceReportSetName?: string; sou
 type CatalogSet = { set_code: string; name: string | null; series: string | null; source: string | null; source_id: string | null };
 type Reference = { id: string; source: string; external_id: string; card_catalog_id: string | null };
 type CatalogCard = { id: string; set_code: string | null; number: string | null };
-type CatalogCardWithName = CatalogCard & { name: string | null };
+type CatalogCardWithPokemon = CatalogCard & { pokemon: string | null };
 type CardReferenceExample = { external_id: string; card_catalog_id: string | null; expected_number: string; actual_number?: string | null; actual_set_code?: string | null; reason: SetMappingReasonCode };
 type CardNumberExample = { external_id: string; number: string; external_name: string; existing_name?: string | null; catalog_card_id?: string; actual_set_code?: string | null; reason: SetMappingReasonCode };
 
@@ -91,7 +91,7 @@ async function validateOne(supabase: SupabaseClient, manifestSet: LocalCatalogMa
   const numbers = cards.map((card) => card.number.trim()).filter(Boolean); const uniqueNumbers = [...new Set(numbers)].sort(); const setCode = candidate.candidate.set_code;
   const proposedRows = await rows<CatalogSet>(supabase.from('sets_catalog').select('set_code,name,series,source,source_id').eq('set_code', setCode), 'sets_catalog proposed set');
   const sourceRows = await rows<CatalogSet>(supabase.from('sets_catalog').select('set_code,name,series,source,source_id').eq('source', SET_EXTERNAL_SOURCE).eq('source_id', manifestSet.setId), 'sets_catalog external set identity');
-  const catalogCards = await rows<CatalogCardWithName>(supabase.from('cards_catalog').select('id,set_code,number,name').eq('set_code', setCode), 'cards_catalog proposed set');
+  const catalogCards = await rows<CatalogCardWithPokemon>(supabase.from('cards_catalog').select('id,set_code,number,pokemon').eq('set_code', setCode), 'cards_catalog proposed set');
   const catalogNumbers = new Set(catalogCards.map((card) => card.number?.trim()).filter((value): value is string => Boolean(value)));
   const externalIds = cards.map((card) => card.id); const references = await rows<Reference>(supabase.from('card_external_references').select('id,source,external_id,card_catalog_id').eq('source', CARD_EXTERNAL_SOURCE).in('external_id', externalIds), 'card_external_references intended source');
   const linkedIds = [...new Set(references.map((ref) => ref.card_catalog_id).filter((id): id is string => Boolean(id)))];
@@ -102,10 +102,10 @@ async function validateOne(supabase: SupabaseClient, manifestSet: LocalCatalogMa
   for (const number of uniqueNumbers) {
     const incoming = cards.find((card) => card.number.trim() === number)!; const possible = catalogCards.filter((card) => (card.number ?? '').trim() === number);
     if (possible.length === 0) continue;
-    if (possible.length > 1) { ambiguousCardNumberOverlaps += 1; cardNumberOverlapExamples.push({ external_id: incoming.id, number, external_name: incoming.name, existing_name: possible[0].name, catalog_card_id: possible[0].id, actual_set_code: possible[0].set_code, reason: 'ambiguous_card_number_overlap' }); continue; }
+    if (possible.length > 1) { ambiguousCardNumberOverlaps += 1; cardNumberOverlapExamples.push({ external_id: incoming.id, number, external_name: incoming.name, existing_name: possible[0].pokemon, catalog_card_id: possible[0].id, actual_set_code: possible[0].set_code, reason: 'ambiguous_card_number_overlap' }); continue; }
     const existing = possible[0];
-    if (existing.name && existing.name.trim().toLocaleLowerCase('en-US') === incoming.name.trim().toLocaleLowerCase('en-US')) { cardNumberIdentityMatches += 1; cardNumberOverlapExamples.push({ external_id: incoming.id, number, external_name: incoming.name, existing_name: existing.name, catalog_card_id: existing.id, actual_set_code: existing.set_code, reason: 'card_number_identity_match' }); }
-    else { cardNumberIdentityConflicts += 1; cardNumberOverlapExamples.push({ external_id: incoming.id, number, external_name: incoming.name, existing_name: existing.name, catalog_card_id: existing.id, actual_set_code: existing.set_code, reason: 'card_number_identity_conflict' }); }
+    if (existing.pokemon && existing.pokemon.trim().toLocaleLowerCase('en-US') === incoming.name.trim().toLocaleLowerCase('en-US')) { cardNumberIdentityMatches += 1; cardNumberOverlapExamples.push({ external_id: incoming.id, number, external_name: incoming.name, existing_name: existing.pokemon, catalog_card_id: existing.id, actual_set_code: existing.set_code, reason: 'card_number_identity_match' }); }
+    else { cardNumberIdentityConflicts += 1; cardNumberOverlapExamples.push({ external_id: incoming.id, number, external_name: incoming.name, existing_name: existing.pokemon, catalog_card_id: existing.id, actual_set_code: existing.set_code, reason: 'card_number_identity_conflict' }); }
   }
   for (const [externalId, refs] of [...refsByExternalId.entries()].sort()) {
     const expected = cards.find((card) => card.id === externalId)!;

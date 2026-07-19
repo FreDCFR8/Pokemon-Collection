@@ -83,8 +83,17 @@ class ReadOnlyQuery {
   private readonly table: string;
   private readonly resolver: (table: string, filters: Map<string, unknown>, lists: Map<string, unknown[]>) => unknown[];
   private readonly operations: string[];
+  private selectedColumns: string[] = [];
   constructor(table: string, resolver: (table: string, filters: Map<string, unknown>, lists: Map<string, unknown[]>) => unknown[], operations: string[]) { this.table = table; this.resolver = resolver; this.operations = operations; }
-  select(): this { return this; }
+  select(columns?: string): this {
+    this.selectedColumns = (columns ?? '').split(',').map((column) => column.trim()).filter(Boolean);
+    if (columns !== undefined) {
+      this.operations.push(`columns:${this.table}:${this.selectedColumns.join(',')}`);
+      const allowed = this.table === 'cards_catalog' ? new Set(['id', 'set_code', 'number', 'pokemon']) : undefined;
+      if (allowed && this.selectedColumns.some((column) => !allowed.has(column))) throw new Error(`unknown cards_catalog column: ${this.selectedColumns.find((column) => !allowed.has(column))}`);
+    }
+    return this;
+  }
   eq(column: string, value: unknown): this { this.filters.set(column, value); return this; }
   in(column: string, values: unknown[]): this { if (values.length === 0) this.operations.push(`empty-in:${column}`); this.lists.set(column, values); return this; }
   insert(): never { this.operations.push(`insert:${this.table}`); throw new Error('querybuilder insert must never be called'); }
@@ -114,14 +123,14 @@ function fixture(overrides: { name?: string; expected?: number; received?: numbe
     if (table === 'cards_catalog') {
       if (lists.has('id')) {
         if (overrides.referenceMode === 'dangling' || overrides.referenceMode === 'none' || overrides.foreignOnly) return [];
-        if (overrides.referenceMode === 'wrong-set') return [{ id: 'card-1', set_code: 'other-set', number: '1', name: 'Test Card' }];
-        if (overrides.referenceMode === 'wrong-number') return [{ id: 'card-1', set_code: 'sv10', number: '999', name: 'Test Card' }];
-        return [{ id: 'card-1', set_code: 'sv10', number: '1', name: 'Test Card' }];
+        if (overrides.referenceMode === 'wrong-set') return [{ id: 'card-1', set_code: 'other-set', number: '1' }];
+        if (overrides.referenceMode === 'wrong-number') return [{ id: 'card-1', set_code: 'sv10', number: '999' }];
+        return [{ id: 'card-1', set_code: 'sv10', number: '1' }];
       }
       if (overrides.overlapMode === 'none') return [];
-      if (overrides.overlapMode === 'conflict') return [{ id: 'card-1', set_code: 'sv10', number: '1', name: 'Other Card' }];
-      if (overrides.overlapMode === 'ambiguous') return [{ id: 'card-1', set_code: 'sv10', number: '1', name: 'Test Card' }, { id: 'card-2', set_code: 'sv10', number: '1', name: 'Alternate Card' }];
-      return [{ id: 'card-1', set_code: 'sv10', number: '1', name: 'Test Card' }];
+      if (overrides.overlapMode === 'conflict') return [{ id: 'card-1', set_code: 'sv10', number: '1', pokemon: 'Other Card' }];
+      if (overrides.overlapMode === 'ambiguous') return [{ id: 'card-1', set_code: 'sv10', number: '1', pokemon: 'Test Card' }, { id: 'card-2', set_code: 'sv10', number: '1', pokemon: 'Alternate Card' }];
+      return [{ id: 'card-1', set_code: 'sv10', number: '1', pokemon: 'Test Card' }];
     }
     if (table === 'card_external_references') {
       if (overrides.foreignOnly || overrides.referenceMode === 'none') return [];
@@ -152,6 +161,15 @@ test('runValidation gebruikt exact manifest.jsonPath en alleen read-methoden', a
   assert.equal(report.databaseWritesTotal, 0);
   assert.equal(item.operations.some(isMutationOperation), false);
   assert.equal(item.operations.some((operation) => operation.startsWith('empty-in:')), false);
+  assert.equal(item.operations.includes('columns:cards_catalog:id,set_code,number,pokemon'), true);
+  assert.equal(item.operations.some((operation) => operation.includes('columns:cards_catalog:') && operation.endsWith(',name')), false);
+});
+
+test('cards_catalog-testdouble registreert selectiekolommen en weigert onbekende kolommen', () => {
+  const operations: string[] = [];
+  const query = new ReadOnlyQuery('cards_catalog', () => [], operations);
+  assert.throws(() => query.select('id,set_code,number,name'), /unknown cards_catalog column: name/);
+  assert.equal(operations.includes('columns:cards_catalog:id,set_code,number,name'), true);
 });
 
 test('runCli schrijft FAIL-rapport en exitcode 1 bij ontbrekende credentials', async () => {
