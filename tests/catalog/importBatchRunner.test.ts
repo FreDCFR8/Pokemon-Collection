@@ -13,13 +13,12 @@ function writeLocalFixture(dir: string, received: Record<string, number>): { man
   const root = join(dir, 'data'); mkdirSync(root, { recursive: true });
   for (const setId of ['sv3pt5', 'sv3']) writeFileSync(join(root, `${setId}.json`), '[]');
   const manifest = join(dir, 'manifest.json');
-  writeFileSync(manifest, JSON.stringify({ source: 'pokemon_tcg_data', datasetRepository: 'PokemonTCG/pokemon-tcg-data', datasetVersion, sets: [{ setId: 'sv3pt5', jsonPath: 'sv3pt5.json', expectedCards: 207, enabled: true }, { setId: 'sv3', jsonPath: 'sv3.json', expectedCards: 230, enabled: true }] }));
+  writeFileSync(manifest, JSON.stringify({ source: 'pokemon_tcg_data', datasetRepository: 'PokemonTCG/pokemon-tcg-data', datasetVersion, sets: [{ setId: 'sv3pt5', name: '151', series: 'Scarlet & Violet', jsonPath: 'sv3pt5.json', expectedCards: 207, enabled: true }, { setId: 'sv3', name: 'Obsidian Flames', series: 'Scarlet & Violet', jsonPath: 'sv3.json', expectedCards: 230, enabled: true }] }));
   const stub = join(dir, 'stub-import-set.ts');
-  writeFileSync(stub, `import { writeFileSync } from 'node:fs';\nconst args = process.argv.slice(2);\nconst set = args[args.indexOf('--set') + 1];\nconst resultPath = args[args.indexOf('--diagnostic-result') + 1];\nconst counts = ${JSON.stringify(received)};\nconst failed = process.env.BATCH_STUB_FAIL_SET === set;\nconst plannedWrites = process.env.BATCH_STUB_PLANNED_WRITES ?? '0';\nconst databaseWrites = process.env.BATCH_STUB_DATABASE_WRITES ?? '0';\nconst diagnostic = {schemaVersion: 1, setId: set, expectedCards: counts[set], receivedCards: counts[set], status: failed ? 'FAIL' : 'PASS', setMappingStatus: 'already_reliable', setMapping: {status: 'already_reliable', candidates: [], evidence: []}, externalReferenceMatches: counts[set], fallbackCandidates: 0, newCards: 0, ambiguousItems: 0, conflicts: 0, unresolvedWithoutSetMapping: 0, metadataUnchanged: counts[set], metadataChanged: 0, blockedItems: 0, plannedDatabaseWrites: Number(plannedWrites), databaseWrites: Number(databaseWrites), failureReasons: failed ? ['missing_set_mapping'] : [], examples: {}};\nwriteFileSync(resultPath, JSON.stringify(diagnostic));\nconsole.log('Console text may vary');\nprocess.exit(failed ? 1 : 0);\n`);
   writeFileSync(stub, [
     "import { readFileSync, writeFileSync } from 'node:fs';",
     "const args = process.argv.slice(2);",
-    "const set = args[args.indexOf('--set') + 1];",
+    "const set = process.env.BATCH_STUB_WRONG_SET_ID ?? args[args.indexOf('--set') + 1];",
     "const resultPath = args[args.indexOf('--diagnostic-result') + 1];",
     `const counts = ${JSON.stringify(received)};`,
     "const failed = process.env.BATCH_STUB_FAIL_SET === set;",
@@ -27,7 +26,7 @@ function writeLocalFixture(dir: string, received: Record<string, number>): { man
     "const databaseWrites = process.env.BATCH_STUB_DATABASE_WRITES ?? '0';",
     "if (process.env.BATCH_STUB_CHECKPOINT_PATH && process.env.BATCH_STUB_SNAPSHOT_PATH) writeFileSync(process.env.BATCH_STUB_SNAPSHOT_PATH, readFileSync(process.env.BATCH_STUB_CHECKPOINT_PATH));",
     "if (process.env.BATCH_STUB_EXECUTION_MARKER) writeFileSync(process.env.BATCH_STUB_EXECUTION_MARKER, new Date().toISOString());",
-    "const diagnostic = {schemaVersion: 1, setId: set, expectedCards: counts[set], receivedCards: counts[set], status: failed ? 'FAIL' : 'PASS', setMappingStatus: 'already_reliable', setMapping: {status: 'already_reliable', candidates: [], evidence: []}, externalReferenceMatches: counts[set], fallbackCandidates: 0, newCards: 0, ambiguousItems: 0, conflicts: 0, unresolvedWithoutSetMapping: 0, metadataUnchanged: counts[set], metadataChanged: 0, blockedItems: 0, plannedDatabaseWrites: Number(plannedWrites), databaseWrites: Number(databaseWrites), failureReasons: failed ? ['missing_set_mapping'] : [], examples: {}};",
+    "const diagnostic = {schemaVersion: 1, setId: set, expectedCards: Number(process.env.BATCH_STUB_EXPECTED_CARDS ?? counts[set]), receivedCards: counts[set], status: failed ? 'FAIL' : 'PASS', setMappingStatus: 'already_reliable', setCode: set, setMapping: {status: 'already_reliable', reliableSetCode: set, candidates: [], evidence: []}, externalReferenceMatches: counts[set], fallbackCandidates: 0, newCards: 0, ambiguousItems: 0, conflicts: 0, unresolvedWithoutSetMapping: 0, metadataUnchanged: counts[set], metadataChanged: 0, blockedItems: 0, plannedDatabaseWrites: Number(plannedWrites), databaseWrites: Number(databaseWrites), failureReasons: failed ? ['missing_set_mapping'] : [], examples: {}};",
     "writeFileSync(resultPath, JSON.stringify(diagnostic));",
     "console.log('Database writes: ' + databaseWrites);",
     "process.exit(failed ? 1 : 0);",
@@ -54,7 +53,7 @@ function writeApiFixture(dir: string, failureStep?: 'write' | 'idempotency'): { 
     `const failure = ${JSON.stringify(failureStep ?? '')};`,
     "const failed = phase === failure;",
     "const resultPath = process.argv[process.argv.indexOf('--diagnostic-result') + 1];",
-    "const diagnostic = {schemaVersion: 1, setId: 'sv3', expectedCards: 230, receivedCards: 230, status: failed ? 'FAIL' : 'PASS', setMappingStatus: 'already_reliable', setMapping: {status: 'already_reliable', candidates: [], evidence: []}, externalReferenceMatches: 230, fallbackCandidates: 0, newCards: phase === 'idempotency' && failed ? 1 : 0, ambiguousItems: 0, conflicts: 0, unresolvedWithoutSetMapping: 0, metadataUnchanged: 230, metadataChanged: 0, blockedItems: 0, plannedDatabaseWrites: phase === 'idempotency' && failed ? 2 : 0, databaseWrites: isWrite && !failed ? 5 : 0, failureReasons: failed ? ['external_reference_conflict'] : [], examples: {}};",
+    "const diagnostic = {schemaVersion: 1, setId: 'sv3', expectedCards: 230, receivedCards: 230, status: failed ? 'FAIL' : 'PASS', setMappingStatus: 'already_reliable', setCode: 'sv3', setMapping: {status: 'already_reliable', reliableSetCode: 'sv3', candidates: [], evidence: []}, externalReferenceMatches: 230, fallbackCandidates: 0, newCards: phase === 'idempotency' && failed ? 1 : 0, ambiguousItems: 0, conflicts: 0, unresolvedWithoutSetMapping: 0, metadataUnchanged: 230, metadataChanged: 0, blockedItems: 0, plannedDatabaseWrites: phase === 'idempotency' && failed ? 2 : 0, databaseWrites: isWrite && !failed ? 5 : 0, failureReasons: failed ? ['external_reference_conflict'] : [], examples: {}};",
     "writeFileSync(resultPath, JSON.stringify(diagnostic));",
     "process.exit(failed ? 1 : 0);",
   ].join('\n'));
@@ -149,6 +148,20 @@ test('checkpoint is created before execution and resume skips passed sets', () =
   assert.equal(report.setsSkippedFromCheckpoint, 1);
   assert.equal(report.databaseWritesTotal, 0);
   assert.deepEqual(report.results.find((item: { setId: string }) => item.setId === 'sv3').diagnostic.failureReasons, []);
+});
+
+test('wrong diagnostic set identity fails closed before checkpoint completion', () => {
+  const paths = writeLocalFixture(makeTmp(), { sv3pt5: 207, sv3: 230 });
+  const result = runLocalBatch(paths, ['--sets', 'sv3'], { BATCH_STUB_WRONG_SET_ID: 'sv3pt5' });
+  assert.notEqual(result.status, 0);
+  assert.match(result.stdout, /failureCode=unexpected_runner_failure/);
+});
+
+test('wrong diagnostic expectedCards fails closed against the local manifest', () => {
+  const paths = writeLocalFixture(makeTmp(), { sv3pt5: 207, sv3: 230 });
+  const result = runLocalBatch(paths, ['--sets', 'sv3'], { BATCH_STUB_EXPECTED_CARDS: '229' });
+  assert.notEqual(result.status, 0);
+  assert.match(result.stdout, /failureCode=unexpected_runner_failure/);
 });
 
 test('resume rejects a manifest fingerprint mismatch before subprocesses', () => {

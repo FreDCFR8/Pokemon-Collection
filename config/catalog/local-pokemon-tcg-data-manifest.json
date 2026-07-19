@@ -7,1039 +7,1385 @@
       "setId": "base1",
       "jsonPath": "cards/en/base1.json",
       "expectedCards": 102,
-      "enabled": true
+      "enabled": true,
+      "name": "Base",
+      "series": "Base"
     },
     {
       "setId": "base2",
       "jsonPath": "cards/en/base2.json",
       "expectedCards": 64,
-      "enabled": true
+      "enabled": true,
+      "name": "Jungle",
+      "series": "Base"
     },
     {
       "setId": "base3",
       "jsonPath": "cards/en/base3.json",
       "expectedCards": 62,
-      "enabled": true
+      "enabled": true,
+      "name": "Fossil",
+      "series": "Base"
     },
     {
       "setId": "base4",
       "jsonPath": "cards/en/base4.json",
       "expectedCards": 130,
-      "enabled": true
+      "enabled": true,
+      "name": "Base Set 2",
+      "series": "Base"
     },
     {
       "setId": "base5",
       "jsonPath": "cards/en/base5.json",
       "expectedCards": 83,
-      "enabled": true
+      "enabled": true,
+      "name": "Team Rocket",
+      "series": "Base"
     },
     {
       "setId": "base6",
       "jsonPath": "cards/en/base6.json",
       "expectedCards": 110,
-      "enabled": true
+      "enabled": true,
+      "name": "Legendary Collection",
+      "series": "Other"
     },
     {
       "setId": "basep",
       "jsonPath": "cards/en/basep.json",
       "expectedCards": 53,
-      "enabled": true
+      "enabled": true,
+      "name": "Wizards Black Star Promos",
+      "series": "Base"
     },
     {
       "setId": "bp",
       "jsonPath": "cards/en/bp.json",
       "expectedCards": 9,
-      "enabled": true
+      "enabled": true,
+      "name": "Best of Game",
+      "series": "Other"
     },
     {
       "setId": "bw1",
       "jsonPath": "cards/en/bw1.json",
       "expectedCards": 115,
-      "enabled": true
+      "enabled": true,
+      "name": "Black & White",
+      "series": "Black & White"
     },
     {
       "setId": "bw10",
       "jsonPath": "cards/en/bw10.json",
       "expectedCards": 105,
-      "enabled": true
+      "enabled": true,
+      "name": "Plasma Blast",
+      "series": "Black & White"
     },
     {
       "setId": "bw11",
       "jsonPath": "cards/en/bw11.json",
       "expectedCards": 140,
-      "enabled": true
+      "enabled": true,
+      "name": "Legendary Treasures",
+      "series": "Black & White"
     },
     {
       "setId": "bw2",
       "jsonPath": "cards/en/bw2.json",
       "expectedCards": 98,
-      "enabled": true
+      "enabled": true,
+      "name": "Emerging Powers",
+      "series": "Black & White"
     },
     {
       "setId": "bw3",
       "jsonPath": "cards/en/bw3.json",
       "expectedCards": 102,
-      "enabled": true
+      "enabled": true,
+      "name": "Noble Victories",
+      "series": "Black & White"
     },
     {
       "setId": "bw4",
       "jsonPath": "cards/en/bw4.json",
       "expectedCards": 103,
-      "enabled": true
+      "enabled": true,
+      "name": "Next Destinies",
+      "series": "Black & White"
     },
     {
       "setId": "bw5",
       "jsonPath": "cards/en/bw5.json",
       "expectedCards": 111,
-      "enabled": true
+      "enabled": true,
+      "name": "Dark Explorers",
+      "series": "Black & White"
     },
     {
       "setId": "bw6",
       "jsonPath": "cards/en/bw6.json",
       "expectedCards": 128,
-      "enabled": true
+      "enabled": true,
+      "name": "Dragons Exalted",
+      "series": "Black & White"
     },
     {
       "setId": "bw7",
       "jsonPath": "cards/en/bw7.json",
       "expectedCards": 153,
-      "enabled": true
+      "enabled": true,
+      "name": "Boundaries Crossed",
+      "series": "Black & White"
     },
     {
       "setId": "bw8",
       "jsonPath": "cards/en/bw8.json",
       "expectedCards": 138,
-      "enabled": true
+      "enabled": true,
+      "name": "Plasma Storm",
+      "series": "Black & White"
     },
     {
       "setId": "bw9",
       "jsonPath": "cards/en/bw9.json",
       "expectedCards": 122,
-      "enabled": true
+      "enabled": true,
+      "name": "Plasma Freeze",
+      "series": "Black & White"
     },
     {
       "setId": "bwp",
       "jsonPath": "cards/en/bwp.json",
       "expectedCards": 101,
-      "enabled": true
+      "enabled": true,
+      "name": "BW Black Star Promos",
+      "series": "Black & White"
     },
     {
       "setId": "cel25",
       "jsonPath": "cards/en/cel25.json",
       "expectedCards": 25,
-      "enabled": true
+      "enabled": true,
+      "name": "Celebrations",
+      "series": "Sword & Shield"
     },
     {
       "setId": "cel25c",
       "jsonPath": "cards/en/cel25c.json",
       "expectedCards": 25,
-      "enabled": true
+      "enabled": true,
+      "name": "Celebrations: Classic Collection",
+      "series": "Sword & Shield"
     },
     {
       "setId": "col1",
       "jsonPath": "cards/en/col1.json",
       "expectedCards": 106,
-      "enabled": true
+      "enabled": true,
+      "name": "Call of Legends",
+      "series": "HeartGold & SoulSilver"
     },
     {
       "setId": "dc1",
       "jsonPath": "cards/en/dc1.json",
       "expectedCards": 34,
-      "enabled": true
+      "enabled": true,
+      "name": "Double Crisis",
+      "series": "XY"
     },
     {
       "setId": "det1",
       "jsonPath": "cards/en/det1.json",
       "expectedCards": 18,
-      "enabled": true
+      "enabled": true,
+      "name": "Detective Pikachu",
+      "series": "Sun & Moon"
     },
     {
       "setId": "dp1",
       "jsonPath": "cards/en/dp1.json",
       "expectedCards": 130,
-      "enabled": true
+      "enabled": true,
+      "name": "Diamond & Pearl",
+      "series": "Diamond & Pearl"
     },
     {
       "setId": "dp2",
       "jsonPath": "cards/en/dp2.json",
       "expectedCards": 124,
-      "enabled": true
+      "enabled": true,
+      "name": "Mysterious Treasures",
+      "series": "Diamond & Pearl"
     },
     {
       "setId": "dp3",
       "jsonPath": "cards/en/dp3.json",
       "expectedCards": 132,
-      "enabled": true
+      "enabled": true,
+      "name": "Secret Wonders",
+      "series": "Diamond & Pearl"
     },
     {
       "setId": "dp4",
       "jsonPath": "cards/en/dp4.json",
       "expectedCards": 106,
-      "enabled": true
+      "enabled": true,
+      "name": "Great Encounters",
+      "series": "Diamond & Pearl"
     },
     {
       "setId": "dp5",
       "jsonPath": "cards/en/dp5.json",
       "expectedCards": 100,
-      "enabled": true
+      "enabled": true,
+      "name": "Majestic Dawn",
+      "series": "Diamond & Pearl"
     },
     {
       "setId": "dp6",
       "jsonPath": "cards/en/dp6.json",
       "expectedCards": 146,
-      "enabled": true
+      "enabled": true,
+      "name": "Legends Awakened",
+      "series": "Diamond & Pearl"
     },
     {
       "setId": "dp7",
       "jsonPath": "cards/en/dp7.json",
       "expectedCards": 106,
-      "enabled": true
+      "enabled": true,
+      "name": "Stormfront",
+      "series": "Diamond & Pearl"
     },
     {
       "setId": "dpp",
       "jsonPath": "cards/en/dpp.json",
       "expectedCards": 56,
-      "enabled": true
+      "enabled": true,
+      "name": "DP Black Star Promos",
+      "series": "Diamond & Pearl"
     },
     {
       "setId": "dv1",
       "jsonPath": "cards/en/dv1.json",
       "expectedCards": 21,
-      "enabled": true
+      "enabled": true,
+      "name": "Dragon Vault",
+      "series": "Black & White"
     },
     {
       "setId": "ecard1",
       "jsonPath": "cards/en/ecard1.json",
       "expectedCards": 165,
-      "enabled": true
+      "enabled": true,
+      "name": "Expedition Base Set",
+      "series": "E-Card"
     },
     {
       "setId": "ecard2",
       "jsonPath": "cards/en/ecard2.json",
       "expectedCards": 182,
-      "enabled": true
+      "enabled": true,
+      "name": "Aquapolis",
+      "series": "E-Card"
     },
     {
       "setId": "ecard3",
       "jsonPath": "cards/en/ecard3.json",
       "expectedCards": 182,
-      "enabled": true
+      "enabled": true,
+      "name": "Skyridge",
+      "series": "E-Card"
     },
     {
       "setId": "ex1",
       "jsonPath": "cards/en/ex1.json",
       "expectedCards": 109,
-      "enabled": true
+      "enabled": true,
+      "name": "Ruby & Sapphire",
+      "series": "EX"
     },
     {
       "setId": "ex10",
       "jsonPath": "cards/en/ex10.json",
       "expectedCards": 145,
-      "enabled": true
+      "enabled": true,
+      "name": "Unseen Forces",
+      "series": "EX"
     },
     {
       "setId": "ex11",
       "jsonPath": "cards/en/ex11.json",
       "expectedCards": 114,
-      "enabled": true
+      "enabled": true,
+      "name": "Delta Species",
+      "series": "EX"
     },
     {
       "setId": "ex12",
       "jsonPath": "cards/en/ex12.json",
       "expectedCards": 93,
-      "enabled": true
+      "enabled": true,
+      "name": "Legend Maker",
+      "series": "EX"
     },
     {
       "setId": "ex13",
       "jsonPath": "cards/en/ex13.json",
       "expectedCards": 111,
-      "enabled": true
+      "enabled": true,
+      "name": "Holon Phantoms",
+      "series": "EX"
     },
     {
       "setId": "ex14",
       "jsonPath": "cards/en/ex14.json",
       "expectedCards": 100,
-      "enabled": true
+      "enabled": true,
+      "name": "Crystal Guardians",
+      "series": "EX"
     },
     {
       "setId": "ex15",
       "jsonPath": "cards/en/ex15.json",
       "expectedCards": 101,
-      "enabled": true
+      "enabled": true,
+      "name": "Dragon Frontiers",
+      "series": "EX"
     },
     {
       "setId": "ex16",
       "jsonPath": "cards/en/ex16.json",
       "expectedCards": 108,
-      "enabled": true
+      "enabled": true,
+      "name": "Power Keepers",
+      "series": "EX"
     },
     {
       "setId": "ex2",
       "jsonPath": "cards/en/ex2.json",
       "expectedCards": 100,
-      "enabled": true
+      "enabled": true,
+      "name": "Sandstorm",
+      "series": "EX"
     },
     {
       "setId": "ex3",
       "jsonPath": "cards/en/ex3.json",
       "expectedCards": 100,
-      "enabled": true
+      "enabled": true,
+      "name": "Dragon",
+      "series": "EX"
     },
     {
       "setId": "ex4",
       "jsonPath": "cards/en/ex4.json",
       "expectedCards": 97,
-      "enabled": true
+      "enabled": true,
+      "name": "Team Magma vs Team Aqua",
+      "series": "EX"
     },
     {
       "setId": "ex5",
       "jsonPath": "cards/en/ex5.json",
       "expectedCards": 102,
-      "enabled": true
+      "enabled": true,
+      "name": "Hidden Legends",
+      "series": "EX"
     },
     {
       "setId": "ex6",
       "jsonPath": "cards/en/ex6.json",
       "expectedCards": 116,
-      "enabled": true
+      "enabled": true,
+      "name": "FireRed & LeafGreen",
+      "series": "EX"
     },
     {
       "setId": "ex7",
       "jsonPath": "cards/en/ex7.json",
       "expectedCards": 111,
-      "enabled": true
+      "enabled": true,
+      "name": "Team Rocket Returns",
+      "series": "EX"
     },
     {
       "setId": "ex8",
       "jsonPath": "cards/en/ex8.json",
       "expectedCards": 108,
-      "enabled": true
+      "enabled": true,
+      "name": "Deoxys",
+      "series": "EX"
     },
     {
       "setId": "ex9",
       "jsonPath": "cards/en/ex9.json",
       "expectedCards": 107,
-      "enabled": true
+      "enabled": true,
+      "name": "Emerald",
+      "series": "EX"
     },
     {
       "setId": "fut20",
       "jsonPath": "cards/en/fut20.json",
       "expectedCards": 5,
-      "enabled": true
+      "enabled": true,
+      "name": "Pokémon Futsal Collection",
+      "series": "Other"
     },
     {
       "setId": "g1",
       "jsonPath": "cards/en/g1.json",
       "expectedCards": 117,
-      "enabled": true
+      "enabled": true,
+      "name": "Generations",
+      "series": "XY"
     },
     {
       "setId": "gym1",
       "jsonPath": "cards/en/gym1.json",
       "expectedCards": 132,
-      "enabled": true
+      "enabled": true,
+      "name": "Gym Heroes",
+      "series": "Gym"
     },
     {
       "setId": "gym2",
       "jsonPath": "cards/en/gym2.json",
       "expectedCards": 132,
-      "enabled": true
+      "enabled": true,
+      "name": "Gym Challenge",
+      "series": "Gym"
     },
     {
       "setId": "hgss1",
       "jsonPath": "cards/en/hgss1.json",
       "expectedCards": 124,
-      "enabled": true
+      "enabled": true,
+      "name": "HeartGold & SoulSilver",
+      "series": "HeartGold & SoulSilver"
     },
     {
       "setId": "hgss2",
       "jsonPath": "cards/en/hgss2.json",
       "expectedCards": 96,
-      "enabled": true
+      "enabled": true,
+      "name": "HS—Unleashed",
+      "series": "HeartGold & SoulSilver"
     },
     {
       "setId": "hgss3",
       "jsonPath": "cards/en/hgss3.json",
       "expectedCards": 91,
-      "enabled": true
+      "enabled": true,
+      "name": "HS—Undaunted",
+      "series": "HeartGold & SoulSilver"
     },
     {
       "setId": "hgss4",
       "jsonPath": "cards/en/hgss4.json",
       "expectedCards": 103,
-      "enabled": true
+      "enabled": true,
+      "name": "HS—Triumphant",
+      "series": "HeartGold & SoulSilver"
     },
     {
       "setId": "hsp",
       "jsonPath": "cards/en/hsp.json",
       "expectedCards": 25,
-      "enabled": true
+      "enabled": true,
+      "name": "HGSS Black Star Promos",
+      "series": "HeartGold & SoulSilver"
     },
     {
       "setId": "mcd11",
       "jsonPath": "cards/en/mcd11.json",
       "expectedCards": 12,
-      "enabled": true
+      "enabled": true,
+      "name": "McDonald's Collection 2011",
+      "series": "Other"
     },
     {
       "setId": "mcd12",
       "jsonPath": "cards/en/mcd12.json",
       "expectedCards": 12,
-      "enabled": true
+      "enabled": true,
+      "name": "McDonald's Collection 2012",
+      "series": "Other"
     },
     {
       "setId": "mcd14",
       "jsonPath": "cards/en/mcd14.json",
       "expectedCards": 12,
-      "enabled": true
+      "enabled": true,
+      "name": "McDonald's Collection 2014",
+      "series": "Other"
     },
     {
       "setId": "mcd15",
       "jsonPath": "cards/en/mcd15.json",
       "expectedCards": 12,
-      "enabled": true
+      "enabled": true,
+      "name": "McDonald's Collection 2015",
+      "series": "Other"
     },
     {
       "setId": "mcd16",
       "jsonPath": "cards/en/mcd16.json",
       "expectedCards": 12,
-      "enabled": true
+      "enabled": true,
+      "name": "McDonald's Collection 2016",
+      "series": "Other"
     },
     {
       "setId": "mcd17",
       "jsonPath": "cards/en/mcd17.json",
       "expectedCards": 12,
-      "enabled": true
+      "enabled": true,
+      "name": "McDonald's Collection 2017",
+      "series": "Other"
     },
     {
       "setId": "mcd18",
       "jsonPath": "cards/en/mcd18.json",
       "expectedCards": 12,
-      "enabled": true
+      "enabled": true,
+      "name": "McDonald's Collection 2018",
+      "series": "Other"
     },
     {
       "setId": "mcd19",
       "jsonPath": "cards/en/mcd19.json",
       "expectedCards": 12,
-      "enabled": true
+      "enabled": true,
+      "name": "McDonald's Collection 2019",
+      "series": "Other"
     },
     {
       "setId": "mcd21",
       "jsonPath": "cards/en/mcd21.json",
       "expectedCards": 25,
-      "enabled": true
+      "enabled": true,
+      "name": "McDonald's Collection 2021",
+      "series": "Other"
     },
     {
       "setId": "mcd22",
       "jsonPath": "cards/en/mcd22.json",
       "expectedCards": 15,
-      "enabled": true
+      "enabled": true,
+      "name": "McDonald's Collection 2022",
+      "series": "Other"
     },
     {
       "setId": "me1",
       "jsonPath": "cards/en/me1.json",
       "expectedCards": 188,
-      "enabled": true
+      "enabled": true,
+      "name": "Mega Evolution",
+      "series": "Mega Evolution"
     },
     {
       "setId": "me2",
       "jsonPath": "cards/en/me2.json",
       "expectedCards": 130,
-      "enabled": true
+      "enabled": true,
+      "name": "Phantasmal Flames",
+      "series": "Mega Evolution"
     },
     {
       "setId": "me2pt5",
       "jsonPath": "cards/en/me2pt5.json",
       "expectedCards": 295,
-      "enabled": true
+      "enabled": true,
+      "name": "Ascended Heroes",
+      "series": "Mega Evolution"
     },
     {
       "setId": "me3",
       "jsonPath": "cards/en/me3.json",
       "expectedCards": 124,
-      "enabled": true
+      "enabled": true,
+      "name": "Perfect Order",
+      "series": "Mega Evolution"
     },
     {
       "setId": "me4",
       "jsonPath": "cards/en/me4.json",
       "expectedCards": 122,
-      "enabled": true
+      "enabled": true,
+      "name": "Chaos Rising",
+      "series": "Mega Evolution"
     },
     {
       "setId": "neo1",
       "jsonPath": "cards/en/neo1.json",
       "expectedCards": 111,
-      "enabled": true
+      "enabled": true,
+      "name": "Neo Genesis",
+      "series": "Neo"
     },
     {
       "setId": "neo2",
       "jsonPath": "cards/en/neo2.json",
       "expectedCards": 75,
-      "enabled": true
+      "enabled": true,
+      "name": "Neo Discovery",
+      "series": "Neo"
     },
     {
       "setId": "neo3",
       "jsonPath": "cards/en/neo3.json",
       "expectedCards": 66,
-      "enabled": true
+      "enabled": true,
+      "name": "Neo Revelation",
+      "series": "Neo"
     },
     {
       "setId": "neo4",
       "jsonPath": "cards/en/neo4.json",
       "expectedCards": 113,
-      "enabled": true
+      "enabled": true,
+      "name": "Neo Destiny",
+      "series": "Neo"
     },
     {
       "setId": "np",
       "jsonPath": "cards/en/np.json",
       "expectedCards": 40,
-      "enabled": true
+      "enabled": true,
+      "name": "Nintendo Black Star Promos",
+      "series": "NP"
     },
     {
       "setId": "pgo",
       "jsonPath": "cards/en/pgo.json",
       "expectedCards": 88,
-      "enabled": true
+      "enabled": true,
+      "name": "Pokémon GO",
+      "series": "Sword & Shield"
     },
     {
       "setId": "pl1",
       "jsonPath": "cards/en/pl1.json",
       "expectedCards": 133,
-      "enabled": true
+      "enabled": true,
+      "name": "Platinum",
+      "series": "Platinum"
     },
     {
       "setId": "pl2",
       "jsonPath": "cards/en/pl2.json",
       "expectedCards": 120,
-      "enabled": true
+      "enabled": true,
+      "name": "Rising Rivals",
+      "series": "Platinum"
     },
     {
       "setId": "pl3",
       "jsonPath": "cards/en/pl3.json",
       "expectedCards": 153,
-      "enabled": true
+      "enabled": true,
+      "name": "Supreme Victors",
+      "series": "Platinum"
     },
     {
       "setId": "pl4",
       "jsonPath": "cards/en/pl4.json",
       "expectedCards": 111,
-      "enabled": true
+      "enabled": true,
+      "name": "Arceus",
+      "series": "Platinum"
     },
     {
       "setId": "pop1",
       "jsonPath": "cards/en/pop1.json",
       "expectedCards": 17,
-      "enabled": true
+      "enabled": true,
+      "name": "POP Series 1",
+      "series": "POP"
     },
     {
       "setId": "pop2",
       "jsonPath": "cards/en/pop2.json",
       "expectedCards": 17,
-      "enabled": true
+      "enabled": true,
+      "name": "POP Series 2",
+      "series": "POP"
     },
     {
       "setId": "pop3",
       "jsonPath": "cards/en/pop3.json",
       "expectedCards": 17,
-      "enabled": true
+      "enabled": true,
+      "name": "POP Series 3",
+      "series": "POP"
     },
     {
       "setId": "pop4",
       "jsonPath": "cards/en/pop4.json",
       "expectedCards": 17,
-      "enabled": true
+      "enabled": true,
+      "name": "POP Series 4",
+      "series": "POP"
     },
     {
       "setId": "pop5",
       "jsonPath": "cards/en/pop5.json",
       "expectedCards": 17,
-      "enabled": true
+      "enabled": true,
+      "name": "POP Series 5",
+      "series": "POP"
     },
     {
       "setId": "pop6",
       "jsonPath": "cards/en/pop6.json",
       "expectedCards": 17,
-      "enabled": true
+      "enabled": true,
+      "name": "POP Series 6",
+      "series": "POP"
     },
     {
       "setId": "pop7",
       "jsonPath": "cards/en/pop7.json",
       "expectedCards": 17,
-      "enabled": true
+      "enabled": true,
+      "name": "POP Series 7",
+      "series": "POP"
     },
     {
       "setId": "pop8",
       "jsonPath": "cards/en/pop8.json",
       "expectedCards": 17,
-      "enabled": true
+      "enabled": true,
+      "name": "POP Series 8",
+      "series": "POP"
     },
     {
       "setId": "pop9",
       "jsonPath": "cards/en/pop9.json",
       "expectedCards": 17,
-      "enabled": true
+      "enabled": true,
+      "name": "POP Series 9",
+      "series": "POP"
     },
     {
       "setId": "rsv10pt5",
       "jsonPath": "cards/en/rsv10pt5.json",
       "expectedCards": 173,
-      "enabled": true
+      "enabled": true,
+      "name": "White Flare",
+      "series": "Scarlet & Violet"
     },
     {
       "setId": "ru1",
       "jsonPath": "cards/en/ru1.json",
       "expectedCards": 16,
-      "enabled": true
+      "enabled": true,
+      "name": "Pokémon Rumble",
+      "series": "Other"
     },
     {
       "setId": "si1",
       "jsonPath": "cards/en/si1.json",
       "expectedCards": 18,
-      "enabled": true
+      "enabled": true,
+      "name": "Southern Islands",
+      "series": "Other"
     },
     {
       "setId": "sm1",
       "jsonPath": "cards/en/sm1.json",
       "expectedCards": 173,
-      "enabled": true
+      "enabled": true,
+      "name": "Sun & Moon",
+      "series": "Sun & Moon"
     },
     {
       "setId": "sm10",
       "jsonPath": "cards/en/sm10.json",
       "expectedCards": 238,
-      "enabled": true
+      "enabled": true,
+      "name": "Unbroken Bonds",
+      "series": "Sun & Moon"
     },
     {
       "setId": "sm11",
       "jsonPath": "cards/en/sm11.json",
       "expectedCards": 261,
-      "enabled": true
+      "enabled": true,
+      "name": "Unified Minds",
+      "series": "Sun & Moon"
     },
     {
       "setId": "sm115",
       "jsonPath": "cards/en/sm115.json",
       "expectedCards": 69,
-      "enabled": true
+      "enabled": true,
+      "name": "Hidden Fates",
+      "series": "Sun & Moon"
     },
     {
       "setId": "sm12",
       "jsonPath": "cards/en/sm12.json",
       "expectedCards": 272,
-      "enabled": true
+      "enabled": true,
+      "name": "Cosmic Eclipse",
+      "series": "Sun & Moon"
     },
     {
       "setId": "sm2",
       "jsonPath": "cards/en/sm2.json",
       "expectedCards": 180,
-      "enabled": true
+      "enabled": true,
+      "name": "Guardians Rising",
+      "series": "Sun & Moon"
     },
     {
       "setId": "sm3",
       "jsonPath": "cards/en/sm3.json",
       "expectedCards": 177,
-      "enabled": true
+      "enabled": true,
+      "name": "Burning Shadows",
+      "series": "Sun & Moon"
     },
     {
       "setId": "sm35",
       "jsonPath": "cards/en/sm35.json",
       "expectedCards": 81,
-      "enabled": true
+      "enabled": true,
+      "name": "Shining Legends",
+      "series": "Sun & Moon"
     },
     {
       "setId": "sm4",
       "jsonPath": "cards/en/sm4.json",
       "expectedCards": 126,
-      "enabled": true
+      "enabled": true,
+      "name": "Crimson Invasion",
+      "series": "Sun & Moon"
     },
     {
       "setId": "sm5",
       "jsonPath": "cards/en/sm5.json",
       "expectedCards": 178,
-      "enabled": true
+      "enabled": true,
+      "name": "Ultra Prism",
+      "series": "Sun & Moon"
     },
     {
       "setId": "sm6",
       "jsonPath": "cards/en/sm6.json",
       "expectedCards": 150,
-      "enabled": true
+      "enabled": true,
+      "name": "Forbidden Light",
+      "series": "Sun & Moon"
     },
     {
       "setId": "sm7",
       "jsonPath": "cards/en/sm7.json",
       "expectedCards": 187,
-      "enabled": true
+      "enabled": true,
+      "name": "Celestial Storm",
+      "series": "Sun & Moon"
     },
     {
       "setId": "sm75",
       "jsonPath": "cards/en/sm75.json",
       "expectedCards": 80,
-      "enabled": true
+      "enabled": true,
+      "name": "Dragon Majesty",
+      "series": "Sun & Moon"
     },
     {
       "setId": "sm8",
       "jsonPath": "cards/en/sm8.json",
       "expectedCards": 240,
-      "enabled": true
+      "enabled": true,
+      "name": "Lost Thunder",
+      "series": "Sun & Moon"
     },
     {
       "setId": "sm9",
       "jsonPath": "cards/en/sm9.json",
       "expectedCards": 198,
-      "enabled": true
+      "enabled": true,
+      "name": "Team Up",
+      "series": "Sun & Moon"
     },
     {
       "setId": "sma",
       "jsonPath": "cards/en/sma.json",
       "expectedCards": 94,
-      "enabled": true
+      "enabled": true,
+      "name": "Hidden Fates Shiny Vault",
+      "series": "Sun & Moon"
     },
     {
       "setId": "smp",
       "jsonPath": "cards/en/smp.json",
       "expectedCards": 251,
-      "enabled": true
+      "enabled": true,
+      "name": "SM Black Star Promos",
+      "series": "Sun & Moon"
     },
     {
       "setId": "sv1",
       "jsonPath": "cards/en/sv1.json",
       "expectedCards": 258,
-      "enabled": true
+      "enabled": true,
+      "name": "Scarlet & Violet",
+      "series": "Scarlet & Violet"
     },
     {
       "setId": "sv10",
       "jsonPath": "cards/en/sv10.json",
       "expectedCards": 244,
-      "enabled": true
+      "enabled": true,
+      "name": "Destined Rivals",
+      "series": "Scarlet & Violet"
     },
     {
       "setId": "sv2",
       "jsonPath": "cards/en/sv2.json",
       "expectedCards": 279,
-      "enabled": true
+      "enabled": true,
+      "name": "Paldea Evolved",
+      "series": "Scarlet & Violet"
     },
     {
       "setId": "sv3",
       "jsonPath": "cards/en/sv3.json",
       "expectedCards": 230,
-      "enabled": true
+      "enabled": true,
+      "name": "Obsidian Flames",
+      "series": "Scarlet & Violet"
     },
     {
       "setId": "sv3pt5",
       "jsonPath": "cards/en/sv3pt5.json",
       "expectedCards": 207,
-      "enabled": true
+      "enabled": true,
+      "name": "151",
+      "series": "Scarlet & Violet"
     },
     {
       "setId": "sv4",
       "jsonPath": "cards/en/sv4.json",
       "expectedCards": 266,
-      "enabled": true
+      "enabled": true,
+      "name": "Paradox Rift",
+      "series": "Scarlet & Violet"
     },
     {
       "setId": "sv4pt5",
       "jsonPath": "cards/en/sv4pt5.json",
       "expectedCards": 245,
-      "enabled": true
+      "enabled": true,
+      "name": "Paldean Fates",
+      "series": "Scarlet & Violet"
     },
     {
       "setId": "sv5",
       "jsonPath": "cards/en/sv5.json",
       "expectedCards": 218,
-      "enabled": true
+      "enabled": true,
+      "name": "Temporal Forces",
+      "series": "Scarlet & Violet"
     },
     {
       "setId": "sv6",
       "jsonPath": "cards/en/sv6.json",
       "expectedCards": 226,
-      "enabled": true
+      "enabled": true,
+      "name": "Twilight Masquerade",
+      "series": "Scarlet & Violet"
     },
     {
       "setId": "sv6pt5",
       "jsonPath": "cards/en/sv6pt5.json",
       "expectedCards": 99,
-      "enabled": true
+      "enabled": true,
+      "name": "Shrouded Fable",
+      "series": "Scarlet & Violet"
     },
     {
       "setId": "sv7",
       "jsonPath": "cards/en/sv7.json",
       "expectedCards": 175,
-      "enabled": true
+      "enabled": true,
+      "name": "Stellar Crown",
+      "series": "Scarlet & Violet"
     },
     {
       "setId": "sv8",
       "jsonPath": "cards/en/sv8.json",
       "expectedCards": 252,
-      "enabled": true
+      "enabled": true,
+      "name": "Surging Sparks",
+      "series": "Scarlet & Violet"
     },
     {
       "setId": "sv8pt5",
       "jsonPath": "cards/en/sv8pt5.json",
       "expectedCards": 180,
-      "enabled": true
+      "enabled": true,
+      "name": "Prismatic Evolutions",
+      "series": "Scarlet & Violet"
     },
     {
       "setId": "sv9",
       "jsonPath": "cards/en/sv9.json",
       "expectedCards": 190,
-      "enabled": true
+      "enabled": true,
+      "name": "Journey Together",
+      "series": "Scarlet & Violet"
     },
     {
       "setId": "sve",
       "jsonPath": "cards/en/sve.json",
       "expectedCards": 16,
-      "enabled": true
+      "enabled": true,
+      "name": "Scarlet & Violet Energies",
+      "series": "Scarlet & Violet"
     },
     {
       "setId": "svp",
       "jsonPath": "cards/en/svp.json",
       "expectedCards": 165,
-      "enabled": true
+      "enabled": true,
+      "name": "Scarlet & Violet Black Star Promos",
+      "series": "Scarlet & Violet"
     },
     {
       "setId": "swsh1",
       "jsonPath": "cards/en/swsh1.json",
       "expectedCards": 216,
-      "enabled": true
+      "enabled": true,
+      "name": "Sword & Shield",
+      "series": "Sword & Shield"
     },
     {
       "setId": "swsh10",
       "jsonPath": "cards/en/swsh10.json",
       "expectedCards": 216,
-      "enabled": true
+      "enabled": true,
+      "name": "Astral Radiance",
+      "series": "Sword & Shield"
     },
     {
       "setId": "swsh10tg",
       "jsonPath": "cards/en/swsh10tg.json",
       "expectedCards": 30,
-      "enabled": true
+      "enabled": true,
+      "name": "Astral Radiance Trainer Gallery",
+      "series": "Sword & Shield"
     },
     {
       "setId": "swsh11",
       "jsonPath": "cards/en/swsh11.json",
       "expectedCards": 217,
-      "enabled": true
+      "enabled": true,
+      "name": "Lost Origin",
+      "series": "Sword & Shield"
     },
     {
       "setId": "swsh11tg",
       "jsonPath": "cards/en/swsh11tg.json",
       "expectedCards": 30,
-      "enabled": true
+      "enabled": true,
+      "name": "Lost Origin Trainer Gallery",
+      "series": "Sword & Shield"
     },
     {
       "setId": "swsh12",
       "jsonPath": "cards/en/swsh12.json",
       "expectedCards": 215,
-      "enabled": true
+      "enabled": true,
+      "name": "Silver Tempest",
+      "series": "Sword & Shield"
     },
     {
       "setId": "swsh12pt5",
       "jsonPath": "cards/en/swsh12pt5.json",
       "expectedCards": 160,
-      "enabled": true
+      "enabled": true,
+      "name": "Crown Zenith",
+      "series": "Sword & Shield"
     },
     {
       "setId": "swsh12pt5gg",
       "jsonPath": "cards/en/swsh12pt5gg.json",
       "expectedCards": 70,
-      "enabled": true
+      "enabled": true,
+      "name": "Crown Zenith Galarian Gallery",
+      "series": "Sword & Shield"
     },
     {
       "setId": "swsh12tg",
       "jsonPath": "cards/en/swsh12tg.json",
       "expectedCards": 30,
-      "enabled": true
+      "enabled": true,
+      "name": "Silver Tempest Trainer Gallery",
+      "series": "Sword & Shield"
     },
     {
       "setId": "swsh2",
       "jsonPath": "cards/en/swsh2.json",
       "expectedCards": 209,
-      "enabled": true
+      "enabled": true,
+      "name": "Rebel Clash",
+      "series": "Sword & Shield"
     },
     {
       "setId": "swsh3",
       "jsonPath": "cards/en/swsh3.json",
       "expectedCards": 201,
-      "enabled": true
+      "enabled": true,
+      "name": "Darkness Ablaze",
+      "series": "Sword & Shield"
     },
     {
       "setId": "swsh35",
       "jsonPath": "cards/en/swsh35.json",
       "expectedCards": 80,
-      "enabled": true
+      "enabled": true,
+      "name": "Champion's Path",
+      "series": "Sword & Shield"
     },
     {
       "setId": "swsh4",
       "jsonPath": "cards/en/swsh4.json",
       "expectedCards": 203,
-      "enabled": true
+      "enabled": true,
+      "name": "Vivid Voltage",
+      "series": "Sword & Shield"
     },
     {
       "setId": "swsh45",
       "jsonPath": "cards/en/swsh45.json",
       "expectedCards": 73,
-      "enabled": true
+      "enabled": true,
+      "name": "Shining Fates",
+      "series": "Sword & Shield"
     },
     {
       "setId": "swsh45sv",
       "jsonPath": "cards/en/swsh45sv.json",
       "expectedCards": 122,
-      "enabled": true
+      "enabled": true,
+      "name": "Shining Fates Shiny Vault",
+      "series": "Sword & Shield"
     },
     {
       "setId": "swsh5",
       "jsonPath": "cards/en/swsh5.json",
       "expectedCards": 183,
-      "enabled": true
+      "enabled": true,
+      "name": "Battle Styles",
+      "series": "Sword & Shield"
     },
     {
       "setId": "swsh6",
       "jsonPath": "cards/en/swsh6.json",
       "expectedCards": 233,
-      "enabled": true
+      "enabled": true,
+      "name": "Chilling Reign",
+      "series": "Sword & Shield"
     },
     {
       "setId": "swsh7",
       "jsonPath": "cards/en/swsh7.json",
       "expectedCards": 237,
-      "enabled": true
+      "enabled": true,
+      "name": "Evolving Skies",
+      "series": "Sword & Shield"
     },
     {
       "setId": "swsh8",
       "jsonPath": "cards/en/swsh8.json",
       "expectedCards": 284,
-      "enabled": true
+      "enabled": true,
+      "name": "Fusion Strike",
+      "series": "Sword & Shield"
     },
     {
       "setId": "swsh9",
       "jsonPath": "cards/en/swsh9.json",
       "expectedCards": 186,
-      "enabled": true
+      "enabled": true,
+      "name": "Brilliant Stars",
+      "series": "Sword & Shield"
     },
     {
       "setId": "swsh9tg",
       "jsonPath": "cards/en/swsh9tg.json",
       "expectedCards": 30,
-      "enabled": true
+      "enabled": true,
+      "name": "Brilliant Stars Trainer Gallery",
+      "series": "Sword & Shield"
     },
     {
       "setId": "swshp",
       "jsonPath": "cards/en/swshp.json",
       "expectedCards": 304,
-      "enabled": true
+      "enabled": true,
+      "name": "SWSH Black Star Promos",
+      "series": "Sword & Shield"
     },
     {
       "setId": "tk1a",
       "jsonPath": "cards/en/tk1a.json",
       "expectedCards": 10,
-      "enabled": true
+      "enabled": true,
+      "name": "EX Trainer Kit Latias",
+      "series": "EX"
     },
     {
       "setId": "tk1b",
       "jsonPath": "cards/en/tk1b.json",
       "expectedCards": 10,
-      "enabled": true
+      "enabled": true,
+      "name": "EX Trainer Kit Latios",
+      "series": "EX"
     },
     {
       "setId": "tk2a",
       "jsonPath": "cards/en/tk2a.json",
       "expectedCards": 12,
-      "enabled": true
+      "enabled": true,
+      "name": "EX Trainer Kit 2 Plusle",
+      "series": "EX"
     },
     {
       "setId": "tk2b",
       "jsonPath": "cards/en/tk2b.json",
       "expectedCards": 12,
-      "enabled": true
+      "enabled": true,
+      "name": "EX Trainer Kit 2 Minun",
+      "series": "EX"
     },
     {
       "setId": "xy0",
       "jsonPath": "cards/en/xy0.json",
       "expectedCards": 39,
-      "enabled": true
+      "enabled": true,
+      "name": "Kalos Starter Set",
+      "series": "XY"
     },
     {
       "setId": "xy1",
       "jsonPath": "cards/en/xy1.json",
       "expectedCards": 146,
-      "enabled": true
+      "enabled": true,
+      "name": "XY",
+      "series": "XY"
     },
     {
       "setId": "xy10",
       "jsonPath": "cards/en/xy10.json",
       "expectedCards": 129,
-      "enabled": true
+      "enabled": true,
+      "name": "Fates Collide",
+      "series": "XY"
     },
     {
       "setId": "xy11",
       "jsonPath": "cards/en/xy11.json",
       "expectedCards": 116,
-      "enabled": true
+      "enabled": true,
+      "name": "Steam Siege",
+      "series": "XY"
     },
     {
       "setId": "xy12",
       "jsonPath": "cards/en/xy12.json",
       "expectedCards": 113,
-      "enabled": true
+      "enabled": true,
+      "name": "Evolutions",
+      "series": "XY"
     },
     {
       "setId": "xy2",
       "jsonPath": "cards/en/xy2.json",
       "expectedCards": 110,
-      "enabled": true
+      "enabled": true,
+      "name": "Flashfire",
+      "series": "XY"
     },
     {
       "setId": "xy3",
       "jsonPath": "cards/en/xy3.json",
       "expectedCards": 114,
-      "enabled": true
+      "enabled": true,
+      "name": "Furious Fists",
+      "series": "XY"
     },
     {
       "setId": "xy4",
       "jsonPath": "cards/en/xy4.json",
       "expectedCards": 124,
-      "enabled": true
+      "enabled": true,
+      "name": "Phantom Forces",
+      "series": "XY"
     },
     {
       "setId": "xy5",
       "jsonPath": "cards/en/xy5.json",
       "expectedCards": 164,
-      "enabled": true
+      "enabled": true,
+      "name": "Primal Clash",
+      "series": "XY"
     },
     {
       "setId": "xy6",
       "jsonPath": "cards/en/xy6.json",
       "expectedCards": 112,
-      "enabled": true
+      "enabled": true,
+      "name": "Roaring Skies",
+      "series": "XY"
     },
     {
       "setId": "xy7",
       "jsonPath": "cards/en/xy7.json",
       "expectedCards": 101,
-      "enabled": true
+      "enabled": true,
+      "name": "Ancient Origins",
+      "series": "XY"
     },
     {
       "setId": "xy8",
       "jsonPath": "cards/en/xy8.json",
       "expectedCards": 165,
-      "enabled": true
+      "enabled": true,
+      "name": "BREAKthrough",
+      "series": "XY"
     },
     {
       "setId": "xy9",
       "jsonPath": "cards/en/xy9.json",
       "expectedCards": 126,
-      "enabled": true
+      "enabled": true,
+      "name": "BREAKpoint",
+      "series": "XY"
     },
     {
       "setId": "xyp",
       "jsonPath": "cards/en/xyp.json",
       "expectedCards": 216,
-      "enabled": true
+      "enabled": true,
+      "name": "XY Black Star Promos",
+      "series": "XY"
     },
     {
       "setId": "zsv10pt5",
       "jsonPath": "cards/en/zsv10pt5.json",
       "expectedCards": 172,
-      "enabled": true
+      "enabled": true,
+      "name": "Black Bolt",
+      "series": "Scarlet & Violet"
     }
   ]
 }

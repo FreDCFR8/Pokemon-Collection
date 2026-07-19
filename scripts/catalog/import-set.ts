@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { loadPokemonTcgDataJson } from './local-json.ts';
 import { parseCardDetails, type CardDetails } from './card-details.ts';
 import { assertWriteAuthorized, getWritePlanTitle, parseCatalogImportArgs, type CatalogImportOptions } from './import-args.ts';
-import { writeDiagnosticResult, type DiagnosticExample, type FailureCode, type SetMappingStatus, type SingleSetDiagnosticResult } from './diagnostic-result.ts';
+import { writeDiagnosticResult, type DiagnosticExample, type FailureCode, type SetMappingCandidate, type SetMappingStatus, type SingleSetDiagnosticResult } from './diagnostic-result.ts';
 
 const SOURCE = 'pokemon_tcg_api';
 const API_BASE_URL = 'https://api.pokemontcg.io/v2';
@@ -86,7 +86,7 @@ type MatchingReport = {
   errors: string[];
   setMappingStatus: SetMappingStatus;
   setMappingEvidence: string[];
-  setMappingCandidates: SetCatalogRow[];
+  setMappingCandidates: SetMappingCandidate[];
 };
 
 type CardClassification =
@@ -477,12 +477,27 @@ async function fetchSetCatalogMapping(supabase: SupabaseClient, externalSetId: s
 
 async function fetchSetCatalogCandidates(supabase: SupabaseClient, incomingSet: PokemonSet): Promise<SetCatalogRow[]> {
   const rows = await readRows<SetCatalogRow>(
-    supabase.from('sets_catalog').select('set_code,source,source_id,name,series').eq('source', SOURCE),
+    supabase.from('sets_catalog').select('set_code,source,source_id,name,series'),
     'sets_catalog mapping candidates',
   );
   const normalizedName = normalizeRequired(incomingSet.name).toLowerCase();
   const normalizedSeries = normalizeRequired(incomingSet.series).toLowerCase();
-  return rows.filter((row) => normalizeRequired(row.name ?? '').toLowerCase() === normalizedName && (!normalizedSeries || normalizeRequired(row.series ?? '').toLowerCase() === normalizedSeries));
+  return rows.filter((row) => row.set_code === incomingSet.id || normalizeRequired(row.name ?? '').toLowerCase() === normalizedName && (!normalizedSeries || !row.series || normalizeRequired(row.series).toLowerCase() === normalizedSeries));
+}
+
+type CardNumberRow = { number: string | null };
+
+async function fetchCardNumbersForSet(supabase: SupabaseClient, setCode: string): Promise<string[]> {
+  const numbers: string[] = [];
+  for (let offset = 0; ; offset += SUPABASE_BATCH_SIZE) {
+    const rows = await readRows<CardNumberRow>(
+      supabase.from('cards_catalog').select('number').eq('set_code', setCode).order('id').range(offset, offset + SUPABASE_BATCH_SIZE - 1),
+      'cards_catalog mapping card coverage',
+    );
+    numbers.push(...rows.map((row) => normalizeOptional(row.number)).filter((number): number is string => Boolean(number)));
+    if (rows.length < SUPABASE_BATCH_SIZE) break;
+  }
+  return uniqueSorted(numbers);
 }
 
 async function fetchExternalReferences(supabase: SupabaseClient, externalIds: string[]): Promise<ExternalReferenceRow[]> {
@@ -590,12 +605,25 @@ async function matchCards(supabase: SupabaseClient, incomingSet: PokemonSet, ext
   const errors: string[] = [];
   const externalIds = uniqueSorted(externalCards.map((card) => card.id).filter(Boolean));
   const setMappings = await fetchSetCatalogMapping(supabase, setId);
-  const nameCandidates = setMappings.length === 0 ? await fetchSetCatalogCandidates(supabase, incomingSet) : [];
-  const mappingCandidates = setMappings.length > 0 ? setMappings : nameCandidates;
+  const candidateRows = await fetchSetCatalogCandidates(supabase, incomingSet);
   const setCode = setMappings.length === 1 ? setMappings[0].set_code : undefined;
   const unresolvedReason = setMappings.length === 0 ? 'missing_set_mapping' : setMappings.length > 1 ? 'multiple_set_mappings' : undefined;
   if (setMappings.length === 0) errors.push('Fallbackmatching kon niet worden uitgevoerd omdat geen betrouwbare sets_catalog-koppeling voor deze externe set bestaat.');
   if (setMappings.length > 1) errors.push('Fallbackmatching kon niet worden uitgevoerd omdat meerdere sets_catalog-koppelingen voor deze externe set bestaan.');
+
+  const incomingNumbers = uniqueSorted(externalCards.map((card) => normalizeRequired(card.number)).filter(Boolean));
+  const mappingCandidates: SetMappingCandidate[] = [];
+  for (const candidate of candidateRows) {
+    const candidateNumbers = await fetchCardNumbersForSet(supabase, candidate.set_code);
+    const overlap = candidateNumbers.filter((number) => incomingNumbers.includes(number)).length;
+    const evidenceCodes = [
+      ...(candidate.set_code === setId ? ['exact_set_code'] : []),
+      ...(normalizeRequired(candidate.name ?? '').toLowerCase() === normalizeRequired(incomingSet.name).toLowerCase() ? ['exact_normalized_name'] : []),
+      ...(candidate.series && normalizeRequired(candidate.series).toLowerCase() === normalizeRequired(incomingSet.series).toLowerCase() ? ['series_match'] : []),
+      ...(overlap > 0 ? ['card_number_overlap'] : []),
+    ];
+    mappingCandidates.push({ set_code: candidate.set_code, ...(candidate.name ? { name: candidate.name } : {}), ...(candidate.series ? { series: candidate.series } : {}), source: candidate.source, source_id: candidate.source_id, evidenceCodes, incomingCardCount: incomingNumbers.length, overlappingUniqueCardNumbers: overlap, coveragePercentage: incomingNumbers.length === 0 ? 0 : Number(((overlap / incomingNumbers.length) * 100).toFixed(2)) });
+  }
 
   const references = await fetchExternalReferences(supabase, externalIds);
   const referencesByExternalId = new Map<string, ExternalReferenceRow[]>();
@@ -662,8 +690,8 @@ async function matchCards(supabase: SupabaseClient, incomingSet: PokemonSet, ext
     setCode,
     classifications: [],
     errors,
-    setMappingStatus: setMappings.length === 1 ? 'already_reliable' : setMappings.length > 1 ? 'conflicting_candidate' : nameCandidates.length === 1 ? 'exact_candidate' : nameCandidates.length > 1 ? 'ambiguous_candidate' : 'no_candidate',
-    setMappingEvidence: setMappings.length === 1 ? ['exact source + external set ID match in sets_catalog'] : nameCandidates.length > 0 ? ['exact normalized name/series candidate; not promoted to reliable without external ID evidence'] : [],
+    setMappingStatus: setMappings.length === 1 ? 'already_reliable' : setMappings.length > 1 ? 'conflicting_candidate' : mappingCandidates.length === 1 ? 'exact_candidate' : mappingCandidates.length > 1 ? 'ambiguous_candidate' : 'no_candidate',
+    setMappingEvidence: setMappings.length === 1 ? ['exact_external_source_id'] : mappingCandidates.length > 0 ? ['candidate_evidence_only; no automatic promotion'] : [],
     setMappingCandidates: mappingCandidates,
   };
 
@@ -1117,7 +1145,7 @@ function buildDiagnosticResult(params: { set: PokemonSet; receivedCards: number;
     setMapping: {
       status: params.matching.setMappingStatus,
       ...(params.matching.setCode ? { reliableSetCode: params.matching.setCode } : {}),
-      candidates: params.matching.setMappingCandidates.map((candidate) => ({ set_code: candidate.set_code, ...(candidate.name ? { name: candidate.name } : {}), ...(candidate.series ? { series: candidate.series } : {}), source: candidate.source, source_id: candidate.source_id })),
+      candidates: params.matching.setMappingCandidates,
       evidence: params.matching.setMappingEvidence,
     },
     externalReferenceMatches: params.matching.matchedByExternalReference,
@@ -1177,8 +1205,8 @@ async function main(): Promise<number> {
     const set = localData
       ? {
           id: setId,
-          name: localData.setName,
-          series: '',
+          name: options.setName!,
+          series: options.setSeries!,
           printedTotal: localData.cards.length,
           total: localData.cards.length,
           releaseDate: '',
@@ -1311,6 +1339,7 @@ async function main(): Promise<number> {
       status: 'FAIL',
       receivedCards: 0,
       setMappingStatus: 'no_candidate',
+      setMapping: { status: 'no_candidate', candidates: [], evidence: [] },
       externalReferenceMatches: 0,
       fallbackCandidates: 0,
       newCards: 0,

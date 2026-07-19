@@ -8,6 +8,8 @@ export type CatalogImportOptions = {
   source: CatalogImportSource;
   inputPath?: string;
   diagnosticResultPath?: string;
+  setName?: string;
+  setSeries?: string;
 };
 
 export class CatalogImportArgumentError extends Error {}
@@ -32,6 +34,8 @@ export function parseCatalogImportArgs(argv: readonly string[]): CatalogImportOp
   let sourceSpecified = false;
   let inputPath: string | undefined;
   let diagnosticResultPath: string | undefined;
+  let setName: string | undefined;
+  let setSeries: string | undefined;
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -105,6 +109,25 @@ export function parseCatalogImportArgs(argv: readonly string[]): CatalogImportOp
       continue;
     }
 
+    if (arg === '--set-name' || arg === '--set-series') {
+      const key = arg === '--set-name' ? 'name' : 'series';
+      const value = argv[index + 1];
+      if (value === undefined || value.startsWith('--')) throw new CatalogImportArgumentError(`Ontbrekende waarde voor ${arg}.`);
+      if (key === 'name') { if (setName !== undefined) throw new CatalogImportArgumentError('--set-name mag slechts eenmaal worden opgegeven.'); setName = value; }
+      else { if (setSeries !== undefined) throw new CatalogImportArgumentError('--set-series mag slechts eenmaal worden opgegeven.'); setSeries = value; }
+      index += 1;
+      continue;
+    }
+
+    if (arg.startsWith('--set-name=') || arg.startsWith('--set-series=')) {
+      const isName = arg.startsWith('--set-name=');
+      const value = arg.slice(isName ? '--set-name='.length : '--set-series='.length);
+      if (!value) throw new CatalogImportArgumentError(`Ontbrekende waarde voor ${isName ? '--set-name' : '--set-series'}.`);
+      if (isName) { if (setName !== undefined) throw new CatalogImportArgumentError('--set-name mag slechts eenmaal worden opgegeven.'); setName = value; }
+      else { if (setSeries !== undefined) throw new CatalogImportArgumentError('--set-series mag slechts eenmaal worden opgegeven.'); setSeries = value; }
+      continue;
+    }
+
     if (arg === '--write') {
       if (write) throw new CatalogImportArgumentError('--write mag slechts eenmaal worden opgegeven.');
       write = true;
@@ -127,11 +150,13 @@ export function parseCatalogImportArgs(argv: readonly string[]): CatalogImportOp
   if (source === 'pokemon_tcg_data' && inputPath === undefined) {
     throw new CatalogImportArgumentError('Bron pokemon_tcg_data vereist --input naar een lokaal set-JSON-bestand.');
   }
+  if (source === 'pokemon_tcg_data' && (!setName || !setSeries)) throw new CatalogImportArgumentError('Bron pokemon_tcg_data vereist officiële --set-name en --set-series uit het manifest.');
+  if (source === 'pokemon_tcg_api' && (setName !== undefined || setSeries !== undefined)) throw new CatalogImportArgumentError('--set-name en --set-series zijn alleen toegestaan met bron pokemon_tcg_data.');
   if (source === 'pokemon_tcg_api' && inputPath !== undefined) {
     throw new CatalogImportArgumentError('--input is alleen toegestaan met bron pokemon_tcg_data.');
   }
 
-  return { setId, write, source, ...(inputPath ? { inputPath } : {}), ...(diagnosticResultPath ? { diagnosticResultPath } : {}) };
+  return { setId, write, source, ...(inputPath ? { inputPath } : {}), ...(diagnosticResultPath ? { diagnosticResultPath } : {}), ...(setName ? { setName } : {}), ...(setSeries ? { setSeries } : {}) };
 }
 
 export function assertWriteAuthorized(options: CatalogImportOptions): void {

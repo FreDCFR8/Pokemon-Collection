@@ -12,9 +12,9 @@ De actieve fase bouwt een versieerbare, volledig read-only manifestbatch voor me
 
 ## Latest merged product milestone
 
-**PR136 — Phase 7B-2F9A: Automatische volledige lokale datasetinventaris**
+**PR137 — Phase 7B-2F9B: Hervatbare volledige lokale catalogus-dry-run**
 
-PR136 is gemerged. De lokale manifestbatch blijft read-only, gebruikt de bestaande single-set importer en wijzigt geen `cards_catalog` of `collection_cards`.
+PR137 is gemerged. De lokale manifestbatch blijft read-only, gebruikt de bestaande single-set importer en wijzigt geen `cards_catalog` of `collection_cards`.
 
 ## Active work
 
@@ -91,4 +91,4 @@ Operational 2F9B result recorded for this phase: 173 sets processed, 7 PASS, 166
 
 ## Next phase scope
 
-Na Phase 7B-2F9A blijven bredere cataloguswrites en de volledige catalogus-dry-run expliciet aparte, goedgekeurde fases. Trade remains a separate future area and the lowest product priority.
+Phase 7B-2F9C blijft actief; bredere cataloguswrites en de volledige catalogus-dry-run blijven expliciet aparte, goedgekeurde fases. Trade remains a separate future area and the lowest product priority.

@@ -40,6 +40,11 @@ test('malformed or incomplete subprocess results fail closed', () => {
   assert.throws(() => parseDiagnosticResultText('not-json'), /geldige JSON/);
   assert.throws(() => parseDiagnosticResultText(JSON.stringify({ ...fixture(), databaseWrites: -1 })), /databaseWrites/);
   assert.throws(() => parseDiagnosticResultText(JSON.stringify({ ...fixture(), status: 'PASS', failureReasons: ['not-a-code'] })), /failureReasons/);
+  assert.throws(() => parseDiagnosticResultText(JSON.stringify({ ...fixture(), extra: true })), /onbekende velden/);
+  assert.throws(() => parseDiagnosticResultText(JSON.stringify({ ...fixture(), status: 'PASS', failureReasons: ['missing_set_mapping'] })), /PASS/);
+  assert.throws(() => parseDiagnosticResultText(JSON.stringify({ ...fixture(), failureReasons: [] })), /FAIL vereist/);
+  assert.throws(() => parseDiagnosticResultText(JSON.stringify({ ...fixture(), setMapping: { ...fixture().setMapping, evidence: Array.from({ length: 21 }, () => 'evidence') } })), /te grote/);
+  assert.throws(() => parseDiagnosticResultText(JSON.stringify({ ...fixture(), setMapping: { ...fixture().setMapping, candidates: [{ set_code: 'sv10', evidenceCodes: [], incomingCardCount: 1, overlappingUniqueCardNumbers: 1, coveragePercentage: 100, extra: true }] } })), /onbekende velden/);
 });
 
 test('diagnostic output is atomic and contains no console payload', () => {

@@ -63,7 +63,7 @@ type ReportSet = {
   diagnostic?: Omit<SingleSetDiagnosticResult, 'schemaVersion'>;
 };
 
-function runImportSet(setId: string, write: boolean, inputPath?: string, stepOverride?: StepName): StepResult {
+function runImportSet(setId: string, write: boolean, inputPath?: string, stepOverride?: StepName, setMetadata?: { name: string; series: string }, expectedCards?: number): StepResult {
   const step: StepName = stepOverride ?? (write ? 'write' : 'dry-run');
   const resultPath = join(tmpdir(), `pokemon-catalog-diagnostic-${process.pid}-${Date.now()}-${setId}-${step}.json`);
   const args = [
@@ -72,6 +72,7 @@ function runImportSet(setId: string, write: boolean, inputPath?: string, stepOve
     '--set',
     setId,
     ...(inputPath ? ['--source', 'pokemon_tcg_data', '--input', inputPath] : []),
+    ...(setMetadata ? ['--set-name', setMetadata.name, '--set-series', setMetadata.series] : []),
     ...(write ? ['--write'] : []),
     '--diagnostic-result', resultPath,
   ];
@@ -79,7 +80,10 @@ function runImportSet(setId: string, write: boolean, inputPath?: string, stepOve
   const output = `${result.stdout ?? ''}${result.stderr ?? ''}`;
   try {
     if (!existsSync(resultPath)) return failClosedStep({ setId, step, exitCode: result.status ?? 1, output, error: 'Subprocessresultaat ontbreekt.' });
-    return validateStepOutput({ step, exitCode: result.status ?? 1, output, diagnostic: readDiagnosticResult(resultPath) });
+    const diagnostic = readDiagnosticResult(resultPath);
+    if (diagnostic.setId !== setId) throw new Error('Diagnostisch resultaat hoort bij een andere set.');
+    if (expectedCards !== undefined && diagnostic.expectedCards !== expectedCards) throw new Error('Diagnostisch expectedCards komt niet overeen met het manifest.');
+    return validateStepOutput({ step, exitCode: result.status ?? 1, output, diagnostic });
   } catch (error) {
     return failClosedStep({ setId, step, exitCode: result.status ?? 1, output, error: error instanceof Error ? error.message : 'Ongeldig subprocessresultaat.' });
   } finally {
@@ -92,12 +96,13 @@ function runIdempotency(setId: string): StepResult {
 }
 
 function failClosedStep(params: { setId: string; step: StepName; exitCode: number; output: string; error: string }): StepResult {
-  const diagnostic: SingleSetDiagnosticResult = { schemaVersion: 1, setId: params.setId, status: 'FAIL', receivedCards: 0, setMappingStatus: 'no_candidate', externalReferenceMatches: 0, fallbackCandidates: 0, newCards: 0, ambiguousItems: 0, conflicts: 0, unresolvedWithoutSetMapping: 0, metadataUnchanged: 0, metadataChanged: 0, blockedItems: 0, plannedDatabaseWrites: 0, databaseWrites: 0, failureReasons: ['unexpected_runner_failure'], examples: { unexpected_runner_failure: [{ reason: params.error }] } };
+  const diagnostic: SingleSetDiagnosticResult = { schemaVersion: 1, setId: params.setId, status: 'FAIL', receivedCards: 0, setMappingStatus: 'no_candidate', setMapping: { status: 'no_candidate', candidates: [], evidence: [] }, externalReferenceMatches: 0, fallbackCandidates: 0, newCards: 0, ambiguousItems: 0, conflicts: 0, unresolvedWithoutSetMapping: 0, metadataUnchanged: 0, metadataChanged: 0, blockedItems: 0, plannedDatabaseWrites: 0, databaseWrites: 0, failureReasons: ['unexpected_runner_failure'], examples: { unexpected_runner_failure: [{ reason: params.error }] } };
   return { step: params.step, exitCode: params.exitCode, output: params.output, passed: false, error: `${params.error} failureCode=unexpected_runner_failure`, databaseWrites: 0, diagnostic };
 }
 
 function validateStepOutput(params: { step: StepName; exitCode: number; output: string; diagnostic: SingleSetDiagnosticResult }): StepResult {
   const errors: string[] = [];
+  const unexpectedRunnerFailure = new Set<string>();
   const { diagnostic } = params;
   const expectedCards = diagnostic.expectedCards;
   const receivedCards = diagnostic.receivedCards;
@@ -105,10 +110,16 @@ function validateStepOutput(params: { step: StepName; exitCode: number; output: 
   const databaseWrites = diagnostic.databaseWrites;
 
   if (params.exitCode !== 0) errors.push(`exitcode ${params.exitCode}`);
-  if (diagnostic.status !== (params.exitCode === 0 ? 'PASS' : 'FAIL')) errors.push('JSON-status komt niet overeen met exitcode.');
+  if (diagnostic.status !== (params.exitCode === 0 ? 'PASS' : 'FAIL')) {
+    errors.push('JSON-status komt niet overeen met exitcode.');
+    unexpectedRunnerFailure.add('status/exitcode mismatch');
+  }
 
   if (params.step === 'dry-run') {
-    if (diagnostic.databaseWrites !== 0) errors.push('Dry-run bevat databasewrites groter dan nul.');
+    if (diagnostic.databaseWrites !== 0) {
+      errors.push('Dry-run bevat databasewrites groter dan nul.');
+      unexpectedRunnerFailure.add('dry-run databaseWrites != 0');
+    }
   }
 
   if (params.step === 'write') {
@@ -118,7 +129,15 @@ function validateStepOutput(params: { step: StepName; exitCode: number; output: 
   if (params.step === 'idempotency') {
     if (diagnostic.newCards !== 0) errors.push('Idempotency vond nog nieuwe kaarten.');
     if (diagnostic.plannedDatabaseWrites !== 0) errors.push('Idempotency plant nog writes.');
-    if (diagnostic.databaseWrites !== 0) errors.push('Idempotency bevat databasewrites groter dan nul.');
+    if (diagnostic.databaseWrites !== 0) {
+      errors.push('Idempotency bevat databasewrites groter dan nul.');
+      unexpectedRunnerFailure.add('idempotency databaseWrites != 0');
+    }
+  }
+
+  if (unexpectedRunnerFailure.size > 0 && !diagnostic.failureReasons.includes('unexpected_runner_failure')) {
+    diagnostic.failureReasons = [...diagnostic.failureReasons, 'unexpected_runner_failure'];
+    diagnostic.status = 'FAIL';
   }
 
   return {
@@ -388,7 +407,7 @@ async function main(): Promise<number> {
           markCheckpointSetRunning(checkpoint, set.setId);
           saveCheckpoint(options.checkpointPath!, checkpoint);
         }
-        result.dryRun = runImportSet(set.setId, false, set.inputPath);
+        result.dryRun = runImportSet(set.setId, false, set.inputPath, undefined, { name: set.name, series: set.series }, set.expectedCards);
         if (result.dryRun.receivedCards !== set.expectedCards) {
           result.dryRun.passed = false;
           if (result.dryRun.diagnostic) result.dryRun.diagnostic.failureReasons = [...new Set([...result.dryRun.diagnostic.failureReasons, 'input_validation_failure'])];

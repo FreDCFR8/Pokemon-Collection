@@ -9,7 +9,8 @@ import { generateManifest, inventoryLocalDataset, parseGenerateArgs, PINNED_DATA
 const repo = 'PokemonTCG/pokemon-tcg-data';
 function fixture(): string { const root = mkdtempSync(join(tmpdir(), 'pokemon-manifest-')); mkdirSync(join(root, 'sets')); mkdirSync(join(root, 'cards', 'en'), { recursive: true }); return root; }
 function writeFixture(root: string, sets: unknown, cards: Record<string, unknown[]>): void {
-  writeFileSync(join(root, 'sets', 'en.json'), JSON.stringify(sets)); for (const [id, value] of Object.entries(cards)) writeFileSync(join(root, 'cards', 'en', `${id}.json`), JSON.stringify(value));
+  const enrichedSets = Array.isArray(sets) ? sets.map((item) => item && typeof item === 'object' && !Array.isArray(item) ? { ...(item as Record<string, unknown>), name: (item as Record<string, unknown>).name ?? (item as Record<string, unknown>).id, series: (item as Record<string, unknown>).series ?? 'Test Series' } : item) : sets;
+  writeFileSync(join(root, 'sets', 'en.json'), JSON.stringify(enrichedSets)); for (const [id, value] of Object.entries(cards)) writeFileSync(join(root, 'cards', 'en', `${id}.json`), JSON.stringify(value));
 }
 function fakeGit(root: string, dirty = '') { return (_root: string, args: string[]) => { if (args[0] === 'status') return dirty; if (args[0] === 'remote') return `https://github.com/${repo}`; if (args[0] === 'rev-parse' && args[1] === '--is-inside-work-tree') return 'true'; return PINNED_DATASET_VERSION; }; }
 function validFixture() { const root = fixture(); writeFixture(root, [{ id: 'base1', total: 2 }, { id: 'sv1', total: 1 }], { base1: [{ id: 'a' }, { id: 'b' }], sv1: [{ id: 'c' }] }); return root; }
@@ -100,7 +101,7 @@ test('every valid index array keeps valid plus failed equal to indexed', () => {
 test('reports card-file errors and never returns a partial manifest', () => {
   const root = fixture(); writeFixture(root, [{ id: 'sv1', total: 2 }, { id: 'sv2', total: 1 }], { sv1: [{ id: 'same' }, { id: 'same' }], sv2: [{ name: 'missing-id' }] });
   const result = inventoryLocalDataset(root, join(root, 'manifest.json'), fakeGit(root)); assert.equal(result.manifest, undefined); assert.equal(result.report.setsFailed, 2);
-  writeFileSync(join(root, 'cards', 'en', 'sv1.json'), JSON.stringify([{ id: 'unique' }, { id: 'second' }])); writeFileSync(join(root, 'sets', 'en.json'), JSON.stringify([{ id: 'sv1', total: 1 }])); const mismatch = inventoryLocalDataset(root, 'manifest.json', fakeGit(root)); assert.ok(mismatch.manifest); assert.equal(mismatch.report.status, 'PASS'); assert.ok(mismatch.report.warnings?.some((warning) => warning.setId === 'sv1'));
+  writeFileSync(join(root, 'cards', 'en', 'sv1.json'), JSON.stringify([{ id: 'unique' }, { id: 'second' }])); writeFileSync(join(root, 'sets', 'en.json'), JSON.stringify([{ id: 'sv1', name: 'Test', series: 'Test Series', total: 1 }])); const mismatch = inventoryLocalDataset(root, 'manifest.json', fakeGit(root)); assert.ok(mismatch.manifest); assert.equal(mismatch.report.status, 'PASS'); assert.ok(mismatch.report.warnings?.some((warning) => warning.setId === 'sv1'));
 });
 
 test('reports a missing card file with its set and path', () => {
@@ -111,6 +112,13 @@ test('reports a missing card file with its set and path', () => {
 
 test('writes an atomic-compatible manifest shape with pinned SHA', () => {
   const root = validFixture(); const path = join(root, 'manifest.json'); const result = inventoryLocalDataset(root, path, fakeGit(root)); writeGeneratedManifest(result.manifest!, path); const saved = JSON.parse(readFileSync(path, 'utf8')); assert.equal(saved.datasetVersion, PINNED_DATASET_VERSION); assert.equal(saved.sets.length, 2);
+});
+
+test('official set name and series are required in the generated manifest', () => {
+  const root = fixture(); writeFixture(root, [{ id: 'sv1', total: 1, name: '', series: 'Scarlet & Violet' }], { sv1: [{ id: 'c' }] });
+  assert.equal(inventoryLocalDataset(root, 'manifest.json', fakeGit(root)).report.status, 'FAIL');
+  const valid = validFixture(); const manifest = inventoryLocalDataset(valid, 'manifest.json', fakeGit(valid)).manifest!;
+  assert.deepEqual(manifest.sets[0], { setId: 'base1', name: 'base1', series: 'Test Series', jsonPath: 'cards/en/base1.json', expectedCards: 2, enabled: true });
 });
 
 test('parses the dedicated CLI arguments', () => { assert.deepEqual(parseGenerateArgs(['--input-root', 'dataset', '--output=out.json', '--report', 'report.json']), { inputRoot: join(process.cwd(), 'dataset'), outputPath: join(process.cwd(), 'out.json'), reportPath: join(process.cwd(), 'report.json') }); });
