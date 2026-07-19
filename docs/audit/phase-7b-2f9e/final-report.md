@@ -10,7 +10,8 @@ Batch 2 and Batch 3 were not executed because the pinned local dataset checkout/
 
 ## Blocking deviations
 
-- The user-supplied three lists contain 38 sets (13 + 13 + 12), not 39.
+- Batch 2 and Batch 3 remain blocked until the complete canonical Phase-A report is available and passes exact validation of `importReadySets`, `expectedImportReadySetCount` and `batches`. The runner does not assume 38 or 39 sets and never repairs a missing or unexpected set.
+- An older Phase-A report without `batches` fails closed with: `Phase-A-rapport mist de canonieke batchestructuur; genereer Phase A opnieuw.` The failure report names the missing field, required batch-1/2/3 information and the exact read-only regeneration command.
 - The repository configuration has no local Batch 1/2/3 assignment to compare against.
 - The 130 `BLOCKED` and 4 `NEEDS_MANUAL_REVIEW` sets were not imported.
 

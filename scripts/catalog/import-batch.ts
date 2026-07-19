@@ -12,8 +12,8 @@ import { createClient } from '@supabase/supabase-js';
 import { analysisHash, reportHash } from './catalog-report-identity.ts';
 import { localManifestIdentityFromText } from './catalog-manifest-identity.ts';
 import { validateCatalogWritePlan, type CatalogWritePlan } from './catalog-write-plan.ts';
-import { deriveImportLifecycle, type ImportLifecycleState } from './import-lifecycle.ts';
-import { batchSetConfigurationFromReport, classifyDynamicPrecheck, expectedPostWriteCounts, type CatalogTableCounts } from './catalog-batch-validation.ts';
+import { deriveImportLifecycle, ImportLifecycleTracker, type ImportLifecycleState } from './import-lifecycle.ts';
+import { batchSetConfigurationFromReport, classifyDynamicPrecheck, expectedPostWriteCounts, PhaseAReportValidationError, type CatalogTableCounts } from './catalog-batch-validation.ts';
 import type { CatalogBatchApproval } from './import-args.ts';
 
 type StepName = 'dry-run' | 'write' | 'idempotency';
@@ -29,6 +29,7 @@ type StepResult = {
   plannedWrites?: number;
   databaseWrites?: number;
   diagnostic?: SingleSetDiagnosticResult;
+  lifecycle?: ImportLifecycleState;
 };
 
 type SetResult = {
@@ -72,8 +73,9 @@ type ReportSet = {
   diagnostic?: Omit<SingleSetDiagnosticResult, 'schemaVersion'>;
 };
 
-function runImportSet(setId: string, write: boolean, inputPath?: string, stepOverride?: StepName, setMetadata?: { name: string; series: string }, expectedCards?: number, batchApproval?: CatalogBatchApproval, writePlanPath?: string, reconcile = false): StepResult {
+function runImportSet(setId: string, write: boolean, inputPath?: string, stepOverride?: StepName, setMetadata?: { name: string; series: string }, expectedCards?: number, batchApproval?: CatalogBatchApproval, writePlanPath?: string, reconcile = false, lifecycle?: ImportLifecycleTracker): StepResult {
   const step: StepName = stepOverride ?? (write ? 'write' : 'dry-run');
+  if (write) lifecycle?.startWrite();
   const resultPath = join(tmpdir(), `pokemon-catalog-diagnostic-${process.pid}-${Date.now()}-${setId}-${step}.json`);
   const args = [
     '--experimental-strip-types',
@@ -92,13 +94,21 @@ function runImportSet(setId: string, write: boolean, inputPath?: string, stepOve
   const result = spawnSync(process.execPath, args, { encoding: 'utf8' });
   const output = `${result.stdout ?? ''}${result.stderr ?? ''}`;
   try {
-    if (!existsSync(resultPath)) return failClosedStep({ setId, step, exitCode: result.status ?? 1, output, error: 'Subprocessresultaat ontbreekt.' });
+    if (!existsSync(resultPath)) {
+      const failed = failClosedStep({ setId, step, exitCode: result.status ?? 1, output, error: 'Subprocessresultaat ontbreekt.' });
+      if (write) lifecycle?.fail(failed.databaseWrites ?? 0);
+      return { ...failed, lifecycle: lifecycle?.state };
+    }
     const diagnostic = readDiagnosticResult(resultPath);
     if (diagnostic.setId !== setId) throw new Error('Diagnostisch resultaat hoort bij een andere set.');
     if (expectedCards !== undefined && diagnostic.expectedCards !== expectedCards) throw new Error('Diagnostisch expectedCards komt niet overeen met het manifest.');
-    return validateStepOutput({ step, exitCode: result.status ?? 1, output, diagnostic });
+    const validated = validateStepOutput({ step, exitCode: result.status ?? 1, output, diagnostic });
+    if (write) validated.passed ? lifecycle?.completeWrite() : lifecycle?.fail(validated.databaseWrites ?? 0);
+    return { ...validated, lifecycle: lifecycle?.state };
   } catch (error) {
-    return failClosedStep({ setId, step, exitCode: result.status ?? 1, output, error: error instanceof Error ? error.message : 'Ongeldig subprocessresultaat.' });
+    const failed = failClosedStep({ setId, step, exitCode: result.status ?? 1, output, error: error instanceof Error ? error.message : 'Ongeldig subprocessresultaat.' });
+    if (write) lifecycle?.fail(failed.databaseWrites ?? 0);
+    return { ...failed, lifecycle: lifecycle?.state };
   } finally {
     try { rmSync(resultPath, { force: true }); } catch { /* diagnostiek is al ingelezen */ }
   }
@@ -530,12 +540,16 @@ export async function main(): Promise<number> {
       }
 
       if (mode === 'write-approved') {
+        const lifecycleTrackers = new Map<string, ImportLifecycleTracker>();
         for (const set of local.sets) results.push({ setId: set.setId, expectedCards: set.expectedCards });
         for (const set of local.sets) {
           const result = results.find((item) => item.setId === set.setId)!;
+          const tracker = new ImportLifecycleTracker();
+          lifecycleTrackers.set(set.setId, tracker);
           result.write = precheckDisposition === 'alreadyApplied'
             ? alreadyAppliedStep(set.setId, set.expectedCards)
-            : runImportSet(set.setId, true, set.inputPath, 'write', { name: set.name, series: set.series }, set.expectedCards, options.confirmWriteBatch, options.writePlanPath, precheckDisposition === 'partial');
+            : runImportSet(set.setId, true, set.inputPath, 'write', { name: set.name, series: set.series }, set.expectedCards, options.confirmWriteBatch, options.writePlanPath, precheckDisposition === 'partial', tracker);
+          result.lifecycle = result.write.lifecycle ?? tracker.state;
           printStep(set.setId, result.write);
           if (!result.write.passed) break;
         }
@@ -556,7 +570,13 @@ export async function main(): Promise<number> {
             if (JSON.stringify(postcheckCounts) !== JSON.stringify(dynamicExpectedPostWriteCounts)) postcheckError = 'Read-only postcheck wijkt af van dynamisch expectedPostWriteCounts.';
           } catch (error) { postcheckError = error instanceof Error ? error.message : 'Read-only postcheck mislukt.'; }
         }
-        for (const result of results) result.lifecycle = deriveImportLifecycle({ writeStarted: Boolean(result.write), writeCompleted: result.write?.passed === true, reconciliationCompleted: result.idempotency?.passed === true && !postcheckError && Boolean(postcheckCounts), actualWrites: result.write?.databaseWrites ?? 0 });
+        for (const result of results) {
+          const tracker = lifecycleTrackers.get(result.setId);
+          const liveVerified = result.idempotency?.passed === true && !postcheckError && Boolean(postcheckCounts);
+          if (liveVerified && tracker) tracker.completeReconciliation(true);
+          else if (!liveVerified && tracker && (result.write?.passed || result.write?.databaseWrites)) tracker.fail(result.write?.databaseWrites ?? 0);
+          result.lifecycle = tracker?.state ?? deriveImportLifecycle({ writeStarted: Boolean(result.write), writeCompleted: result.write?.passed === true, reconciliationCompleted: liveVerified, actualWrites: result.write?.databaseWrites ?? 0 });
+        }
         const localReport = {
           phase: 'controlled-local-write', source: 'pokemon_tcg_data', mode, batch: approvedReport!.batch, datasetRepository: local.datasetRepository, datasetVersion: local.datasetVersion,
           manifestHash: identity.manifestHash, approvedDryRunReport: options.approvedDryRunReportPath, approvedWritePlan: options.writePlanPath, sourceReportHash: approvedReport!.reportHash, analysisHash: approvedPlan!.analysisHash,
@@ -637,7 +657,17 @@ export async function main(): Promise<number> {
     console.error('Catalog batch import');
     console.error(`Mode: ${mode}`);
     console.error(`Fout: ${error instanceof Error ? error.message : 'Onbekende batchfout.'}`);
-    if (failureReportPath) writeReport(failureReportPath, { phase: mode === 'write-approved' ? 'controlled-local-write' : 'catalog-batch', mode, datasetRepository, datasetVersion, finalStatus: 'BLOCKED', databaseWritesTotal: 0, operationalErrors: [error instanceof Error ? error.message : 'Onbekende batchfout.'], startedAt: new Date().toISOString(), finishedAt: new Date().toISOString() });
+    if (failureReportPath) {
+      const message = error instanceof Error ? error.message : 'Onbekende batchfout.';
+      const phaseA = error instanceof PhaseAReportValidationError ? {
+        status: 'BLOCKED',
+        missingField: error.field,
+        requiredBatchInformation: error.requiredBatchInformation,
+        regenerationCommand: error.regenerationCommand,
+        message,
+      } : undefined;
+      writeReport(failureReportPath, { phase: mode === 'write-approved' ? 'controlled-local-write' : 'catalog-batch', mode, datasetRepository, datasetVersion, finalStatus: 'BLOCKED', databaseWritesTotal: 0, operationalErrors: [message], ...(phaseA ? { phaseAValidation: phaseA } : {}), startedAt: new Date().toISOString(), finishedAt: new Date().toISOString() });
+    }
     return 1;
   }
 }
