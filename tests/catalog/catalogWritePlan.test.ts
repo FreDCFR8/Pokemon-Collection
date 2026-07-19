@@ -23,8 +23,15 @@ function plan() {
 
 test('writeplan is deterministic, round-trippable and PASS only for zero blockers', () => {
   const value = plan();
+  assert.equal(value.source, 'pokemon_tcg_data');
   assert.equal(value.finalStatus, 'PASS');
   assert.equal(validateCatalogWritePlan(JSON.parse(JSON.stringify(value)), { datasetVersion: 'a'.repeat(40), datasetCommit: 'a'.repeat(40), manifestHash: 'b'.repeat(64), sourceReportHash: 'c'.repeat(64), sets: ['bw9'] }).analysisHash, value.analysisHash);
+});
+
+test('writeplan source is required and exact', () => {
+  const value = plan();
+  assert.throws(() => validateCatalogWritePlan({ ...value, source: undefined }, { datasetVersion: 'a'.repeat(40), datasetCommit: 'a'.repeat(40), manifestHash: 'b'.repeat(64), sourceReportHash: 'c'.repeat(64), sets: ['bw9'] }), /schema|bron/i);
+  assert.throws(() => validateCatalogWritePlan({ ...value, source: 'pokemon_tcg_api' }, { datasetVersion: 'a'.repeat(40), datasetCommit: 'a'.repeat(40), manifestHash: 'b'.repeat(64), sourceReportHash: 'c'.repeat(64), sets: ['bw9'] }), /schema|bron/i);
 });
 
 test('writeplan tampering is fail-closed', () => {
