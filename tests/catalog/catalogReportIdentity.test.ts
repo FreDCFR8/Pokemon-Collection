@@ -69,14 +69,14 @@ test('volledige inhoudelijk gelijke rapporten met andere uitvoeringsvelden hebbe
   assert.equal(canonicalAnalysisJson(first), canonicalAnalysisJson(second));
 });
 
-test('read-only rapportbestand doorstaat write-runner-validatie zonder databasewrite', { skip: !existsSync(v4ReportPath) }, () => {
+test('legacy read-only rapport zonder officiële batchconfiguratie wordt geblokkeerd', { skip: !existsSync(v4ReportPath) }, () => {
   const source = JSON.parse(readFileSync(v4ReportPath, 'utf8')) as Record<string, any>;
   const finalized = finalizeReport({ ...source, startedAt: '2026-07-19T02:00:00.000Z', finishedAt: '2026-07-19T02:01:00.000Z', checkpoint: { path: 'final-checkpoint.json', resumed: false, skippedCompletedSets: 0 } } as any);
   const path = join(tmpdir(), `pokemon-report-identity-e2e-${process.pid}.json`);
   try {
     writeFileSync(path, JSON.stringify(finalized));
     const fromDisk = readFileSync(path, 'utf8');
-    assert.doesNotThrow(() => validateApprovedDryRunReportText(fromDisk));
+    assert.throws(() => validateApprovedDryRunReportText(fromDisk), /expectedImportReadySetCount/);
     assert.equal((JSON.parse(fromDisk) as Record<string, any>).databaseWritesTotal, 0);
   } finally {
     rmSync(path, { force: true });
@@ -89,13 +89,13 @@ test('goedgekeurd dry-runrapport vereist exact pokemon_tcg_data als source', { s
     const changed = { ...source, source: value };
     changed.analysisHash = analysisHash(changed);
     changed.reportHash = reportHash(changed);
-    assert.throws(() => validateApprovedDryRunReportText(JSON.stringify(changed)), /geldige Batch 1-identiteit/);
+    assert.throws(() => validateApprovedDryRunReportText(JSON.stringify(changed)), /geldige lokale PASS-identiteit/);
   }
   const missing = { ...source };
   delete missing.source;
   missing.analysisHash = analysisHash(missing);
   missing.reportHash = reportHash(missing);
-  assert.throws(() => validateApprovedDryRunReportText(JSON.stringify(missing)), /geldige Batch 1-identiteit/);
+  assert.throws(() => validateApprovedDryRunReportText(JSON.stringify(missing)), /geldige lokale PASS-identiteit/);
 });
 
 test('inhoudelijke wijziging blokkeert op analysisHash', { skip: !existsSync(v4ReportPath) }, () => {

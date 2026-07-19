@@ -1,8 +1,8 @@
 const WRITE_ALLOWED_SET_IDS = new Set(['sv3pt5', 'sv3']);
-const LOCAL_BATCH_1_WRITE_ALLOWED_SET_IDS = new Set(['bw9', 'cel25', 'me1', 'me2', 'me2pt5', 'me3', 'me4', 'pgo', 'rsv10pt5', 'sm1', 'sm12', 'sm2', 'sm35']);
 export const MAX_SET_ID_LENGTH = 32;
 
 export type CatalogImportSource = 'pokemon_tcg_api' | 'pokemon_tcg_data';
+export type CatalogBatchApproval = 'batch-1' | 'batch-2' | 'batch-3';
 export type CatalogImportOptions = {
   setId: string;
   write: boolean;
@@ -14,7 +14,7 @@ export type CatalogImportOptions = {
   reconcile?: boolean;
   setName?: string;
   setSeries?: string;
-  batchApproval?: 'batch-1';
+  batchApproval?: CatalogBatchApproval;
 };
 
 export class CatalogImportArgumentError extends Error {}
@@ -44,7 +44,7 @@ export function parseCatalogImportArgs(argv: readonly string[]): CatalogImportOp
   let reconcile = false;
   let setName: string | undefined;
   let setSeries: string | undefined;
-  let batchApproval: 'batch-1' | undefined;
+  let batchApproval: CatalogBatchApproval | undefined;
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -174,8 +174,8 @@ export function parseCatalogImportArgs(argv: readonly string[]): CatalogImportOp
     if (arg === '--batch-approval') {
       if (batchApproval) throw new CatalogImportArgumentError('--batch-approval mag slechts eenmaal worden opgegeven.');
       const value = argv[index + 1];
-      if (value !== 'batch-1') throw new CatalogImportArgumentError('--batch-approval vereist exact batch-1.');
-      batchApproval = 'batch-1'; index += 1; continue;
+      if (value !== 'batch-1' && value !== 'batch-2' && value !== 'batch-3') throw new CatalogImportArgumentError('--batch-approval vereist batch-1, batch-2 of batch-3.');
+      batchApproval = value; index += 1; continue;
     }
 
     if (arg.startsWith('--write=')) {
@@ -211,7 +211,7 @@ export function parseCatalogImportArgs(argv: readonly string[]): CatalogImportOp
 export function assertWriteAuthorized(options: CatalogImportOptions): void {
   if (!options.write) return;
   if (options.source !== 'pokemon_tcg_api') {
-    if (options.batchApproval !== 'batch-1' || !LOCAL_BATCH_1_WRITE_ALLOWED_SET_IDS.has(options.setId)) throw new CatalogImportArgumentError('Write geblokkeerd: lokale JSON-bron blijft read-only tenzij de expliciete Batch 1-goedkeuring aanwezig is.');
+    if (!options.batchApproval) throw new CatalogImportArgumentError('Write geblokkeerd: lokale JSON-bron blijft read-only tenzij expliciete batchgoedkeuring aanwezig is.');
     return;
   }
   if (!WRITE_ALLOWED_SET_IDS.has(options.setId)) {
