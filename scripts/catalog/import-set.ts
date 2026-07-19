@@ -652,7 +652,7 @@ export function assertCatalogCardMatches(card: CatalogCardRow | undefined, expec
     action.action !== 'existingIdentical' && card.external_source !== SOURCE ? `external_source=${String(card.external_source)}` : undefined,
     action.action !== 'existingIdentical' || card.external_source === SOURCE ? (card.external_id !== incoming.id ? `external_id=${String(card.external_id)}` : undefined) : undefined,
     card.set_code !== expected.setCode ? `set_code=${String(card.set_code)}` : undefined,
-    expected.setName !== undefined && (action.action !== 'existingIdentical' || card.set_name !== null) && card.set_name !== normalizeRequired(expected.setName) ? `set_name=${String(card.set_name)}` : undefined,
+   expected.setName !== undefined && card.set_name !== normalizeRequired(expected.setName) ? `set_name=${String(card.set_name)}` : undefined,
     card.number !== normalizeRequired(incoming.number) ? `number=${String(card.number)}` : undefined,
     card.pokemon !== normalizeRequired(incoming.name) ? `pokemon=${String(card.pokemon)}` : undefined,
     card.rarity !== normalizeOptional(incoming.rarity) ? `rarity=${String(card.rarity)}` : undefined,
