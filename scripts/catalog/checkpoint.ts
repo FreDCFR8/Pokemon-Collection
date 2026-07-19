@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
 import { isValidSetId } from './import-args.ts';
 import { POKEMON_TCG_DATA_REPOSITORY } from './local-checkout.ts';
+import type { SingleSetDiagnosticResult } from './diagnostic-result.ts';
 
 export const CHECKPOINT_SCHEMA_VERSION = 1;
 export type CheckpointSetStatus = 'pending' | 'running' | 'passed' | 'failed';
@@ -25,6 +26,7 @@ export type CheckpointSet = {
   plannedWrites?: number;
   databaseWrites?: number;
   error?: string;
+  diagnostic?: SingleSetDiagnosticResult;
 };
 
 export type CatalogBatchCheckpoint = CheckpointIdentity & {
@@ -104,8 +106,16 @@ function validateCheckpointSet(value: unknown, index: number): CheckpointSet {
   if (set.status !== 'pending' && set.status !== 'running' && set.status !== 'passed' && set.status !== 'failed') throw new CheckpointError(`Checkpoint set ${set.setId} heeft een onbekende status.`);
   for (const field of ['receivedCards', 'plannedWrites', 'databaseWrites'] as const) if (set[field] !== undefined && !nonNegativeInteger(set[field])) throw new CheckpointError(`Checkpoint set ${set.setId} heeft een ongeldige teller ${field}.`);
   if (set.error !== undefined && (typeof set.error !== 'string' || set.error.length === 0)) throw new CheckpointError(`Checkpoint set ${set.setId} heeft een ongeldige foutclassificatie.`);
+  if (set.diagnostic !== undefined) validateCheckpointDiagnostic(set.diagnostic, set.setId);
   if (set.status === 'passed' && (set.error !== undefined || !nonNegativeInteger(set.receivedCards) || !nonNegativeInteger(set.plannedWrites) || !nonNegativeInteger(set.databaseWrites) || set.receivedCards !== set.expectedCards || set.databaseWrites !== 0)) throw new CheckpointError(`Checkpoint passed-set ${set.setId} mist geldige tellers of heeft databaseWrites groter dan nul.`);
-  return { setId: set.setId, expectedCards: set.expectedCards, status: set.status, ...(set.receivedCards !== undefined ? { receivedCards: set.receivedCards } : {}), ...(set.plannedWrites !== undefined ? { plannedWrites: set.plannedWrites } : {}), ...(set.databaseWrites !== undefined ? { databaseWrites: set.databaseWrites } : {}), ...(set.error !== undefined ? { error: set.error } : {}) };
+  return { setId: set.setId, expectedCards: set.expectedCards, status: set.status, ...(set.receivedCards !== undefined ? { receivedCards: set.receivedCards } : {}), ...(set.plannedWrites !== undefined ? { plannedWrites: set.plannedWrites } : {}), ...(set.databaseWrites !== undefined ? { databaseWrites: set.databaseWrites } : {}), ...(set.error !== undefined ? { error: set.error } : {}), ...(set.diagnostic !== undefined ? { diagnostic: set.diagnostic as SingleSetDiagnosticResult } : {}) };
+}
+
+function validateCheckpointDiagnostic(value: unknown, setId: string): void {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new CheckpointError(`Checkpoint diagnostiek voor ${setId} heeft een ongeldig formaat.`);
+  const diagnostic = value as Record<string, unknown>;
+  if (diagnostic.schemaVersion !== 1 || diagnostic.setId !== setId || (diagnostic.status !== 'PASS' && diagnostic.status !== 'FAIL') || !Array.isArray(diagnostic.failureReasons)) throw new CheckpointError(`Checkpoint diagnostiek voor ${setId} is ongeldig.`);
+  for (const key of ['receivedCards', 'externalReferenceMatches', 'fallbackCandidates', 'newCards', 'ambiguousItems', 'conflicts', 'unresolvedWithoutSetMapping', 'metadataUnchanged', 'metadataChanged', 'blockedItems', 'plannedDatabaseWrites', 'databaseWrites']) if (!nonNegativeInteger(diagnostic[key])) throw new CheckpointError(`Checkpoint diagnostiek voor ${setId} mist teller ${key}.`);
 }
 
 export function assertCheckpointIdentity(checkpoint: CatalogBatchCheckpoint, current: CheckpointIdentity, expectedSets: readonly { setId: string; expectedCards: number }[]): void {

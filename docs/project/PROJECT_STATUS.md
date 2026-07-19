@@ -1,12 +1,12 @@
 # Pokémon Collection V3 — Project Status
 
-_Last updated: 2026-07-17_
+_Last updated: 2026-07-19_
 
 This document contains current operational state only. Historical direction belongs in `ROADMAP.md`; lasting reasons belong in `DECISION_LOG.md`.
 
 ## Current phase
 
-**Phase 7B-2F9B — Hervatbare volledige lokale catalogus-dry-run**
+**Phase 7B-2F9C — Read-only failure-classificatie en setmappingplan**
 
 De actieve fase bouwt een versieerbare, volledig read-only manifestbatch voor meerdere lokale JSON-setbestanden uit `PokemonTCG/pokemon-tcg-data`. De batchrunner blijft orchestratie-only en hergebruikt `import-set.ts` voor parsing, matching en veiligheidsvalidatie.
 
@@ -18,7 +18,7 @@ PR136 is gemerged. De lokale manifestbatch blijft read-only, gebruikt de bestaan
 
 ## Active work
 
-Phase 7B-2F9B:
+Phase 7B-2F9C:
 
 - automatische inventarisatie via `catalog:manifest:generate -- --input-root <datasetmap> --output <manifestpad> [--report <rapportpad>]`;
 - de generator controleert een schone checkout met exact de vastgepinde datasetcommit;
@@ -82,6 +82,12 @@ Pokémon TCG API set `sv3` (`Obsidian Flames`) is imported and idempotency-verif
 - idempotency dry-run result: PASS;
 - idempotency planned writes: 0;
 - idempotency database writes: 0.
+
+## Phase 7B-2F9C update
+
+Phase 7B-2F9C adds typed, atomic per-set diagnostic JSON results and makes the batchrunner classify failures from that contract rather than console wording. Checkpoints and reports retain sanitized diagnostics, failure codes, setmapping evidence and limited examples; malformed subprocess results fail closed as `unexpected_runner_failure`.
+
+Operational 2F9B result recorded for this phase: 173 sets processed, 7 PASS, 166 FAIL, 20.324/20.324 received and `databaseWritesTotal: 0`. The fresh 173-set 2F9C run remains operator work and was not executed automatically.
 
 ## Next phase scope
 

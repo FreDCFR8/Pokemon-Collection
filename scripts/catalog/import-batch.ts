@@ -1,10 +1,13 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { parseCatalogBatchArgs, parseCatalogBatchConfigFromText, type CatalogBatchMode } from './import-batch-args.ts';
 import { parseLocalCatalogManifestFromText, type LocalCatalogManifestSet } from './local-manifest.ts';
 import { validateLocalDatasetCheckout } from './local-checkout.ts';
 import { assertCheckpointIdentity, CHECKPOINT_SCHEMA_VERSION, checkpointExists, readCheckpoint, sha256File, supabaseProjectIdentity, writeAtomicJson, type CatalogBatchCheckpoint, type CheckpointIdentity, type CheckpointSet } from './checkpoint.ts';
+import { readDiagnosticResult, type SingleSetDiagnosticResult } from './diagnostic-result.ts';
 
 type StepName = 'dry-run' | 'write' | 'idempotency';
 
@@ -18,6 +21,7 @@ type StepResult = {
   receivedCards?: number;
   plannedWrites?: number;
   databaseWrites?: number;
+  diagnostic?: SingleSetDiagnosticResult;
 };
 
 type SetResult = {
@@ -44,6 +48,7 @@ type ReportStep = {
   plannedWrites?: number;
   databaseWrites?: number;
   error?: string;
+  diagnostic?: SingleSetDiagnosticResult;
 };
 
 type ReportSet = {
@@ -55,16 +60,12 @@ type ReportSet = {
   databaseWrites?: number;
   error?: string;
   steps: ReportStep[];
+  diagnostic?: Omit<SingleSetDiagnosticResult, 'schemaVersion'>;
 };
 
-function readNumberLine(output: string, label: string): number | undefined {
-  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const match = output.match(new RegExp(`^${escaped}: (\\d+)$`, 'm'));
-  return match ? Number(match[1]) : undefined;
-}
-
-function runImportSet(setId: string, write: boolean, inputPath?: string): StepResult {
-  const step: StepName = write ? 'write' : 'dry-run';
+function runImportSet(setId: string, write: boolean, inputPath?: string, stepOverride?: StepName): StepResult {
+  const step: StepName = stepOverride ?? (write ? 'write' : 'dry-run');
+  const resultPath = join(tmpdir(), `pokemon-catalog-diagnostic-${process.pid}-${Date.now()}-${setId}-${step}.json`);
   const args = [
     '--experimental-strip-types',
     process.env.CATALOG_IMPORT_SET_SCRIPT ?? 'scripts/catalog/import-set.ts',
@@ -72,46 +73,52 @@ function runImportSet(setId: string, write: boolean, inputPath?: string): StepRe
     setId,
     ...(inputPath ? ['--source', 'pokemon_tcg_data', '--input', inputPath] : []),
     ...(write ? ['--write'] : []),
+    '--diagnostic-result', resultPath,
   ];
   const result = spawnSync(process.execPath, args, { encoding: 'utf8' });
   const output = `${result.stdout ?? ''}${result.stderr ?? ''}`;
-  return validateStepOutput({ step, exitCode: result.status ?? 1, output });
+  try {
+    if (!existsSync(resultPath)) return failClosedStep({ setId, step, exitCode: result.status ?? 1, output, error: 'Subprocessresultaat ontbreekt.' });
+    return validateStepOutput({ step, exitCode: result.status ?? 1, output, diagnostic: readDiagnosticResult(resultPath) });
+  } catch (error) {
+    return failClosedStep({ setId, step, exitCode: result.status ?? 1, output, error: error instanceof Error ? error.message : 'Ongeldig subprocessresultaat.' });
+  } finally {
+    try { rmSync(resultPath, { force: true }); } catch { /* diagnostiek is al ingelezen */ }
+  }
 }
 
 function runIdempotency(setId: string): StepResult {
-  const result = runImportSet(setId, false);
-  return validateStepOutput({ step: 'idempotency', exitCode: result.exitCode, output: result.output });
+  return runImportSet(setId, false, undefined, 'idempotency');
 }
 
-function hasLine(output: string, pattern: RegExp): boolean {
-  return output.split(/\r?\n/).some((line) => pattern.test(line.trim()));
+function failClosedStep(params: { setId: string; step: StepName; exitCode: number; output: string; error: string }): StepResult {
+  const diagnostic: SingleSetDiagnosticResult = { schemaVersion: 1, setId: params.setId, status: 'FAIL', receivedCards: 0, setMappingStatus: 'no_candidate', externalReferenceMatches: 0, fallbackCandidates: 0, newCards: 0, ambiguousItems: 0, conflicts: 0, unresolvedWithoutSetMapping: 0, metadataUnchanged: 0, metadataChanged: 0, blockedItems: 0, plannedDatabaseWrites: 0, databaseWrites: 0, failureReasons: ['unexpected_runner_failure'], examples: { unexpected_runner_failure: [{ reason: params.error }] } };
+  return { step: params.step, exitCode: params.exitCode, output: params.output, passed: false, error: `${params.error} failureCode=unexpected_runner_failure`, databaseWrites: 0, diagnostic };
 }
 
-function validateStepOutput(params: { step: StepName; exitCode: number; output: string }): StepResult {
+function validateStepOutput(params: { step: StepName; exitCode: number; output: string; diagnostic: SingleSetDiagnosticResult }): StepResult {
   const errors: string[] = [];
-  const expectedCards = readNumberLine(params.output, 'Expected cards');
-  const receivedCards = readNumberLine(params.output, 'Received cards');
-  const plannedWrites = readNumberLine(params.output, 'Theoretisch geplande writes');
-  const databaseWrites = readNumberLine(params.output, 'Database writes');
+  const { diagnostic } = params;
+  const expectedCards = diagnostic.expectedCards;
+  const receivedCards = diagnostic.receivedCards;
+  const plannedWrites = diagnostic.plannedDatabaseWrites;
+  const databaseWrites = diagnostic.databaseWrites;
 
   if (params.exitCode !== 0) errors.push(`exitcode ${params.exitCode}`);
-  if (!hasLine(params.output, /^Result: PASS$/)) errors.push('Result: PASS ontbreekt.');
+  if (diagnostic.status !== (params.exitCode === 0 ? 'PASS' : 'FAIL')) errors.push('JSON-status komt niet overeen met exitcode.');
 
   if (params.step === 'dry-run') {
-    if (!hasLine(params.output, /^Mode: DRY RUN$/)) errors.push('Dry-run mode ontbreekt.');
-    if (!hasLine(params.output, /^Database writes: 0$/)) errors.push('Dry-run bevat databasewrites of mist Database writes: 0.');
+    if (diagnostic.databaseWrites !== 0) errors.push('Dry-run bevat databasewrites groter dan nul.');
   }
 
   if (params.step === 'write') {
-    if (!hasLine(params.output, /^Mode: WRITE$/)) errors.push('Write mode ontbreekt.');
-    if (!hasLine(params.output, /^Mislukte writes: 0$/)) errors.push('Write rapporteert mislukte writes of mist die controle.');
+    if (diagnostic.databaseWrites < 0) errors.push('Write rapporteert een ongeldige databasewrites-teller.');
   }
 
   if (params.step === 'idempotency') {
-    if (!hasLine(params.output, /^Mode: DRY RUN$/)) errors.push('Idempotency gebruikt geen dry-run mode.');
-    if (!hasLine(params.output, /^New: 0$/)) errors.push('Idempotency vond nog nieuwe kaarten.');
-    if (!hasLine(params.output, /^Theoretisch geplande writes: 0$/)) errors.push('Idempotency plant nog writes.');
-    if (!hasLine(params.output, /^Database writes: 0$/)) errors.push('Idempotency bevat databasewrites of mist Database writes: 0.');
+    if (diagnostic.newCards !== 0) errors.push('Idempotency vond nog nieuwe kaarten.');
+    if (diagnostic.plannedDatabaseWrites !== 0) errors.push('Idempotency plant nog writes.');
+    if (diagnostic.databaseWrites !== 0) errors.push('Idempotency bevat databasewrites groter dan nul.');
   }
 
   return {
@@ -124,6 +131,7 @@ function validateStepOutput(params: { step: StepName; exitCode: number; output: 
     ...(receivedCards !== undefined ? { receivedCards } : {}),
     ...(plannedWrites !== undefined ? { plannedWrites } : {}),
     ...(databaseWrites !== undefined ? { databaseWrites } : {}),
+    diagnostic,
   };
 }
 
@@ -239,16 +247,18 @@ function checkpointSetFromResult(result: SetResult, expectedCards: number): Chec
     ...(step?.receivedCards !== undefined ? { receivedCards: step.receivedCards } : {}),
     ...(step?.plannedWrites !== undefined ? { plannedWrites: step.plannedWrites } : {}),
     ...(step?.databaseWrites !== undefined ? { databaseWrites: step.databaseWrites } : {}),
+    ...(step?.diagnostic ? { diagnostic: step.diagnostic } : {}),
     ...((result.error ?? firstFailedStep(result)?.error) ? { error: result.error ?? firstFailedStep(result)?.error } : {}),
   };
 }
 
 function setResultFromCheckpoint(set: CheckpointSet): SetResult {
-  return { setId: set.setId, expectedCards: set.expectedCards, error: set.error, dryRun: set.status === 'passed' ? {
-    step: 'dry-run', exitCode: 0, output: '', passed: true,
+  return { setId: set.setId, expectedCards: set.expectedCards, error: set.error, dryRun: set.status === 'passed' || set.status === 'failed' ? {
+    step: 'dry-run', exitCode: set.status === 'passed' ? 0 : 1, output: '', passed: set.status === 'passed',
     ...(set.receivedCards !== undefined ? { receivedCards: set.receivedCards } : {}),
     ...(set.plannedWrites !== undefined ? { plannedWrites: set.plannedWrites } : {}),
     ...(set.databaseWrites !== undefined ? { databaseWrites: set.databaseWrites } : {}),
+    ...(set.diagnostic ? { diagnostic: set.diagnostic } : {}),
   } : undefined };
 }
 
@@ -280,6 +290,7 @@ function toReportStep(step: StepResult): ReportStep {
     ...(step.plannedWrites !== undefined ? { plannedWrites: step.plannedWrites } : {}),
     ...(step.databaseWrites !== undefined ? { databaseWrites: step.databaseWrites } : {}),
     ...(step.error ? { error: step.error } : {}),
+    ...(step.diagnostic ? { diagnostic: step.diagnostic } : {}),
   };
 }
 
@@ -294,8 +305,31 @@ function toReportSet(result: SetResult): ReportSet {
     ...(displayStep?.plannedWrites !== undefined ? { plannedWrites: displayStep.plannedWrites } : {}),
     ...(displayStep?.databaseWrites !== undefined ? { databaseWrites: displayStep.databaseWrites } : {}),
     ...(error ? { error } : {}),
+    ...(displayStep?.diagnostic ? { diagnostic: displayStep.diagnostic } : {}),
     steps: executedSteps(result).map(toReportStep),
   };
+}
+
+function reportClassifications(results: SetResult[]): { failureReasonsTotal: Record<string, number>; setMappingStatusTotal: Record<string, number>; operationalSetsProcessed: number; contentPassSets: number; contentBlockedSets: number; runnerFailureSets: number } {
+  const failureReasonsTotal: Record<string, number> = {};
+  const setMappingStatusTotal: Record<string, number> = {};
+  let operationalSetsProcessed = 0;
+  let contentPassSets = 0;
+  let contentBlockedSets = 0;
+  let runnerFailureSets = 0;
+  for (const result of results) {
+    const step = latestStep(result);
+    if (!step) continue;
+    operationalSetsProcessed += 1;
+    if (step.diagnostic?.setMappingStatus) setMappingStatusTotal[step.diagnostic.setMappingStatus] = (setMappingStatusTotal[step.diagnostic.setMappingStatus] ?? 0) + 1;
+    const reasons = step.diagnostic?.failureReasons ?? (step.error?.includes('failureCode=unexpected_runner_failure') ? ['unexpected_runner_failure'] : []);
+    const runnerFailure = reasons.includes('unexpected_runner_failure');
+    if (runnerFailure) runnerFailureSets += 1;
+    else if (setPassed(result)) contentPassSets += 1;
+    else contentBlockedSets += 1;
+    for (const reason of reasons) failureReasonsTotal[reason] = (failureReasonsTotal[reason] ?? 0) + 1;
+  }
+  return { failureReasonsTotal, setMappingStatusTotal, operationalSetsProcessed, contentPassSets, contentBlockedSets, runnerFailureSets };
 }
 
 function writeReport(path: string, report: unknown): void {
@@ -357,10 +391,12 @@ async function main(): Promise<number> {
         result.dryRun = runImportSet(set.setId, false, set.inputPath);
         if (result.dryRun.receivedCards !== set.expectedCards) {
           result.dryRun.passed = false;
+          if (result.dryRun.diagnostic) result.dryRun.diagnostic.failureReasons = [...new Set([...result.dryRun.diagnostic.failureReasons, 'input_validation_failure'])];
           result.dryRun.error = `${result.dryRun.error ? `${result.dryRun.error} ` : ''}Expected/received mismatch: manifest=${set.expectedCards}, importer=${result.dryRun.receivedCards ?? 'unknown'}.`;
         }
         if (result.dryRun.databaseWrites !== 0) {
           result.dryRun.passed = false;
+          if (result.dryRun.diagnostic) result.dryRun.diagnostic.failureReasons = [...new Set([...result.dryRun.diagnostic.failureReasons, 'unexpected_runner_failure'])];
           result.dryRun.error = `${result.dryRun.error ? `${result.dryRun.error} ` : ''}Lokale dry-run rapporteert databasewrites != 0.`;
         }
         printStep(set.setId, result.dryRun);
@@ -373,6 +409,8 @@ async function main(): Promise<number> {
       }
       const totals = reportTotals(results);
       const statuses = checkpoint?.sets ?? results.map((result) => checkpointSetFromResult(result, result.expectedCards ?? 0));
+      const classifications = reportClassifications(results);
+      const reportResults = results.map(toReportSet);
       const localReport = {
         checkpointSchemaVersion: CHECKPOINT_SCHEMA_VERSION,
         source: options.source,
@@ -389,9 +427,10 @@ async function main(): Promise<number> {
         setsPassed: statuses.filter((set) => set.status === 'passed').length,
         setsFailed: statuses.filter((set) => set.status === 'failed').length,
         setsPending: statuses.filter((set) => set.status === 'pending' || set.status === 'running').length,
+        ...classifications,
         ...totals,
         status: statuses.every((set) => set.status === 'passed') && totals.expectedCardsTotal === totals.receivedCardsTotal && totals.databaseWritesTotal === 0 ? 'PASS' : 'FAIL',
-        results: statuses.map((set) => ({ setId: set.setId, status: set.status, expectedCards: set.expectedCards, ...(set.receivedCards !== undefined ? { receivedCards: set.receivedCards } : {}), ...(set.plannedWrites !== undefined ? { plannedWrites: set.plannedWrites } : {}), ...(set.databaseWrites !== undefined ? { databaseWrites: set.databaseWrites } : {}), ...(set.error ? { error: set.error } : {}) })),
+        results: reportResults,
       };
       if (options.reportPath) writeReport(options.reportPath, localReport);
       printSummary({ mode, results, datasetRepository, datasetVersion });

@@ -7,6 +7,7 @@ export type CatalogImportOptions = {
   write: boolean;
   source: CatalogImportSource;
   inputPath?: string;
+  diagnosticResultPath?: string;
 };
 
 export class CatalogImportArgumentError extends Error {}
@@ -30,6 +31,7 @@ export function parseCatalogImportArgs(argv: readonly string[]): CatalogImportOp
   let source: CatalogImportSource = 'pokemon_tcg_api';
   let sourceSpecified = false;
   let inputPath: string | undefined;
+  let diagnosticResultPath: string | undefined;
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -87,6 +89,22 @@ export function parseCatalogImportArgs(argv: readonly string[]): CatalogImportOp
       continue;
     }
 
+    if (arg === '--diagnostic-result') {
+      if (diagnosticResultPath !== undefined) throw new CatalogImportArgumentError('--diagnostic-result mag slechts eenmaal worden opgegeven.');
+      const value = argv[index + 1];
+      if (value === undefined || value.startsWith('--')) throw new CatalogImportArgumentError('Ontbrekende waarde voor --diagnostic-result.');
+      diagnosticResultPath = value;
+      index += 1;
+      continue;
+    }
+
+    if (arg.startsWith('--diagnostic-result=')) {
+      if (diagnosticResultPath !== undefined) throw new CatalogImportArgumentError('--diagnostic-result mag slechts eenmaal worden opgegeven.');
+      diagnosticResultPath = arg.slice('--diagnostic-result='.length);
+      if (!diagnosticResultPath) throw new CatalogImportArgumentError('Ontbrekende waarde voor --diagnostic-result.');
+      continue;
+    }
+
     if (arg === '--write') {
       if (write) throw new CatalogImportArgumentError('--write mag slechts eenmaal worden opgegeven.');
       write = true;
@@ -113,7 +131,7 @@ export function parseCatalogImportArgs(argv: readonly string[]): CatalogImportOp
     throw new CatalogImportArgumentError('--input is alleen toegestaan met bron pokemon_tcg_data.');
   }
 
-  return { setId, write, source, ...(inputPath ? { inputPath } : {}) };
+  return { setId, write, source, ...(inputPath ? { inputPath } : {}), ...(diagnosticResultPath ? { diagnosticResultPath } : {}) };
 }
 
 export function assertWriteAuthorized(options: CatalogImportOptions): void {

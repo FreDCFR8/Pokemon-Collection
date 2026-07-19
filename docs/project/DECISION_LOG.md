@@ -55,6 +55,8 @@ This living document records important architectural and product decisions and, 
 | 2026-07 | Phase 7D-1B | Reuse the existing secured Collection and Wishlist mutation services from global Search and confirm every write through a bounded ownership read of the selected card. | Search must not duplicate business rules or trust optimistic client state. Success requires the expected server truth; if confirmation fails after a completed write, retry repeats only the read so quantity changes and other writes cannot be applied twice. |
 | 2026-07 | Documentation | Use a charter, architecture principles, UX guidelines, current status, roadmap, decision log and AI working agreement as distinct sources of truth. | New chats, Codex tasks and future contributors need concise durable context without duplicating entire conversations or mixing current facts with historical decisions. |
 
+| 2026-07 | Phase 7B-2F9C | Make single-set importer diagnostics a typed atomic JSON contract and classify batch failures from that contract rather than console wording; persist sanitized diagnostics through checkpoint/resume and generate only read-only setmapping proposals. | The 2F9B run processed all 173 sets but produced 166 failures that could not be safely compared or grouped from human console output. Stable failure codes, mapping evidence and fail-closed malformed-result handling make the next mapping phase reviewable without granting write authority or changing catalog data. |
+
 ## How to add decisions
 
 Add a row when a phase changes architecture, schema, RLS/security, data invariants, external integrations, import behavior or a foundational product or UX flow. Do not record every small implementation detail.
