@@ -185,7 +185,7 @@ function failClosedStep(params: { setId: string; step: StepName; exitCode: numbe
 }
 
 function sanitizeSubprocessOutput(output: string): string {
-  let sanitized = output.replace(/([?&](?:apikey|key|token|access_token)=)[^&\s]+/gi, '$1[REDACTED]');
+  let sanitized = output.replace(/\b(token|api_key|apikey|access_token|secret|password|service_role_key|key)(\s*=\s*)[^\s&]+/gi, '$1$2[REDACTED]');
   for (const secret of [process.env.POKEMON_TCG_API_KEY, process.env.SUPABASE_SERVICE_ROLE_KEY]) {
     if (secret && secret.length >= 8) sanitized = sanitized.split(secret).join('[REDACTED]');
   }

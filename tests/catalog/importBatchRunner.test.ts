@@ -102,7 +102,8 @@ test('rapport bevat de volledige veilige subprocessfout naast de exitcode', () =
   assert.equal(result.status, 1);
   const report = JSON.parse(readFileSync(paths.report, 'utf8'));
   assert.match(report.results[0].error, /exitcode 1/);
-  assert.match(report.results[0].error, /Idempotency metadata mismatch: token=secret-value/);
+  assert.match(report.results[0].error, /Idempotency metadata mismatch: token=\[REDACTED\]/);
+  assert.doesNotMatch(report.results[0].error, /secret-value/);
 });
 
 test('local dry-run reports zero database writes and JSON report contains no sensitive values', () => {
