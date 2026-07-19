@@ -54,6 +54,8 @@ This document shows product direction and phase status. It intentionally avoids 
 
 ## Sets and binder experience
 
+Phase 7B-2F9D-B is active: introduceer `set_external_references`, bereid de 41 veilige mappings gecontroleerd voor en houd `zsv10pt5`, `sv9` en `swsh9` uitgesloten. Daadwerkelijke schema- en cataloguswrites volgen pas na afzonderlijke expliciete goedkeuring.
+
 - ✅ grouped set progress
 - ✅ server-side set search and sorting
 - ✅ card loading in batches

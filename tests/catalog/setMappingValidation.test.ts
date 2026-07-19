@@ -329,3 +329,15 @@ test('serialisatie is deterministisch', () => {
   assert.equal(stableJson(value), '{"a":[{"y":null,"z":true}],"b":2}');
   assert.equal(reportHash(value), reportHash({ a: [{ y: null, z: true }], b: 2 }));
 });
+
+test('reporthash blijft stabiel over JSON stringify-parse met geneste undefined velden', () => {
+  const value = {
+    keep: 'value',
+    omitted: undefined,
+    nested: { keep: 42, omitted: undefined, deeper: [{ omitted: undefined, keep: true }, undefined] },
+    list: [undefined, { omitted: undefined, keep: 'item' }],
+  };
+  const roundTripped = JSON.parse(JSON.stringify(value));
+  assert.equal(stableJson(value), stableJson(roundTripped));
+  assert.equal(reportHash(value), reportHash(roundTripped));
+});

@@ -6,6 +6,10 @@ This document contains current operational state only. Historical direction belo
 
 ## Current phase
 
+**Current implementation: Phase 7B-2F9D-B — Set external references en gecontroleerde registratie van 41 veilige mappings (in uitvoering)**
+
+Het structurele `public.set_external_references`-model en de read-only plan-/runnerflow zijn voorbereid. Het definitieve PR139-validatierapport levert exact 41 veilige mappings op; deze mappings zijn nog niet naar de database geschreven. `zsv10pt5`, `sv9` en `swsh9` blijven uitgesloten.
+
 **Phase 7B-2F9D-A — Read-only validatie van exacte setmappings (afgerond)**
 
 De validator verwerkte uitsluitend de 44 `exact_candidate`-resultaten uit het PR138-rapport tegen hetzelfde gepinde manifest en datasetprofiel. De definitieve read-only run eindigde met status `PASS`, 41 `safe_for_mapping_review`, 1 `needs_manual_review` (`zsv10pt5`, dubbele inkomende kaartnummers), 2 `blocked` (`sv9` en `swsh9`, echte kaartnummer-/naamidentiteitsconflicten), 0 operationele fouten en `databaseWritesTotal: 0`. Van de kandidaten vereisen 42 later `set_external_references`; 2 zijn `blocked_by_identity_conflict`.
@@ -15,6 +19,10 @@ De validator verwerkte uitsluitend de 44 `exact_candidate`-resultaten uit het PR
 De volledige vastgepinde lokale dataset is verwerkt met getypeerde, hervatbare en volledig read-only diagnostiek. Alle inhoudelijke blokkades zijn machineleesbaar geclassificeerd zonder catalogus- of collectiewrites.
 
 ## Latest merged product milestone
+
+**Actuele laatste catalogusmijlpaal: PR139 — Phase 7B-2F9D-A: Read-only validatie van exacte setmappings**
+
+PR139 eindigde met 41 `safe_for_mapping_review`, 1 `needs_manual_review` (`zsv10pt5`), 2 `blocked` (`sv9`, `swsh9`), 0 operationele fouten en 0 databasewrites. Schema- en datawrites vereisen afzonderlijke expliciete goedkeuring.
 
 **PR138 — Phase 7B-2F9C: Read-only failure-classificatie en setmappingdiagnostiek**
 
