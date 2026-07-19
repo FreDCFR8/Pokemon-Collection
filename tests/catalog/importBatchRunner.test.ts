@@ -63,7 +63,7 @@ function writeApiFixture(dir: string, failureStep?: 'write' | 'idempotency'): { 
     `const failure = ${JSON.stringify(failureStep ?? '')};`,
     "const failed = phase === failure;",
     "const resultPath = process.argv[process.argv.indexOf('--diagnostic-result') + 1];",
-    "const diagnostic = {schemaVersion: 1, setId: 'sv3', expectedCards: 230, receivedCards: 230, status: failed ? 'FAIL' : 'PASS', setMappingStatus: 'already_reliable', setCode: 'sv3', setMapping: {status: 'already_reliable', reliableSetCode: 'sv3', candidates: [], evidence: []}, externalReferenceMatches: 230, fallbackCandidatesQueried: 0, safeFallbackCandidates: 0, newCards: phase === 'idempotency' && failed ? 1 : 0, ambiguousItems: 0, conflicts: 0, unresolvedWithoutSetMapping: 0, metadataUnchanged: 230, metadataChanged: 0, blockedItems: 0, plannedDatabaseWrites: phase === 'idempotency' && failed ? 2 : 0, databaseWrites: isWrite && !failed ? 5 : 0, failureReasons: failed ? ['external_reference_conflict'] : [], examples: {}};",
+    "const diagnostic = {schemaVersion: 1, setId: 'sv3', expectedCards: 230, receivedCards: 230, status: failed ? 'FAIL' : 'PASS', setMappingStatus: 'already_reliable', setCode: 'sv3', setMapping: {status: 'already_reliable', reliableSetCode: 'sv3', candidates: [], evidence: []}, externalReferenceMatches: 230, fallbackCandidatesQueried: 0, safeFallbackCandidates: 0, newCards: phase === 'idempotency' && failed ? 1 : 0, ambiguousItems: 0, conflicts: 0, unresolvedWithoutSetMapping: 0, metadataUnchanged: 230, metadataChanged: 0, blockedItems: 0, plannedDatabaseWrites: phase === 'idempotency' && failed ? 2 : 0, databaseWrites: isWrite && !failed ? 5 : 0, failureReasons: failed ? ['external_reference_conflict'] : [], examples: failed ? {external_reference_conflict: [{reason: 'Idempotency metadata/identity mismatch voor sm4-1: card_details'}]} : {}};",
     "writeFileSync(resultPath, JSON.stringify(diagnostic));",
     "process.exit(failed ? 1 : 0);",
   ].join('\n'));
@@ -285,6 +285,7 @@ test('dry-run PASS plus write PASS plus idempotency FAIL makes the API set summa
   const report = JSON.parse(readFileSync(paths.report, 'utf8'));
   assert.equal(report.results[0].passed, false);
   assert.deepEqual(report.results[0].steps.map((step: { name: string; passed: boolean }) => [step.name, step.passed]), [['dry-run', true], ['write', true], ['idempotency', false]]);
+  assert.match(report.results[0].steps[2].error, /Idempotency metadata\/identity mismatch voor sm4-1: card_details/);
 });
 
 test('API batch without --report remains backward compatible and does not write a report', () => {

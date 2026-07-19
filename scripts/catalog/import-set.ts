@@ -65,6 +65,37 @@ type CatalogIdentityRow = {
   external_id: string | null;
 };
 
+type CanonicalJson = null | boolean | number | string | CanonicalJson[] | { [key: string]: CanonicalJson };
+
+/** Normalises JSON objects without changing array order or meaningful null/primitive values. */
+export function canonicaliseJson(value: unknown, arrayItem = false): CanonicalJson | undefined {
+  if (value === undefined) return arrayItem ? null : undefined;
+  if (value === null || typeof value === 'boolean' || typeof value === 'string' || typeof value === 'number') return value;
+  if (Array.isArray(value)) return value.map((item) => canonicaliseJson(item, true)!);
+  if (typeof value === 'object') {
+    const record = value as Record<string, unknown>;
+    const canonical: { [key: string]: CanonicalJson } = {};
+    for (const key of Object.keys(record).sort()) {
+      const normalized = canonicaliseJson(record[key]);
+      if (normalized !== undefined) canonical[key] = normalized;
+    }
+    return canonical;
+  }
+  throw new UserFacingError('card_details bevat een niet-JSON-waarde.');
+}
+
+function canonicalJsonEqual(left: CanonicalJson | undefined, right: CanonicalJson | undefined): boolean {
+  if (left === undefined || right === undefined) return left === right;
+  if (left === null || right === null || typeof left !== 'object' || typeof right !== 'object') return Object.is(left, right);
+  if (Array.isArray(left) || Array.isArray(right)) return Array.isArray(left) && Array.isArray(right) && left.length === right.length && left.every((item, index) => canonicalJsonEqual(item, right[index]));
+  const leftKeys = Object.keys(left); const rightKeys = Object.keys(right);
+  return leftKeys.length === rightKeys.length && leftKeys.every((key) => Object.prototype.hasOwnProperty.call(right, key) && canonicalJsonEqual(left[key], right[key]));
+}
+
+export function cardDetailsSemanticallyEqual(left: unknown, right: unknown): boolean {
+  return canonicalJsonEqual(canonicaliseJson(left), canonicaliseJson(right));
+}
+
 export type SetCatalogRow = {
   id?: string;
   set_code: string;
@@ -624,7 +655,7 @@ function assertCatalogCardMatches(card: CatalogCardRow | undefined, expected: { 
     card.rarity !== normalizeOptional(incoming.rarity) ? `rarity=${String(card.rarity)}` : undefined,
     card.image_small !== normalizeOptional(incoming.images?.small) ? `image_small=${String(card.image_small)}` : undefined,
     card.image_large !== normalizeOptional(incoming.images?.large) ? `image_large=${String(card.image_large)}` : undefined,
-    JSON.stringify(card.card_details ?? null) !== JSON.stringify(incoming.details) ? 'card_details' : undefined,
+    !cardDetailsSemanticallyEqual(card.card_details ?? null, incoming.details) ? 'card_details' : undefined,
   ].filter((value): value is string => Boolean(value));
   if (mismatches.length > 0) throw new UserFacingError(`Idempotency metadata/identity mismatch voor ${incoming.id}: ${mismatches.join(', ')}.`);
 }
