@@ -93,7 +93,7 @@ function canonicalJsonEqual(left: CanonicalJson | undefined, right: CanonicalJso
 }
 
 export function cardDetailsSemanticallyEqual(left: unknown, right: unknown): boolean {
-  return canonicalJsonEqual(canonicaliseJson(left), canonicaliseJson(right));
+  return canonicalJsonEqual(canonicaliseJson(left ?? null), canonicaliseJson(right ?? null));
 }
 
 export type SetCatalogRow = {
@@ -641,15 +641,17 @@ function expectedCatalogId(action: CanonicalCardAction): string {
   throw new UserFacingError(`Idempotency blokkeerde kaartactie ${action.externalId}: blocked/conflict.`);
 }
 
-function assertCatalogCardMatches(card: CatalogCardRow | undefined, expected: { action: CanonicalCardAction; incoming: PokemonCard; setCode: string }): void {
+function assertCatalogCardMatches(card: CatalogCardRow | undefined, expected: { action: CanonicalCardAction; incoming: PokemonCard; setCode: string; setName?: string }): void {
   if (!card) throw new UserFacingError(`Idempotency vond geen cards_catalog-record voor ${expected.incoming.id}.`);
   const { action, incoming } = expected;
   const expectedId = expectedCatalogId(action);
   const mismatches = [
     card.id !== expectedId ? `UUID=${card.id}` : undefined,
-    card.external_source !== SOURCE ? `external_source=${String(card.external_source)}` : undefined,
-    card.external_id !== incoming.id ? `external_id=${String(card.external_id)}` : undefined,
+    action.action === 'existingIdentical' && ![SOURCE, 'legacy_public_cards'].includes(card.external_source ?? '') ? `external_source=${String(card.external_source)}` : undefined,
+    action.action !== 'existingIdentical' && card.external_source !== SOURCE ? `external_source=${String(card.external_source)}` : undefined,
+    action.action !== 'existingIdentical' || card.external_source === SOURCE ? (card.external_id !== incoming.id ? `external_id=${String(card.external_id)}` : undefined) : undefined,
     card.set_code !== expected.setCode ? `set_code=${String(card.set_code)}` : undefined,
+    expected.setName !== undefined && card.set_name !== normalizeRequired(expected.setName) ? `set_name=${String(card.set_name)}` : undefined,
     card.number !== normalizeRequired(incoming.number) ? `number=${String(card.number)}` : undefined,
     card.pokemon !== normalizeRequired(incoming.name) ? `pokemon=${String(card.pokemon)}` : undefined,
     card.rarity !== normalizeOptional(incoming.rarity) ? `rarity=${String(card.rarity)}` : undefined,
@@ -660,9 +662,37 @@ function assertCatalogCardMatches(card: CatalogCardRow | undefined, expected: { 
   if (mismatches.length > 0) throw new UserFacingError(`Idempotency metadata/identity mismatch voor ${incoming.id}: ${mismatches.join(', ')}.`);
 }
 
+export function validateExistingIdenticalRecord(params: {
+  catalog: CatalogCardRow | undefined;
+  incoming: PokemonCard;
+  expectedCatalogId: string;
+  setCode: string;
+  setName?: string;
+  references: ExternalReferenceRow[];
+}): void {
+  const action: CanonicalCardAction = {
+    action: 'existingIdentical',
+    externalSource: SOURCE,
+    externalId: params.incoming.id,
+    setId: params.setCode,
+    setCode: params.setCode,
+    setCatalogId: params.setCode,
+    cardCatalogId: params.expectedCatalogId,
+    cardNumber: params.incoming.number,
+    name: params.incoming.name,
+    rarity: params.incoming.rarity ?? null,
+    image_small: params.incoming.images?.small ?? null,
+    image_large: params.incoming.images?.large ?? null,
+  };
+  assertCatalogCardMatches(params.catalog, { action, incoming: params.incoming, setCode: params.setCode, setName: params.setName });
+  if (params.references.length !== 1 || params.references[0].source !== SOURCE || params.references[0].external_id !== params.incoming.id || params.references[0].card_catalog_id !== params.expectedCatalogId) {
+    throw new UserFacingError(`Idempotency vereist exact één correct gekoppelde pokemon_tcg_api-reference voor ${params.incoming.id}.`);
+  }
+}
+
 type LocalPlanReconciliation = { writePlan: WritePlan; alreadyAppliedCatalogRecords: number; alreadyAppliedReferenceRecords: number };
 
-async function reconcileLocalWritePlan(params: { supabase: SupabaseClient; plan: CatalogWritePlan; setId: string; cards: PokemonCard[]; setCode: string }): Promise<LocalPlanReconciliation> {
+async function reconcileLocalWritePlan(params: { supabase: SupabaseClient; plan: CatalogWritePlan; setId: string; cards: PokemonCard[]; setCode: string; setName?: string }): Promise<LocalPlanReconciliation> {
   const setPlan = params.plan.perSet.find((set) => set.setId === params.setId);
   if (!setPlan || setPlan.setCode !== params.setCode || setPlan.setCatalogId === undefined) throw new UserFacingError(`Write-reconciliatie mist de juiste setmapping voor ${params.setId}.`);
   if (setPlan.actions.length !== params.cards.length || setPlan.receivedCards !== params.cards.length || setPlan.expectedCards !== params.cards.length) throw new UserFacingError(`Write-reconciliatie kaarttotalen/writeplan komen niet overeen voor ${params.setId}.`);
@@ -702,9 +732,9 @@ async function reconcileLocalWritePlan(params: { supabase: SupabaseClient; plan:
     const expectedId = expectedCatalogId(action);
     const identityRows = identitiesByExternalId.get(card.id) ?? [];
     const catalog = catalogById.get(expectedId);
-    if (identityRows.length > 0 && (identityRows.length !== 1 || identityRows[0].id !== expectedId || identityRows[0].external_source !== SOURCE || identityRows[0].external_id !== card.id)) throw new UserFacingError(`Write-reconciliatie external_id/cataloguskaart-koppeling wijkt af voor ${card.id}.`);
+    if (action.action !== 'existingIdentical' && identityRows.length > 0 && (identityRows.length !== 1 || identityRows[0].id !== expectedId || identityRows[0].external_source !== SOURCE || identityRows[0].external_id !== card.id)) throw new UserFacingError(`Write-reconciliatie external_id/cataloguskaart-koppeling wijkt af voor ${card.id}.`);
     if (catalog) {
-      assertCatalogCardMatches(catalog, { action, incoming: card, setCode: params.setCode });
+      assertCatalogCardMatches(catalog, { action, incoming: card, setCode: params.setCode, setName: params.setName });
       alreadyAppliedCatalogRecords += 1;
     } else if (action.action === 'insertCardAndReference') {
       missingCatalogRows.push(action.catalogInsert);
@@ -741,7 +771,7 @@ async function reconcileLocalWritePlan(params: { supabase: SupabaseClient; plan:
   };
 }
 
-async function verifyLocalIdempotency(params: { supabase: SupabaseClient; plan: CatalogWritePlan; setId: string; cards: PokemonCard[]; setCode: string }): Promise<void> {
+async function verifyLocalIdempotency(params: { supabase: SupabaseClient; plan: CatalogWritePlan; setId: string; cards: PokemonCard[]; setCode: string; setName?: string }): Promise<void> {
   const reconciliation = await reconcileLocalWritePlan(params);
   if (reconciliation.writePlan.plannedDatabaseWrites !== 0) throw new UserFacingError(`Idempotency vond nog ${reconciliation.writePlan.plannedDatabaseWrites} ontbrekende records.`);
 }
@@ -1442,7 +1472,7 @@ async function main(): Promise<number> {
     const idempotencyErrors: string[] = [];
     if (options.reconcile) {
       try {
-        const reconciliation = await reconcileLocalWritePlan({ supabase, plan: approvedPlan!, setId, cards: cards.cards, setCode: matching.setCode! });
+        const reconciliation = await reconcileLocalWritePlan({ supabase, plan: approvedPlan!, setId, cards: cards.cards, setCode: matching.setCode!, setName: set.name });
         writePlan = reconciliation.writePlan;
         matching = { ...matching, newCards: writePlan.newCatalogRows.length, safeFallbackCandidates: writePlan.referencesForExistingCandidates.length };
       } catch (error) {
@@ -1451,7 +1481,7 @@ async function main(): Promise<number> {
     }
     if (options.idempotency) {
       try {
-        await verifyLocalIdempotency({ supabase, plan: approvedPlan!, setId, cards: cards.cards, setCode: matching.setCode! });
+        await verifyLocalIdempotency({ supabase, plan: approvedPlan!, setId, cards: cards.cards, setCode: matching.setCode!, setName: set.name });
       } catch (error) {
         idempotencyErrors.push(error instanceof Error ? error.message : 'Onbekende lokale idempotency-fout.');
       }
