@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { createHash, randomUUID } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { loadPokemonTcgDataJson } from './local-json.ts';
 import { classifyFallbackCandidates } from './fallback-classification.ts';
@@ -18,6 +18,21 @@ const SUPABASE_BATCH_SIZE = 100;
 const EXAMPLE_LIMIT = 10;
 const RETRY_STATUSES = new Set([429, 502, 503, 504]);
 const PERMANENT_STATUSES = new Set([400, 401, 403, 404]);
+
+const POSTGRES_UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function deterministicCatalogCardUuid(source: string, externalId: string): string {
+  const digest = createHash('sha256').update(`${source}:${externalId}`, 'utf8').digest();
+  const bytes = Uint8Array.from(digest.subarray(0, 16));
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = Buffer.from(bytes).toString('hex');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+export function isValidPostgresUuid(value: string): boolean {
+  return POSTGRES_UUID_PATTERN.test(value) && value[14].toLowerCase() === '4' && '89ab'.includes(value[19].toLowerCase());
+}
 
 type CliOptions = CatalogImportOptions;
 
@@ -849,7 +864,7 @@ function buildWritePlan(matching: MatchingReport, setName: string, importedAt: s
       continue;
     }
 
-    const id = randomUUID();
+    const id = deterministicCatalogCardUuid(SOURCE, classification.externalCard.id);
     newCatalogRows.push({
       id,
       external_source: SOURCE,
@@ -923,6 +938,18 @@ async function assertNoReferences(supabase: SupabaseClient, rows: PlannedReferen
   );
   if (byExternalId.length > 0 || byCatalogId.length > 0) {
     throw new UserFacingError('Defensieve batchcontrole blokkeerde een reference-insert omdat source + external_id of card_catalog_id + source inmiddels bestaat. Voer de import opnieuw uit.');
+  }
+}
+
+function assertValidPlannedUuidIdentities(plan: WritePlan): void {
+  const catalogIds = new Map(plan.newCatalogRows.map((row) => [row.external_id, row.id]));
+  const references = [...plan.referencesForNewCards, ...plan.referencesForExistingCandidates];
+  const invalid = [...plan.newCatalogRows.map((row) => row.id), ...references.map((row) => row.card_catalog_id)].filter((id) => !isValidPostgresUuid(id));
+  if (invalid.length > 0) throw new UserFacingError(`Pre-write UUID-validatie blokkeerde het writeplan: ${invalid[0]}`);
+  for (const reference of plan.referencesForNewCards) {
+    if (catalogIds.get(reference.external_id) !== reference.card_catalog_id) {
+      throw new UserFacingError(`Pre-write UUID-validatie blokkeerde een catalog/reference-koppeling voor ${reference.external_id}.`);
+    }
   }
 }
 
@@ -1307,6 +1334,7 @@ async function main(): Promise<number> {
     }
 
     try {
+      assertValidPlannedUuidIdentities(writePlan);
       await assertNoCatalogIdentities(supabase, writePlan.newCatalogRows);
       await assertNoReferences(supabase, [...writePlan.referencesForNewCards, ...writePlan.referencesForExistingCandidates]);
     } catch (error) {
@@ -1432,7 +1460,7 @@ export function buildCanonicalSetAnalysis(params: { setId: string; setName: stri
       actions.push({ action: 'insertReference', externalSource: SOURCE, externalId: externalCard.id, setId: params.setId, setCode: params.matching.setCode, setCatalogId, cardNumber: externalCard.number, referenceInsert: { card_catalog_id: classification.catalogCard.id, source: SOURCE, external_id: externalCard.id, source_url: null, last_seen_at: importedAt } });
       continue;
     }
-    const id = createHash('sha256').update(`pokemon-catalog-card:${SOURCE}:${externalCard.id}`, 'utf8').digest('hex').replace(/^(....)(....)(....)(....)(.*)$/, '$1-$2-4$3-8$4-$5').slice(0, 36);
+    const id = deterministicCatalogCardUuid(SOURCE, externalCard.id);
     const catalogInsert: PlannedCatalogInsert = { id, external_source: SOURCE, external_id: externalCard.id, pokemon: normalizeRequired(externalCard.name), set_name: normalizeRequired(params.setName), number: normalizeRequired(externalCard.number), rarity: normalizeOptional(externalCard.rarity), image_small: normalizeOptional(externalCard.images?.small), image_large: normalizeOptional(externalCard.images?.large), card_details: externalCard.details, set_code: params.matching.setCode };
     actions.push({ action: 'insertCardAndReference', externalSource: SOURCE, externalId: externalCard.id, setId: params.setId, setCode: params.matching.setCode, setCatalogId, cardNumber: externalCard.number, catalogInsert, referenceInsert: { card_catalog_id: id, source: SOURCE, external_id: externalCard.id, source_url: null, last_seen_at: importedAt } });
   }
