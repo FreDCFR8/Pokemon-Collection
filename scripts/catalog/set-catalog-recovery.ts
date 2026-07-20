@@ -129,13 +129,16 @@ function safeError(error: unknown): string {
 export function parseRecoveryReview(text: string): RecoveryReviewEntry[] {
   let parsed: unknown;
   try { parsed = JSON.parse(text); } catch { throw new SetCatalogRecoveryError('Recovery review is geen geldige JSON.'); }
-  if (!isRecord(parsed) || !Array.isArray(parsed.entries) || !Array.isArray(parsed.excludedSets)) {
-    throw new SetCatalogRecoveryError('Recovery review heeft geen geldig entries/excludedSets-formaat.');
+  if (!isRecord(parsed) || !isRecord(parsed.createdFrom) || !isRecord(parsed.scope) || !Array.isArray(parsed.proposedMappings) || !Array.isArray(parsed.excludedSets)) {
+    throw new SetCatalogRecoveryError('Recovery review heeft geen geldig createdFrom/proposedMappings/excludedSets-formaat.');
   }
-  if (parsed.datasetRepository !== POKEMON_TCG_DATA_REPOSITORY || parsed.datasetVersion !== SET_CATALOG_RECOVERY_EXPECTED_DATASET_VERSION) {
+  if (parsed.createdFrom.datasetRepository !== POKEMON_TCG_DATA_REPOSITORY || parsed.createdFrom.datasetVersion !== SET_CATALOG_RECOVERY_EXPECTED_DATASET_VERSION) {
     throw new SetCatalogRecoveryError('Recovery review gebruikt niet de gepinde datasetidentiteit.');
   }
-  const entries = parsed.entries.map((value, index) => {
+  if (parsed.scope.proposedNewMappings !== SET_CATALOG_RECOVERY_EXPECTED_SETS || parsed.scope.existingRowsTouched !== 0 || parsed.scope.automaticWritesAllowed !== false) {
+    throw new SetCatalogRecoveryError('Recovery review heeft een ongeldige herstelscope.');
+  }
+  const entries = parsed.proposedMappings.map((value, index) => {
     if (!isRecord(value) || !isRecord(value.externalReference)) throw new SetCatalogRecoveryError(`Recovery review entry ${index + 1} is ongeldig.`);
     const setId = requiredString(value.setId, `Recovery review entry ${index + 1} mist setId.`);
     const externalId = requiredString(value.externalReference.externalId, `Recovery review entry ${setId} mist externalId.`);
