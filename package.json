@@ -16,6 +16,7 @@
     "catalog:set-mappings:validate": "node --experimental-strip-types scripts/catalog/validate-set-mappings.ts",
     "catalog:backfill:details": "node --experimental-strip-types scripts/catalog/backfill-details.ts",
     "catalog:phase7b:safe116": "node --experimental-strip-types scripts/catalog/phase-7b-import-safe-116.ts",
+    "catalog:phase7b:exception-audit": "node --experimental-strip-types scripts/catalog/phase-7b-exception-audit.ts",
     "test": "node scripts/test-all.mjs"
   },
   "dependencies": {
