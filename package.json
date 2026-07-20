@@ -15,6 +15,7 @@
     "catalog:set-mappings:apply": "node --experimental-strip-types scripts/catalog/apply-set-mappings.ts",
     "catalog:set-mappings:validate": "node --experimental-strip-types scripts/catalog/validate-set-mappings.ts",
     "catalog:backfill:details": "node --experimental-strip-types scripts/catalog/backfill-details.ts",
+    "catalog:set-catalog:recover": "node --experimental-strip-types scripts/catalog/set-catalog-recovery.ts",
     "test": "node scripts/test-all.mjs"
   },
   "dependencies": {
