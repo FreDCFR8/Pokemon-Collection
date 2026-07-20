@@ -24,6 +24,7 @@
     "catalog:set-metadata:dry-run": "node --experimental-strip-types scripts/catalog/catalog-set-metadata-dry-run.ts",
     "catalog:set-metadata:apply": "node --experimental-strip-types scripts/catalog/apply-catalog-set-metadata.ts",
     "catalog:null-set:analyze": "node --experimental-strip-types scripts/catalog/catalog-null-set-analysis.ts",
+    "catalog:svp-null:analyze": "node --experimental-strip-types scripts/catalog/catalog-svp-null-recovery-analysis.ts",
     "test": "node scripts/test-all.mjs"
   },
   "dependencies": {
