@@ -1,55 +1,25 @@
-# Pokémon Collection
+# Pokémon Collection V3
 
-Professional Pokémon Collection Manager for Lars and Lore.
+Professional, mobile-first Pokémon Collection Manager for Lars and Lore.
 
-## Project status
+## Current status
 
-This repository is in **Phase 0 – Blueprint**.
+The application is implemented with Vite, React, TypeScript, Supabase and Vercel. Operational project status, active import scope and the next approved phase are maintained in [PROJECT_STATUS.md](docs/project/PROJECT_STATUS.md).
 
-No application code has been written yet.
+The catalog-import workflow is currently paused for a focused redesign after PR147 was closed without merge. No remaining-set bulk import is approved until its mapping evidence, transaction boundary and real idempotency checks are independently reviewed.
 
-This repository starts from a strict **Zero Legacy Policy**:
+## Project governance
 
-- The previous `Pokemon-Manager` repository is closed.
-- It may only be used as a functional reference.
-- No source code, architecture, styling, layout, utilities, services, configuration, or implementation details from the previous repository may be reused.
+- `main` remains stable.
+- Every change uses a focused branch and pull request.
+- Read-only verification precedes database writes.
+- Catalog metadata and collection state remain separate.
+- Secrets never enter repository files, browser code or reports.
 
-## Current scope
+## Core documentation
 
-Before implementation starts, the project must first define and approve:
-
-- product vision
-- architecture
-- data model
-- security model
-- Supabase strategy
-- mobile-first UX principles
-- performance strategy
-- testing strategy
-- roadmap
-- ADRs
-
-## Initial architectural direction
-
-The current recommended direction is:
-
-- Vite
-- TypeScript
-- React
-- Supabase Auth
-- Supabase Row Level Security
-- online-first v1
-- AI integration planned but not required for v1
-- separate accounts for Lars and Lore
-
-This direction is not yet implementation-approved. It must be confirmed during Phase 0.
-
-## Branch strategy
-
-`main` must remain stable.
-
-All project documentation and future implementation work must happen through feature branches and pull requests.
-
-## Phase 0 rule
-
-No runtime application code may be added before Phase 0 is completed and approved.
+- [Project Charter](docs/project/PROJECT_CHARTER_V2.md)
+- [Project Status](docs/project/PROJECT_STATUS.md)
+- [Roadmap](docs/project/ROADMAP.md)
+- [Decision Log](docs/project/DECISION_LOG.md)
+- [AI Working Agreement](docs/project/AI_WORKING_AGREEMENT.md)
