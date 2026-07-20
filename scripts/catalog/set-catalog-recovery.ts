@@ -167,36 +167,65 @@ export function parseRecoveryReview(text: string): RecoveryReviewEntry[] {
   return entries;
 }
 
-function readDatasetSetMetadata(datasetRoot: string, entry: RecoveryReviewEntry, expectedFileCards: number): DatasetSetMetadata {
+type DatasetSetIndex = {
+  id: string;
+  name: string;
+  series: string;
+  releaseDate: string;
+  printedTotal: number;
+  total: number;
+  images: { symbol: string | null; logo: string | null };
+};
+
+function readDatasetSetIndex(datasetRoot: string): Map<string, DatasetSetIndex> {
+  let values: unknown;
+  try { values = JSON.parse(readFileSync(resolve(datasetRoot, 'sets/en.json'), 'utf8')); } catch { throw new SetCatalogRecoveryError('Datasetsetindex sets/en.json kon niet worden gelezen.'); }
+  if (!Array.isArray(values)) throw new SetCatalogRecoveryError('Datasetsetindex sets/en.json moet een array zijn.');
+  const byId = new Map<string, DatasetSetIndex>();
+  for (const value of values) {
+    if (!isRecord(value)) throw new SetCatalogRecoveryError('Datasetsetindex bevat een ongeldig item.');
+    const id = requiredString(value.id, 'Datasetsetindex mist id.');
+    if (byId.has(id)) throw new SetCatalogRecoveryError(`Datasetsetindex bevat dubbele set ${id}.`);
+    const images = isRecord(value.images) ? value.images : {};
+    byId.set(id, {
+      id,
+      name: requiredString(value.name, `Datasetset ${id} mist name.`),
+      series: requiredString(value.series, `Datasetset ${id} mist series.`),
+      releaseDate: requiredString(value.releaseDate, `Datasetset ${id} mist releaseDate.`),
+      printedTotal: requiredInteger(value.printedTotal, `Datasetset ${id} mist printedTotal.`),
+      total: requiredInteger(value.total, `Datasetset ${id} mist total.`),
+      images: { symbol: optionalString(images.symbol), logo: optionalString(images.logo) },
+    });
+  }
+  if (byId.size !== 173) throw new SetCatalogRecoveryError(`Datasetsetindex moet exact 173 sets bevatten, ontvangen ${byId.size}.`);
+  return byId;
+}
+
+function readDatasetSetMetadata(datasetRoot: string, entry: RecoveryReviewEntry, expectedFileCards: number, sourceSet: DatasetSetIndex): DatasetSetMetadata {
   const fullPath = resolve(datasetRoot, entry.jsonPath);
   let cards: unknown;
   try { cards = JSON.parse(readFileSync(fullPath, 'utf8')); } catch { throw new SetCatalogRecoveryError(`Datasetkaartbestand voor ${entry.setId} kon niet worden gelezen.`); }
-  if (!Array.isArray(cards) || cards.length !== expectedFileCards || !isRecord(cards[0]) || !isRecord(cards[0].set)) {
-    throw new SetCatalogRecoveryError(`Datasetkaartbestand voor ${entry.setId} voldoet niet aan de verwachte kaarttelling of setmetadata.`);
+  if (!Array.isArray(cards) || cards.length !== expectedFileCards) {
+    throw new SetCatalogRecoveryError(`Datasetkaartbestand voor ${entry.setId} voldoet niet aan de manifeste kaarttelling.`);
   }
-  const set = cards[0].set;
+  const cardIds = new Set<string>();
   for (const card of cards) {
-    if (!isRecord(card) || !isRecord(card.set) || card.set.id !== entry.setId) throw new SetCatalogRecoveryError(`Datasetkaartbestand voor ${entry.setId} bevat een kaart met een andere setidentiteit.`);
+    if (!isRecord(card) || typeof card.id !== 'string' || card.id.trim() === '' || cardIds.has(card.id)) {
+      throw new SetCatalogRecoveryError(`Datasetkaartbestand voor ${entry.setId} bevat ontbrekende of dubbele kaart-ID's.`);
+    }
+    cardIds.add(card.id);
   }
-  const setId = requiredString(set.id, `Datasetset ${entry.setId} mist id.`);
-  const name = requiredString(set.name, `Datasetset ${entry.setId} mist name.`);
-  const series = requiredString(set.series, `Datasetset ${entry.setId} mist series.`);
-  const releaseDate = requiredString(set.releaseDate, `Datasetset ${entry.setId} mist releaseDate.`);
-  if (setId !== entry.setId || name !== entry.name || series !== entry.series || !/^\\d{4}-\\d{2}-\\d{2}$/.test(releaseDate)) {
+  if (sourceSet.id !== entry.setId || sourceSet.name !== entry.name || sourceSet.series !== entry.series || sourceSet.total !== entry.expectedCards || !/^\\d{4}-\\d{2}-\\d{2}$/.test(sourceSet.releaseDate)) {
     throw new SetCatalogRecoveryError(`Datasetset ${entry.setId} wijkt af van de goedgekeurde reviewmetadata.`);
   }
-  const printedTotal = requiredInteger(set.printedTotal, `Datasetset ${entry.setId} mist printedTotal.`);
-  const total = requiredInteger(set.total, `Datasetset ${entry.setId} mist total.`);
-  if (total !== entry.expectedCards) throw new SetCatalogRecoveryError(`Datasetset ${entry.setId} total wijkt af van de goedgekeurde reviewkaarttelling.`);
-  const images = isRecord(set.images) ? set.images : {};
   return {
-    name,
-    series,
-    release_date: releaseDate,
-    printed_total: printedTotal,
-    total,
-    symbol_url: optionalString(images.symbol),
-    logo_url: optionalString(images.logo),
+    name: sourceSet.name,
+    series: sourceSet.series,
+    release_date: sourceSet.releaseDate,
+    printed_total: sourceSet.printedTotal,
+    total: sourceSet.total,
+    symbol_url: sourceSet.images.symbol,
+    logo_url: sourceSet.images.logo,
   };
 }
 
@@ -206,12 +235,15 @@ export function buildRecoveryWritePlan(params: { reviewText: string; datasetRoot
     throw new SetCatalogRecoveryError('Lokaal manifest wijkt af van de verplichte gepinde datasetidentiteit of setcount.');
   }
   const manifestById = new Map(params.manifest.sets.map((set) => [set.setId, set]));
+  const datasetSetsById = readDatasetSetIndex(params.datasetRoot);
   const entries = reviewEntries.map((review) => {
     const manifest = manifestById.get(review.setId);
     if (!manifest || !manifest.enabled || manifest.name !== review.name || manifest.series !== review.series || manifest.jsonPath !== review.jsonPath) {
       throw new SetCatalogRecoveryError(`Manifest wijkt af voor ${review.setId}.`);
     }
-    const metadata = readDatasetSetMetadata(params.datasetRoot, review, manifest.expectedCards);
+    const sourceSet = datasetSetsById.get(review.setId);
+    if (!sourceSet) throw new SetCatalogRecoveryError(`Datasetsetindex mist ${review.setId}.`);
+    const metadata = readDatasetSetMetadata(params.datasetRoot, review, manifest.expectedCards, sourceSet);
     return { set_code: review.setId, ...metadata, generation: null, source: SOURCE, source_id: review.setId, external_id: review.setId } satisfies RecoveryEntry;
   }).sort((a, b) => a.set_code.localeCompare(b.set_code, 'en'));
   const manifestHash = localManifestIdentity(params.manifest).manifestHash;
