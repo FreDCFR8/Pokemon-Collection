@@ -19,3 +19,10 @@ test('recovery migration preserves collection rows and blocks mismatched details
   assert.doesNotMatch(migration, /\b(update|delete|insert)\s+(into\s+)?public\.collection_cards\b/i);
   assert.match(migration, /security invoker/);
 });
+
+test('recovery runner batches reference and collection prechecks', () => {
+  const source = readFileSync('scripts/catalog/phase-7b-recover-six-legacy-duplicates.ts', 'utf8');
+  assert.match(source, /function batches<T>/);
+  assert.match(source, /batches\(ids\)\.map\(\(idsPart\)/);
+  assert.match(source, /Reference- of collectieprecheck mislukt: \$\{/);
+});
