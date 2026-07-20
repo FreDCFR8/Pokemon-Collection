@@ -4,6 +4,11 @@ All notable project changes will be documented here.
 
 ## Unreleased
 
+### Current project note
+
+- This historical Phase 0 entry predates the implemented React/Vite/Supabase application and later catalog-import work.
+- Current operational status is maintained in `docs/project/PROJECT_STATUS.md`; the current roadmap is `docs/project/ROADMAP.md`.
+
 ### Added
 
 - Phase 0 documentation branch started.
@@ -31,4 +36,4 @@ All notable project changes will be documented here.
 
 ### Notes
 
-No application code has been added.
+This Phase 0 entry is historical; application code and controlled catalog imports were added in subsequent phases.

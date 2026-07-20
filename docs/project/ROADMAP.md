@@ -38,12 +38,14 @@ This document shows product direction and phase status. It intentionally avoids 
 - ✅ idempotency hardening for legacy catalog details (PR144–PR146)
 - ✅ local pinned dataset profile: 173 sets / 20,324 cards
 - ⛔ PR147 bulk workflow closed without merge after technical review
-- 🚧 Next: design-only reset for the 134 remaining sets; no bulk writer or write is approved yet
-- 🔎 Manual-review sets remain excluded: `cel25c`, `sv9`, `swsh9`, `zsv10pt5`
+- ✅ PR154: recover 117 canonical set rows and external references without changing existing rows
+- ✅ PR156: import 10,703 cards plus 10,703 references for 116 verified sets; direct idempotency result is zero writes
+- 🚧 Next: one read-only audit for the 18 exception sets (`svp` plus the 17 excluded review sets)
+- 🔎 Manual-review and conflict sets remain write-blocked until that audit has an independently reviewed result
 
 ## Sets and binder experience
 
-The remaining catalog-import scope is paused pending a focused redesign. PR147 was closed without merge. The next work is design and read-only evidence only; automatic writes for remaining sets are not approved.
+The remaining catalog-import scope is limited to 18 exception sets. PR147 remains closed without merge. The next work is read-only evidence only; automatic writes for those exception sets are not approved.
 
 - ✅ grouped set progress
 - ✅ server-side set search and sorting

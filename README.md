@@ -6,7 +6,7 @@ Professional, mobile-first Pokémon Collection Manager for Lars and Lore.
 
 The application is implemented with Vite, React, TypeScript, Supabase and Vercel. Operational project status, active import scope and the next approved phase are maintained in [PROJECT_STATUS.md](docs/project/PROJECT_STATUS.md).
 
-The catalog-import workflow is currently paused for a focused redesign after PR147 was closed without merge. No remaining-set bulk import is approved until its mapping evidence, transaction boundary and real idempotency checks are independently reviewed.
+The catalog-import workflow uses the pinned local `PokemonTCG/pokemon-tcg-data` dataset and Supabase as the runtime catalog. PR147 was closed without merge; its replacement recovery and safe-card-import work is merged and verified. The current catalog position is 155 fully imported card sets, with 18 conflict or manual-review exception sets remaining for read-only audit.
 
 ## Project governance
 

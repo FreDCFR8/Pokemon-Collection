@@ -1,35 +1,39 @@
 # Pokémon Collection V3 — Project Status
 
-_Last updated: 2026-07-19_
+_Last updated: 2026-07-20_
 
 This document contains current operational state only. Historical direction belongs in `ROADMAP.md`; lasting reasons belong in `DECISION_LOG.md`.
 
 ## Current phase
 
-**Current implementation state: controlled import reset — design and read-only verification only.**
+**Current implementation state: Phase 7B set recovery and safe 116-set card import completed; 18 exception sets require read-only audit.**
 
-PR147 (“Add controlled Phase 7B remaining-sets bulk workflow”) was closed without merge after technical review identified fundamental safety and correctness blockers. No code from PR147 is on `main`; no bulk dry-run or bulk database write from that PR was executed.
+PR147 (“Add controlled Phase 7B remaining-sets bulk workflow”) was closed without merge after technical review identified correctness blockers. It was not used for the recovery or card import.
 
-The next import step is not a new writer. It is a small, reviewable design and evidence phase that must establish one exact approved remaining-set list, mapping evidence, database transaction boundary, postchecks and true database idempotency criteria before implementation resumes.
+The current next import step is a read-only exception audit. It must classify the remaining 18 sets before any new write scope is proposed. Existing catalog and collection data remain protected.
 
 ## Verified repository position
 
-- Current `main`: merge commit `8dffc6579f580fced1ea828690a16c6d205f10b2` (PR146).
-- Latest merged import hardening: PR143, PR144, PR145 and PR146.
+- Current `main`: merge commit `720e20d9bf5730e7dd238dfed9451469db7519a5` (PR156).
+- Latest merged import recovery: PR154 (set catalog recovery) and PR156 (safe 116-set card import).
 - PR147 is closed and unmerged.
-- The repository contains production application code and controlled catalog-import tooling; Phase 0/Blueprint wording is obsolete.
+- The repository contains production application code and controlled catalog-import tooling; Phase 0/Blueprint wording is historical only.
 
 ## Current operational import scope
 
-The following operational state is retained from approved import-run evidence and must be reconfirmed by a fresh read-only preflight before any future write:
+The following operational state is retained from approved run evidence. Any future write must begin with a fresh read-only preflight:
 
 - local source: `PokemonTCG/pokemon-tcg-data`;
 - pinned dataset commit: `0af6250a22495e4a3e9f60ff45fc3fedc2e0563d`;
 - complete dataset profile: 173 sets and 20,324 cards;
 - 39 sets were processed through Batches 1–3 with completed write and idempotency evidence;
-- 134 sets remain outside the approved import scope.
+- 117 set-catalog mappings were recovered without changing existing rows; the recovery exact postcheck passed;
+- 116 additional sets / 10,703 cards were imported with 10,703 `pokemon_tcg_api` references; write result: PASS, `databaseWritesTotal=21406`;
+- the same 116-set scope passed a direct idempotency run with `databaseWritesTotal=0`;
+- 155 sets now have complete controlled card-import coverage;
+- 18 exception sets remain: `svp` plus the 17 explicitly excluded review sets.
 
-## Read-only baseline — 2026-07-20
+## Historical read-only baseline — 2026-07-20
 
 The local pinned dataset and Supabase were remeasured without writes.
 
@@ -44,7 +48,7 @@ The local pinned dataset and Supabase were remeasured without writes.
 - protected table snapshot before and after was unchanged: `cards_catalog=7391`, `card_external_references=7354`, `collection_cards=1106`, `sets_catalog=55`, `set_external_references=41`;
 - `databaseWritesTotal: 0`, with zero operational and postcheck errors.
 
-All four exceptional sets remain excluded from automatic writes: `cel25c` and `zsv10pt5` require manual review; `sv9` and `swsh9` remain blocked until their conflicts are resolved.
+This baseline predates the subsequent set recovery and safe 116-set card import. It remains evidence for the original classification, not the current database totals.
 
 ## Source-of-truth order
 
@@ -114,8 +118,8 @@ De operationele 2F9C-run is afgerond: 173 sets verwerkt, 7 inhoudelijke PASS, 16
 
 ## Product direction
 
-Catalog coverage and collection management remain the primary product focus. Trade remains a separate future area and the lowest product priority. Remaining catalog imports stay paused until the next approved design-only phase establishes the controlled scope.
+Catalog coverage and collection management remain the primary product focus. Trade remains a separate future area and the lowest product priority. The remaining exception sets stay write-blocked until their read-only audit establishes an exact safe scope.
 
 ## Next approved import phase
 
-Before a new import implementation starts, create and review a design-only specification for the remaining sets. It must keep manual-review sets blocked, define one exact approved set list and mapping-evidence format, and require transaction-safe catalog/reference writes plus exact postchecks and a real idempotency run.
+Run one central read-only audit for the 18 exception sets. It must report existing card/reference identity, exact metadata conflicts, missing cards, collection links and a per-set classification. Only an independently reviewed safe subset may later receive a separate write proposal.

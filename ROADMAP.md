@@ -1,4 +1,6 @@
-# Roadmap
+# Historical Blueprint Roadmap
+
+> This file is the original Phase 0 blueprint and is retained for history. It is not the operational roadmap. The current application, Supabase model and controlled import workflow are implemented. Use [`docs/project/ROADMAP.md`](docs/project/ROADMAP.md) and [`docs/project/PROJECT_STATUS.md`](docs/project/PROJECT_STATUS.md) for current status.
 
 ## Phase 0 – Blueprint
 
