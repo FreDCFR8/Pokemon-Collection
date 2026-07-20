@@ -119,11 +119,11 @@ function requiredInteger(value: unknown, label: string): number {
 }
 
 function safeError(error: unknown): string {
-  const raw = error instanceof Error ? error.message : 'Onbekende fout.';
-  return raw
-    .replaceAll(process.env.SUPABASE_URL ?? '', '[REDACTED]')
-    .replaceAll(process.env.SUPABASE_SERVICE_ROLE_KEY ?? '', '[REDACTED]')
-    .replace(/(?:[A-Za-z]:)?[\\/][^\s]+/g, '[REDACTED_PATH]');
+  let value = error instanceof Error ? error.message : 'Onbekende fout.';
+  for (const secret of [process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY]) {
+    if (secret) value = value.replaceAll(secret, '[REDACTED]');
+  }
+  return value.replace(/(?:[A-Za-z]:)?[\\/][^\s]+/g, '[REDACTED_PATH]');
 }
 
 export function parseRecoveryReview(text: string): RecoveryReviewEntry[] {
@@ -247,12 +247,7 @@ function entryEquals(row: CatalogRow, reference: ReferenceRow | undefined, entry
     && reference.set_catalog_id === row.id;
 }
 
-async function preflight(supabase: SupabaseClient, entries: RecoveryEntry[]): Promise<{ absent: string[]; exactExisting: string[]; conflicts: string[] }> {
-  const codes = entries.map((entry) => entry.set_code);
-  const [sets, references] = await Promise.all([
-    readRows<CatalogRow>(supabase.from('sets_catalog').select('id,set_code,name,series,generation,release_date,printed_total,total,symbol_url,logo_url,source,source_id').in('set_code', codes), 'sets_catalog'),
-    readRows<ReferenceRow>(supabase.from('set_external_references').select('set_catalog_id,source,external_id').eq('source', SOURCE).in('external_id', codes), 'set_external_references'),
-  ]);
+export function classifyRecoveryPreflight(entries: RecoveryEntry[], sets: CatalogRow[], references: ReferenceRow[]): { absent: string[]; exactExisting: string[]; conflicts: string[] } {
   const setsByCode = new Map(sets.map((row) => [row.set_code, row]));
   const referencesByExternal = new Map(references.map((row) => [row.external_id, row]));
   const result = { absent: [] as string[], exactExisting: [] as string[], conflicts: [] as string[] };
@@ -270,7 +265,16 @@ async function preflight(supabase: SupabaseClient, entries: RecoveryEntry[]): Pr
   };
 }
 
-function validateApprovedReport(text: string, expectedPlan: RecoveryWritePlan): RecoveryReport {
+async function preflight(supabase: SupabaseClient, entries: RecoveryEntry[]): Promise<{ absent: string[]; exactExisting: string[]; conflicts: string[] }> {
+  const codes = entries.map((entry) => entry.set_code);
+  const [sets, references] = await Promise.all([
+    readRows<CatalogRow>(supabase.from('sets_catalog').select('id,set_code,name,series,generation,release_date,printed_total,total,symbol_url,logo_url,source,source_id').in('set_code', codes), 'sets_catalog'),
+    readRows<ReferenceRow>(supabase.from('set_external_references').select('set_catalog_id,source,external_id').eq('source', SOURCE).in('external_id', codes), 'set_external_references'),
+  ]);
+  return classifyRecoveryPreflight(entries, sets, references);
+}
+
+export function validateApprovedRecoveryReport(text: string, expectedPlan: RecoveryWritePlan): RecoveryReport {
   let parsed: unknown;
   try { parsed = JSON.parse(text); } catch { throw new SetCatalogRecoveryError('Goedgekeurd recovery-rapport is geen geldige JSON.'); }
   if (!isRecord(parsed)) throw new SetCatalogRecoveryError('Goedgekeurd recovery-rapport is geen object.');
@@ -349,12 +353,16 @@ export async function runSetCatalogRecovery(options: Cli, supabase: SupabaseClie
       if (report.preflight.absent.length !== SET_CATALOG_RECOVERY_EXPECTED_SETS || report.preflight.exactExisting.length !== 0) throw new SetCatalogRecoveryError('Dry-run vereist exact 117 afwezige setidentiteiten.');
       report.finalStatus = 'PASS';
     } else {
-      const approved = validateApprovedReport(readFileSync(options.approvedReport!, 'utf8'), plan);
+      const approved = validateApprovedRecoveryReport(readFileSync(options.approvedReport!, 'utf8'), plan);
       if (options.confirmReportHash !== approved.reportHash) throw new SetCatalogRecoveryError('confirm-report-hash komt niet overeen met het goedgekeurde rapport.');
       if (report.preflight.absent.length !== SET_CATALOG_RECOVERY_EXPECTED_SETS || report.preflight.exactExisting.length !== 0) throw new SetCatalogRecoveryError('Write-preflight vereist exact 117 afwezige setidentiteiten.');
       const { data, error } = await supabase.rpc(RPC, { p_entries: plan.entries });
       if (error) throw new SetCatalogRecoveryError(`Transactionele recovery-RPC is mislukt: ${safeError(error)}`);
       if (!Array.isArray(data) || data.length !== SET_CATALOG_RECOVERY_EXPECTED_SETS) throw new SetCatalogRecoveryError('Recovery-RPC retourneerde niet exact 117 setresultaten.');
+      const returnedCodes = data.map((row) => isRecord(row) ? row.set_code : undefined);
+      if (new Set(returnedCodes).size !== SET_CATALOG_RECOVERY_EXPECTED_SETS || returnedCodes.some((code) => typeof code !== 'string' || !plan.entries.some((entry) => entry.set_code === code))) {
+        throw new SetCatalogRecoveryError('Recovery-RPC retourneerde geen exacte setlijst.');
+      }
       report.databaseWritesTotal = plan.plannedDatabaseWrites;
       const after = await preflight(supabase, plan.entries);
       report.postcheck.exactExisting = after.exactExisting;
