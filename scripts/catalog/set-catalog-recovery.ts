@@ -167,11 +167,11 @@ export function parseRecoveryReview(text: string): RecoveryReviewEntry[] {
   return entries;
 }
 
-function readDatasetSetMetadata(datasetRoot: string, entry: RecoveryReviewEntry): DatasetSetMetadata {
+function readDatasetSetMetadata(datasetRoot: string, entry: RecoveryReviewEntry, expectedFileCards: number): DatasetSetMetadata {
   const fullPath = resolve(datasetRoot, entry.jsonPath);
   let cards: unknown;
   try { cards = JSON.parse(readFileSync(fullPath, 'utf8')); } catch { throw new SetCatalogRecoveryError(`Datasetkaartbestand voor ${entry.setId} kon niet worden gelezen.`); }
-  if (!Array.isArray(cards) || cards.length !== entry.expectedCards || !isRecord(cards[0]) || !isRecord(cards[0].set)) {
+  if (!Array.isArray(cards) || cards.length !== expectedFileCards || !isRecord(cards[0]) || !isRecord(cards[0].set)) {
     throw new SetCatalogRecoveryError(`Datasetkaartbestand voor ${entry.setId} voldoet niet aan de verwachte kaarttelling of setmetadata.`);
   }
   const set = cards[0].set;
@@ -185,13 +185,16 @@ function readDatasetSetMetadata(datasetRoot: string, entry: RecoveryReviewEntry)
   if (setId !== entry.setId || name !== entry.name || series !== entry.series || !/^\\d{4}-\\d{2}-\\d{2}$/.test(releaseDate)) {
     throw new SetCatalogRecoveryError(`Datasetset ${entry.setId} wijkt af van de goedgekeurde reviewmetadata.`);
   }
+  const printedTotal = requiredInteger(set.printedTotal, `Datasetset ${entry.setId} mist printedTotal.`);
+  const total = requiredInteger(set.total, `Datasetset ${entry.setId} mist total.`);
+  if (total !== entry.expectedCards) throw new SetCatalogRecoveryError(`Datasetset ${entry.setId} total wijkt af van de goedgekeurde reviewkaarttelling.`);
   const images = isRecord(set.images) ? set.images : {};
   return {
     name,
     series,
     release_date: releaseDate,
-    printed_total: requiredInteger(set.printedTotal, `Datasetset ${entry.setId} mist printedTotal.`),
-    total: requiredInteger(set.total, `Datasetset ${entry.setId} mist total.`),
+    printed_total: printedTotal,
+    total,
     symbol_url: optionalString(images.symbol),
     logo_url: optionalString(images.logo),
   };
@@ -205,10 +208,10 @@ export function buildRecoveryWritePlan(params: { reviewText: string; datasetRoot
   const manifestById = new Map(params.manifest.sets.map((set) => [set.setId, set]));
   const entries = reviewEntries.map((review) => {
     const manifest = manifestById.get(review.setId);
-    if (!manifest || !manifest.enabled || manifest.name !== review.name || manifest.series !== review.series || manifest.expectedCards !== review.expectedCards || manifest.jsonPath !== review.jsonPath) {
+    if (!manifest || !manifest.enabled || manifest.name !== review.name || manifest.series !== review.series || manifest.jsonPath !== review.jsonPath) {
       throw new SetCatalogRecoveryError(`Manifest wijkt af voor ${review.setId}.`);
     }
-    const metadata = readDatasetSetMetadata(params.datasetRoot, review);
+    const metadata = readDatasetSetMetadata(params.datasetRoot, review, manifest.expectedCards);
     return { set_code: review.setId, ...metadata, generation: null, source: SOURCE, source_id: review.setId, external_id: review.setId } satisfies RecoveryEntry;
   }).sort((a, b) => a.set_code.localeCompare(b.set_code, 'en'));
   const manifestHash = localManifestIdentity(params.manifest).manifestHash;
@@ -300,7 +303,7 @@ function sealReport(report: RecoveryReport): RecoveryReport {
 
 function writeJson(path: string, value: unknown): void {
   if (existsSync(path)) throw new SetCatalogRecoveryError('Rapportpad bestaat al; kies een nieuw, versiegebonden bestandsnaam.');
-  writeFileSync(path, `${JSON.stringify(value, null, 2)}\\n`, 'utf8');
+  writeFileSync(path, JSON.stringify(value, null, 2) + '\n', 'utf8');
 }
 
 function datasetVersion(dataset: string): string {
