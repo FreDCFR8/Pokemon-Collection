@@ -28,33 +28,22 @@ This document shows product direction and phase status. It intentionally avoids 
 
 ## Catalog and imports
 
-- ✅ Phase 7B-2F9D-A — read-only validatie en beoordelingsrapport voor 44 exacte setmappingkandidaten
-
 - ✅ `cards_catalog` runtime source of truth
 - ✅ `sets_catalog` canonical set metadata
 - ✅ external-reference model
 - ✅ search indexes
 - ✅ controlled local import tooling
-- ✅ dry-run default and explicit `--write`
-- ✅ verified `sv3pt5` reference import
-- ✅ Phase 7B-2F1 — veilige multi-set dry-runvoorbereiding
-- ✅ Phase 7B-2F2 — gecontroleerde Obsidian Flames-import (`sv3`)
-- ✅ Phase 7B-2F3 — catalog import batch runner
-- ✅ Phase 7B-2F4 — versioneerbare lokale JSON-input via `PokemonTCG/pokemon-tcg-data`
-- ✅ Phase 7B-2F5 — catalogusmetadata & Card Detail enrichment
-- ✅ Phase 7B-2F6 — herbruikbare metadata-backfill
-- ✅ Phase 7B-2F7 — uitgebreide Card Detail-presentatie
-- ✅ Phase 7B-2F8 — lokale catalogusmanifest- en batchvalidatie
-- ✅ Phase 7B-2F9A — automatische volledige lokale datasetinventaris
-- ✅ Phase 7B-2F9B — hervatbare volledige lokale catalogus-dry-run
-- ✅ Phase 7B-2F9C — read-only failure-classificatie en setmappingplan
-- ✅ Phase 7B-2F9D — gecontroleerde beoordeling van 44 exacte setmappingkandidaten: 41 veilig voor mapping review, 1 handmatige review (`zsv10pt5`) en 2 geblokkeerd (`sv9`, `swsh9`); 0 operationele fouten en 0 databasewrites
-- 🚧 Next: `set_external_references` introduceren, de 41 veilige mappings gecontroleerd voorbereiden, `zsv10pt5` afzonderlijk beoordelen en `sv9`/`swsh9` geblokkeerd houden tot conflictresolutie
-- ⏳ broader catalog synchronization and catalog writes after separate approval
+- ✅ dry-run default and explicit write authorization
+- ✅ Phase 7B-2F1 through 7B-2F9E — controlled local-import foundation and Batch 1–3 operational processing
+- ✅ idempotency hardening for legacy catalog details (PR144–PR146)
+- ✅ local pinned dataset profile: 173 sets / 20,324 cards
+- ⛔ PR147 bulk workflow closed without merge after technical review
+- 🚧 Next: design-only reset for the 134 remaining sets; no bulk writer or write is approved yet
+- 🔎 Manual-review sets remain excluded: `cel25c`, `sv9`, `swsh9`, `zsv10pt5`
 
 ## Sets and binder experience
 
-Phase 7B-2F9D-B is active: introduceer `set_external_references`, bereid de 41 veilige mappings gecontroleerd voor en houd `zsv10pt5`, `sv9` en `swsh9` uitgesloten. Daadwerkelijke schema- en cataloguswrites volgen pas na afzonderlijke expliciete goedkeuring.
+The remaining catalog-import scope is paused pending a focused redesign. PR147 was closed without merge. The next work is design and read-only evidence only; automatic writes for remaining sets are not approved.
 
 - ✅ grouped set progress
 - ✅ server-side set search and sorting
