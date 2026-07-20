@@ -17,6 +17,8 @@ type Mode = 'dry-run' | 'write' | 'idempotency';
 type ManifestSet = { setId: string; jsonPath: string; expectedCards: number; enabled: boolean; name: string; series: string };
 type CardRow = { id: string; external_id: string; pokemon: string; set_name: string; set_code: string; number: string; rarity: string | null; image_small: string | null; image_large: string | null; card_details: Record<string, unknown> };
 type Report = { schemaVersion: 1; phase: 'Phase 7B safe six external sets'; mode: Mode; datasetVersion: string; manifestHash: string; writePlanHash: string; reportHash: string; setIds: string[]; expectedCards: number; plannedDatabaseWrites: number; databaseWritesTotal: number; status: 'PASS' | 'FAIL'; errors: string[] };
+type ExistingSet = { id: string; set_code: string; name: string; series: string | null };
+type ExistingSetReference = { set_catalog_id: string; source: string; external_id: string };
 
 function canonical(value: unknown): string {
   if (value === null || typeof value !== 'object') return JSON.stringify(value);
@@ -54,6 +56,13 @@ export function createWritePlan(inputRoot: string, scope: ManifestSet[]): CardRo
   return rows;
 }
 
+export function hasExactLegacySetMapping(expected: ManifestSet, set: ExistingSet | undefined, reference: ExistingSetReference | undefined): boolean {
+  return set !== undefined && reference !== undefined
+    && set.set_code === expected.setId && set.name === expected.name
+    && (set.series === expected.series || set.series === null)
+    && reference.set_catalog_id === set.id && reference.source === SOURCE && reference.external_id === expected.setId;
+}
+
 function parseArgs(argv: string[]) {
   const result = new Map<string, string>();
   for (let index = 0; index < argv.length; index += 2) { const key = argv[index]; const value = argv[index + 1]; if (!['--mode', '--input-root', '--report', '--approved-report', '--confirm-write'].includes(key) || !value) throw new Error(`Ongeldig argument: ${key ?? '[ontbrekend]'}.`); result.set(key, value); }
@@ -72,7 +81,7 @@ async function readExactState(client: ReturnType<typeof createClient>, scope: Ma
   for (const expected of scope) {
     const set = setsResult.data.find((actual) => actual.set_code === expected.setId);
     const reference = setReferencesResult.data.find((actual) => actual.external_id === expected.setId);
-    if (!set || !reference || set.name !== expected.name || set.series !== expected.series || reference.set_catalog_id !== set.id || reference.source !== SOURCE) throw new Error(`${expected.setId}: exact extern setmappingbewijs ontbreekt of wijkt af.`);
+    if (!hasExactLegacySetMapping(expected, set, reference)) throw new Error(`${expected.setId}: exact extern setmappingbewijs ontbreekt of wijkt af.`);
   }
   for (const part of chunks(plan)) {
     const ids = part.map((row) => row.external_id);

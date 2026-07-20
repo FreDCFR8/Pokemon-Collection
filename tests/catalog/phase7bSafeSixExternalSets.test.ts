@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { selectExternalReferenceScope } from '../../scripts/catalog/phase-7b-import-six-external-sets.ts';
+import { hasExactLegacySetMapping, selectExternalReferenceScope } from '../../scripts/catalog/phase-7b-import-six-external-sets.ts';
 import { PINNED_DATASET_VERSION } from '../../scripts/catalog/local-checkout.ts';
 
 const manifest = JSON.parse(readFileSync('config/catalog/local-pokemon-tcg-data-manifest.json', 'utf8'));
@@ -25,6 +25,15 @@ test('runner requires exact external mapping evidence and has no set writes', ()
   assert.match(source, /exact extern setmappingbewijs/);
   assert.doesNotMatch(source, /loaded\.setName/);
   assert.doesNotMatch(source, /\.from\('sets_catalog'\)\.(insert|update|upsert|delete)/);
+});
+
+test('legacy mapping accepts only an absent series, never an incorrect populated series', () => {
+  const expected = selectExternalReferenceScope(manifest)[0];
+  const reference = { set_catalog_id: 'legacy-set-id', source: 'pokemon_tcg_api', external_id: expected.setId };
+  assert.equal(hasExactLegacySetMapping(expected, { id: 'legacy-set-id', set_code: expected.setId, name: expected.name, series: null }, reference), true);
+  assert.equal(hasExactLegacySetMapping(expected, { id: 'legacy-set-id', set_code: expected.setId, name: expected.name, series: 'Wrong series' }, reference), false);
+  assert.equal(hasExactLegacySetMapping(expected, { id: 'legacy-set-id', set_code: expected.setId, name: 'Wrong name', series: null }, reference), false);
+  assert.equal(hasExactLegacySetMapping(expected, { id: 'legacy-set-id', set_code: expected.setId, name: expected.name, series: null }, { ...reference, external_id: 'wrong' }), false);
 });
 
 test('transaction function is internal, insert-only, and requires the exact legacy set reference', () => {
