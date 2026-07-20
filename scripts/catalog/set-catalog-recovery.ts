@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { inventoryLocalDataset } from './generate-local-manifest.ts';
 import { localManifestIdentity } from './catalog-manifest-identity.ts';
