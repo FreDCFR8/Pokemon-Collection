@@ -1,0 +1,4 @@
+import assert from 'node:assert/strict'; import { readFileSync } from 'node:fs'; import test from 'node:test';
+const source=readFileSync('scripts/catalog/apply-catalog-set-metadata.ts','utf8'); const migration=readFileSync('supabase/migrations/20260720180000_apply_catalog_set_metadata.sql','utf8');
+test('metadata writer requires the approved report identity and explicit confirmation',()=>{assert.match(source,/plannedMetadataUpdates !== 161/);assert.match(source,/blockedRows !== 0/);assert.match(source,/apply-catalog-set-metadata/);assert.match(source,/approvedReportHash/);});
+test('metadata transaction changes only the six approved set fields',()=>{assert.match(migration,/security invoker/);assert.match(migration,/revoke execute/);assert.match(migration,/grant execute.*service_role/);assert.doesNotMatch(migration,/set_code\s*=/);assert.doesNotMatch(migration,/name\s*=/);assert.doesNotMatch(migration,/cards_catalog|collection_cards|card_external_references/);});
