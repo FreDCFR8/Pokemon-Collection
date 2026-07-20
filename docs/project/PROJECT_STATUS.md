@@ -98,9 +98,9 @@ Phase 7B-2F9C adds typed, atomic per-set diagnostic JSON results and makes the b
 
 De operationele 2F9C-run is afgerond: 173 sets verwerkt, 7 inhoudelijke PASS, 166 inhoudelijke blokkades, 20.324/20.324 kaarten ontvangen, 0 runnerfouten en `databaseWritesTotal: 0`. Een globale FAIL blijft correct zolang inhoudelijke blokkades bestaan.
 
-## Next phase scope
+## Product direction
 
-De volgende fase introduceert `set_external_references`, bereidt de 41 veilige mappings gecontroleerd voor, beoordeelt `zsv10pt5` afzonderlijk en houdt `sv9` en `swsh9` geblokkeerd tot conflictresolutie. Iedere mappingwijziging en bredere cataloguswrite vereist afzonderlijke analyse, expliciete goedkeuring en een eigen PR. De 118 sets zonder kandidaat blijven geblokkeerd. Trade remains a separate future area and the lowest product priority.
+Catalog coverage and collection management remain the primary product focus. Trade remains a separate future area and the lowest product priority. Remaining catalog imports stay paused until the next approved design-only phase establishes the controlled scope.
 
 ## Next approved import phase
 
