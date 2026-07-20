@@ -19,6 +19,7 @@
     "catalog:phase7b:safe-six-external-sets": "node --experimental-strip-types scripts/catalog/phase-7b-import-six-external-sets.ts",
     "catalog:phase7b:recover-six-legacy-duplicates": "node --experimental-strip-types scripts/catalog/phase-7b-recover-six-legacy-duplicates.ts",
     "catalog:phase7b:exception-audit": "node --experimental-strip-types scripts/catalog/phase-7b-exception-audit.ts",
+    "catalog:quality:audit": "node --experimental-strip-types scripts/catalog/catalog-quality-audit.ts",
     "test": "node scripts/test-all.mjs"
   },
   "dependencies": {
