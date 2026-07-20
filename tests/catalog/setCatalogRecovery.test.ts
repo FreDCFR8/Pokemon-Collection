@@ -4,9 +4,6 @@ import test from 'node:test';
 import {
   SET_CATALOG_RECOVERY_EXPECTED_SETS,
   SET_CATALOG_RECOVERY_EXPECTED_DATASET_VERSION,
-  SET_CATALOG_RECOVERY_BASELINE_ANALYSIS_HASH,
-  SET_CATALOG_RECOVERY_BASELINE_REPORT_HASH,
-  SET_CATALOG_RECOVERY_PHASE,
   classifyRecoveryPreflight,
   parseRecoveryReview,
 } from '../../scripts/catalog/set-catalog-recovery.ts';
