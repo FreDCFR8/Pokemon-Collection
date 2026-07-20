@@ -292,8 +292,7 @@ function sealReport(report: RecoveryReport): RecoveryReport {
 }
 
 function writeJson(path: string, value: unknown): void {
-  const fs = require('node:fs') as typeof import('node:fs');
-  fs.writeFileSync(path, `${JSON.stringify(value, null, 2)}\\n`, 'utf8');
+  writeFileSync(path, `${JSON.stringify(value, null, 2)}\\n`, 'utf8');
 }
 
 function datasetVersion(dataset: string): string {
