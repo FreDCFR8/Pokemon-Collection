@@ -23,6 +23,7 @@ test('safe external-reference scope rejects a changed dataset identity or missin
 test('runner requires exact external mapping evidence and has no set writes', () => {
   assert.match(source, /set_external_references/);
   assert.match(source, /exact extern setmappingbewijs/);
+  assert.doesNotMatch(source, /loaded\.setName/);
   assert.doesNotMatch(source, /\.from\('sets_catalog'\)\.(insert|update|upsert|delete)/);
 });
 
