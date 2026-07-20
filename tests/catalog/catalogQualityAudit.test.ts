@@ -32,6 +32,13 @@ test('catalog quality audit classifies missing metadata, details, and logical du
   assert.equal(results[0].missingCardDetails, 1);
 });
 
+test('catalog quality audit compares source and PostgreSQL release dates semantically', () => {
+  const scope = [{ setId: 'base1', expectedCards: 0, enabled: true }];
+  const sourceSets = new Map([['base1', { setCode: 'base1', name: 'Base', series: 'Base', printedTotal: 0, total: 0, releaseDate: '1999/01/09', symbolUrl: 'symbol', logoUrl: 'logo' }]]);
+  const results = buildQualityResults(scope, sourceSets, [{ id: 'set-1', set_code: 'base1', name: 'Base', series: 'Base', release_date: '1999-01-09', printed_total: 0, total: 0, symbol_url: 'symbol', logo_url: 'logo' }], []);
+  assert.deepEqual(results[0].issues, []);
+});
+
 test('catalog quality audit is read-only and rejects write-shaped invocation', () => {
   assert.match(source, /databaseWritesTotal: 0/);
   assert.match(source, /status: issueSets\.length === 0 \? 'CLEAN' : 'ACTION_REQUIRED'/);
