@@ -63,8 +63,8 @@ begin
   end if;
 
   if (
-    select count(*) <> count(distinct set_code)
-        or count(*) <> count(distinct external_id)
+    select count(*) <> count(distinct item.set_code)
+        or count(*) <> count(distinct item.external_id)
     from jsonb_to_recordset(p_entries) as item(set_code text, external_id text)
   ) then
     raise exception 'phase_7b_recovery_duplicate_identity';
