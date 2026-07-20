@@ -6,47 +6,39 @@ This document contains current operational state only. Historical direction belo
 
 ## Current phase
 
-**Current implementation: Phase 7B-2F9D-B — Set external references en gecontroleerde registratie van 41 veilige mappings (in uitvoering)**
+**Current implementation state: controlled import reset — design and read-only verification only.**
 
-Het structurele `public.set_external_references`-model en de read-only plan-/runnerflow zijn voorbereid. Het definitieve PR139-validatierapport levert exact 41 veilige mappings op; deze mappings zijn nog niet naar de database geschreven. `zsv10pt5`, `sv9` en `swsh9` blijven uitgesloten.
+PR147 (“Add controlled Phase 7B remaining-sets bulk workflow”) was closed without merge after technical review identified fundamental safety and correctness blockers. No code from PR147 is on `main`; no bulk dry-run or bulk database write from that PR was executed.
 
-**Phase 7B-2F9D-A — Read-only validatie van exacte setmappings (afgerond)**
+The next import step is not a new writer. It is a small, reviewable design and evidence phase that must establish one exact approved remaining-set list, mapping evidence, database transaction boundary, postchecks and true database idempotency criteria before implementation resumes.
 
-De validator verwerkte uitsluitend de 44 `exact_candidate`-resultaten uit het PR138-rapport tegen hetzelfde gepinde manifest en datasetprofiel. De definitieve read-only run eindigde met status `PASS`, 41 `safe_for_mapping_review`, 1 `needs_manual_review` (`zsv10pt5`, dubbele inkomende kaartnummers), 2 `blocked` (`sv9` en `swsh9`, echte kaartnummer-/naamidentiteitsconflicten), 0 operationele fouten en `databaseWritesTotal: 0`. Van de kandidaten vereisen 42 later `set_external_references`; 2 zijn `blocked_by_identity_conflict`.
+## Verified repository position
 
-**Phase 7B-2F9C — Read-only failure-classificatie en setmappingplan (afgerond)**
+- Current `main`: merge commit `8dffc6579f580fced1ea828690a16c6d205f10b2` (PR146).
+- Latest merged import hardening: PR143, PR144, PR145 and PR146.
+- PR147 is closed and unmerged.
+- The repository contains production application code and controlled catalog-import tooling; Phase 0/Blueprint wording is obsolete.
 
-De volledige vastgepinde lokale dataset is verwerkt met getypeerde, hervatbare en volledig read-only diagnostiek. Alle inhoudelijke blokkades zijn machineleesbaar geclassificeerd zonder catalogus- of collectiewrites.
+## Current operational import scope
 
-## Latest merged product milestone
+The following operational state is retained from approved import-run evidence and must be reconfirmed by a fresh read-only preflight before any future write:
 
-**Actuele laatste catalogusmijlpaal: PR139 — Phase 7B-2F9D-A: Read-only validatie van exacte setmappings**
+- local source: `PokemonTCG/pokemon-tcg-data`;
+- pinned dataset commit: `0af6250a22495e4a3e9f60ff45fc3fedc2e0563d`;
+- complete dataset profile: 173 sets and 20,324 cards;
+- 39 sets were processed through Batches 1–3 with completed write and idempotency evidence;
+- 134 sets remain outside the approved import scope;
+- `cel25c`, `sv9`, `swsh9` and `zsv10pt5` require manual review and may never enter an automatic writeplan.
 
-PR139 eindigde met 41 `safe_for_mapping_review`, 1 `needs_manual_review` (`zsv10pt5`), 2 `blocked` (`sv9`, `swsh9`), 0 operationele fouten en 0 databasewrites. Schema- en datawrites vereisen afzonderlijke expliciete goedkeuring.
+No database count is claimed here without a new read-only database report.
 
-**PR138 — Phase 7B-2F9C: Read-only failure-classificatie en setmappingdiagnostiek**
+## Source-of-truth order
 
-PR138 rondt de volledige lokale analyse af. De batchrunner blijft orchestratie-only, hergebruikt `import-set.ts` en wijzigt geen `cards_catalog`, `card_external_references`, `sets_catalog` of `collection_cards`.
-
-## Completed work
-
-Phase 7B-2F9C:
-
-- automatische inventarisatie via `catalog:manifest:generate -- --input-root <datasetmap> --output <manifestpad> [--report <rapportpad>]`;
-- de generator controleert een schone checkout met exact de vastgepinde datasetcommit;
-- setindex en alle Engelse kaartbestanden worden volledig lokaal gevalideerd;
-- `sets/en.json` bepaalt de volledige setlijst en `sets/en.json.total` wordt als `indexedCardsTotal` gerapporteerd;
-- de werkelijke kaartbestandslengte bepaalt `expectedCards` in het manifest en `receivedCardsTotal`; het vastgestelde volledige datasetprofiel is 20.219 geïndexeerde kaarten, 20.324 kaartrecords en zes count-waarschuwingen;
-- countverschillen zijn niet-blokkerende waarschuwingen; ontbrekende bestanden, ongeldige JSON, kaart-ID-fouten en checkoutfouten blijven blokkerend;
-- manifestoutput wordt alleen bij een volledige PASS atomisch geschreven;
-- checkpoint/resume gebruikt een atomisch machineleesbaar checkpoint, exact manifest- en setfingerprint, datasetcheckoutvalidatie en gesanitiseerde per-setstatus;
-- het eindrapport is atomisch en rapporteert expliciet `databaseWritesTotal: 0`;
-- de volledige operationele run verwerkte 173/173 sets en 20.324/20.324 kaarten;
-- 7 sets slaagden inhoudelijk en 166 sets bleven veilig geblokkeerd;
-- er waren 0 pending sets, 0 runnerfouten en 0 databasewrites;
-- setmappingstatussen: 11 `already_reliable`, 44 `exact_candidate` en 118 `no_candidate`;
-- failureclassificaties: 162 `missing_set_mapping`, 5 `card_identity_conflict` en 4 `fallback_metadata_mismatch`;
-- 5 fallbackkandidaten werden onderzocht en 0 daarvan waren automatisch veilig.
+1. current code and tests on `main`;
+2. merged pull requests;
+3. current read-only Supabase evidence;
+4. explicit operational evidence approved by the project owner;
+5. older reports and conversation history only as context.
 
 ## Current architecture baseline
 
@@ -110,6 +102,6 @@ De operationele 2F9C-run is afgerond: 173 sets verwerkt, 7 inhoudelijke PASS, 16
 
 De volgende fase introduceert `set_external_references`, bereidt de 41 veilige mappings gecontroleerd voor, beoordeelt `zsv10pt5` afzonderlijk en houdt `sv9` en `swsh9` geblokkeerd tot conflictresolutie. Iedere mappingwijziging en bredere cataloguswrite vereist afzonderlijke analyse, expliciete goedkeuring en een eigen PR. De 118 sets zonder kandidaat blijven geblokkeerd. Trade remains a separate future area and the lowest product priority.
 
-## Phase 7B-2F9E-A/B operational status
+## Next approved import phase
 
-Batch 1 is reeds naar Supabase geschreven. De actuele bekende counts zijn `cards_catalog=3213` en `card_external_references=3176`; `collection_cards` blijft beschermd. Reconciliation is alleen live bevestigd na een lokale read-only run; door de gebruiker aangeleverde evidence wordt niet als live reconciliation geregistreerd. Batch 2 en Batch 3 blijven geblokkeerd totdat dataset, manifest, officiële setlijst en writeplan lokaal opnieuw `PASS` zijn. De 130 `BLOCKED`-sets en 4 `NEEDS_MANUAL_REVIEW`-sets worden niet geïmporteerd.
+Before a new import implementation starts, create and review a design-only specification for the remaining sets. It must keep manual-review sets blocked, define one exact approved set list and mapping-evidence format, and require transaction-safe catalog/reference writes plus exact postchecks and a real idempotency run.
