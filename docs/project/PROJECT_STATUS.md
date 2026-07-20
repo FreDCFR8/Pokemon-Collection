@@ -27,10 +27,24 @@ The following operational state is retained from approved import-run evidence an
 - pinned dataset commit: `0af6250a22495e4a3e9f60ff45fc3fedc2e0563d`;
 - complete dataset profile: 173 sets and 20,324 cards;
 - 39 sets were processed through Batches 1–3 with completed write and idempotency evidence;
-- 134 sets remain outside the approved import scope;
-- `cel25c`, `sv9`, `swsh9` and `zsv10pt5` require manual review and may never enter an automatic writeplan.
+- 134 sets remain outside the approved import scope.
 
-No database count is claimed here without a new read-only database report.
+## Read-only baseline — 2026-07-20
+
+The local pinned dataset and Supabase were remeasured without writes.
+
+- report hash: `30c9044a0f52b7dba0cb164cff99ce8fbd2f8d14ca1ce7c75b1a03b60ab51288`;
+- analysis hash: `dd8391f56de294adb8e47d5a56d3d770c335a8ca7fffbfd907f08bb072cf2d6e`;
+- manifest hash: `c5604ffa39e017e08eca089770bce82a786b1b20ebb45ee9bc0d6d22db3b6ab3`;
+- dataset profile: 173/173 sets and 20,324/20,324 cards;
+- classification: 39 `PASS`, 132 `BLOCKED`, 2 `NEEDS_MANUAL_REVIEW`;
+- 118 blocked sets have no reliable set mapping;
+- 14 blocked sets have existing identity/reference conflicts; `sv9` and `swsh9` are in this stricter blocked category;
+- manual review: `cel25c` and `zsv10pt5`, both because of duplicate incoming card numbers;
+- protected table snapshot before and after was unchanged: `cards_catalog=7391`, `card_external_references=7354`, `collection_cards=1106`, `sets_catalog=55`, `set_external_references=41`;
+- `databaseWritesTotal: 0`, with zero operational and postcheck errors.
+
+All four exceptional sets remain excluded from automatic writes: `cel25c` and `zsv10pt5` require manual review; `sv9` and `swsh9` remain blocked until their conflicts are resolved.
 
 ## Source-of-truth order
 
