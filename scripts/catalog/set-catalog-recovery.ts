@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { inventoryLocalDataset } from './generate-local-manifest.ts';
 import { localManifestIdentity } from './catalog-manifest-identity.ts';
@@ -296,6 +296,7 @@ function sealReport(report: RecoveryReport): RecoveryReport {
 }
 
 function writeJson(path: string, value: unknown): void {
+  if (existsSync(path)) throw new SetCatalogRecoveryError('Rapportpad bestaat al; kies een nieuw, versiegebonden bestandsnaam.');
   writeFileSync(path, `${JSON.stringify(value, null, 2)}\\n`, 'utf8');
 }
 
