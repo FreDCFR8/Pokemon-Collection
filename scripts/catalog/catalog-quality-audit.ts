@@ -47,6 +47,7 @@ export type SetQualityResult = {
 function isNonBlankString(value: unknown): value is string { return typeof value === 'string' && value.trim() !== ''; }
 function isNonNegativeInteger(value: unknown): value is number { return Number.isInteger(value) && (value as number) >= 0; }
 function normalized(value: string | null | undefined): string { return (value ?? '').trim(); }
+function normalizedDate(value: string | null | undefined): string { return normalized(value).replaceAll('/', '-'); }
 function emptyDetails(value: unknown): boolean {
   return value === null || value === undefined || (typeof value === 'object' && !Array.isArray(value) && Object.keys(value as object).length === 0);
 }
@@ -92,7 +93,7 @@ export function parseSourceSets(value: unknown, manifestSets: ManifestSet[]): Ma
 
 function sameSetMetadata(source: SourceSet, database: DatabaseSet): boolean {
   return database.name === source.name && normalized(database.series) === source.series
-    && database.release_date === source.releaseDate && database.printed_total === source.printedTotal
+    && normalizedDate(database.release_date) === normalizedDate(source.releaseDate) && database.printed_total === source.printedTotal
     && database.total === source.total && normalized(database.symbol_url) === source.symbolUrl
     && normalized(database.logo_url) === source.logoUrl;
 }
