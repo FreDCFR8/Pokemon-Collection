@@ -4,3 +4,6 @@ supabase/.temp/
 *.tsbuildinfo
 vite.config.d.ts
 vite.config.js
+.env
+.env.*
+!.env.example
