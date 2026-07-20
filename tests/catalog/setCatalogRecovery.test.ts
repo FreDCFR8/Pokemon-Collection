@@ -24,15 +24,15 @@ test('remaining recovery review has exactly the approved 117-entry scope', () =>
 
 test('remaining recovery review rejects a changed dataset identity', () => {
   const changed = JSON.parse(currentReviewText) as Record<string, unknown>;
-  changed.datasetVersion = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+  changed.createdFrom = { ...(changed.createdFrom as Record<string, unknown>), datasetVersion: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' };
 
   assert.throws(() => parseRecoveryReview(JSON.stringify(changed)), /gepinde datasetidentiteit/);
 });
 
 test('remaining recovery review rejects a manual-review set in write scope', () => {
-  const changed = JSON.parse(currentReviewText) as { entries: Array<Record<string, unknown>> };
-  changed.entries[0] = {
-    ...changed.entries[0],
+  const changed = JSON.parse(currentReviewText) as { proposedMappings: Array<Record<string, unknown>> };
+  changed.proposedMappings[0] = {
+    ...changed.proposedMappings[0],
     setId: 'sv9',
     proposedSetCode: 'sv9',
     externalReference: { source: 'pokemon_tcg_api', externalId: 'sv9' },
@@ -42,10 +42,10 @@ test('remaining recovery review rejects a manual-review set in write scope', () 
 });
 
 test('remaining recovery review rejects a metadata or external-identity mismatch', () => {
-  const changed = JSON.parse(currentReviewText) as { entries: Array<Record<string, unknown>>; datasetVersion: string };
-  assert.equal(changed.datasetVersion, SET_CATALOG_RECOVERY_EXPECTED_DATASET_VERSION);
-  changed.entries[0] = {
-    ...changed.entries[0],
+  const changed = JSON.parse(currentReviewText) as { proposedMappings: Array<Record<string, unknown>>; createdFrom: { datasetVersion: string } };
+  assert.equal(changed.createdFrom.datasetVersion, SET_CATALOG_RECOVERY_EXPECTED_DATASET_VERSION);
+  changed.proposedMappings[0] = {
+    ...changed.proposedMappings[0],
     externalReference: { source: 'pokemon_tcg_api', externalId: 'different' },
   };
 
