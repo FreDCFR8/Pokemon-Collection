@@ -4,6 +4,10 @@ import test from 'node:test';
 import {
   SET_CATALOG_RECOVERY_EXPECTED_SETS,
   SET_CATALOG_RECOVERY_EXPECTED_DATASET_VERSION,
+  SET_CATALOG_RECOVERY_BASELINE_ANALYSIS_HASH,
+  SET_CATALOG_RECOVERY_BASELINE_REPORT_HASH,
+  SET_CATALOG_RECOVERY_PHASE,
+  classifyRecoveryPreflight,
   parseRecoveryReview,
 } from '../../scripts/catalog/set-catalog-recovery.ts';
 
@@ -49,4 +53,51 @@ test('remaining recovery review rejects a metadata or external-identity mismatch
   };
 
   assert.throws(() => parseRecoveryReview(JSON.stringify(changed)), /exacte herstelidentiteit/);
+});
+
+
+function entry(index: number) {
+  const code = `test${String(index).padStart(3, '0')}`;
+  return {
+    set_code: code, name: `Set ${index}`, series: 'Test', generation: null,
+    release_date: '2020-01-01', printed_total: index, total: index,
+    symbol_url: null, logo_url: null, source: 'pokemon_tcg_api' as const,
+    source_id: code, external_id: code,
+  };
+}
+
+test('preflight classifies an all-absent scope without treating it as PASS writes', () => {
+  const entries = Array.from({ length: SET_CATALOG_RECOVERY_EXPECTED_SETS }, (_, index) => entry(index));
+  const result = classifyRecoveryPreflight(entries, [], []);
+
+  assert.equal(result.absent.length, SET_CATALOG_RECOVERY_EXPECTED_SETS);
+  assert.deepEqual(result.exactExisting, []);
+  assert.deepEqual(result.conflicts, []);
+});
+
+test('preflight accepts only exact existing catalog and reference identities', () => {
+  const entries = Array.from({ length: SET_CATALOG_RECOVERY_EXPECTED_SETS }, (_, index) => entry(index));
+  const sets = entries.map((item, index) => ({
+    id: `00000000-0000-4000-8000-${String(index).padStart(12, '0')}`,
+    set_code: item.set_code, name: item.name, series: item.series, generation: item.generation,
+    release_date: item.release_date, printed_total: item.printed_total, total: item.total,
+    symbol_url: item.symbol_url, logo_url: item.logo_url, source: item.source, source_id: item.source_id,
+  }));
+  const references = sets.map((set, index) => ({ set_catalog_id: set.id, source: 'pokemon_tcg_api', external_id: entries[index].external_id }));
+  const result = classifyRecoveryPreflight(entries, sets, references);
+
+  assert.equal(result.exactExisting.length, SET_CATALOG_RECOVERY_EXPECTED_SETS);
+  assert.deepEqual(result.absent, []);
+  assert.deepEqual(result.conflicts, []);
+});
+
+test('preflight blocks a metadata or reference conflict', () => {
+  const item = entry(1);
+  const result = classifyRecoveryPreflight(
+    [item],
+    [{ id: '00000000-0000-4000-8000-000000000001', ...item, name: 'Wrong name' }],
+    [{ set_catalog_id: '00000000-0000-4000-8000-000000000001', source: 'pokemon_tcg_api', external_id: item.external_id }],
+  );
+
+  assert.deepEqual(result.conflicts, [item.set_code]);
 });
