@@ -40,7 +40,10 @@ export function createWritePlan(inputRoot: string, scope: ManifestSet[]): CardRo
   const rows: CardRow[] = [];
   for (const set of scope) {
     const loaded = loadPokemonTcgDataJson(join(inputRoot, set.jsonPath), set.setId);
-    if (loaded.setName !== set.name || loaded.cards.length !== set.expectedCards) throw new Error(`${set.setId}: lokale datasetmetadata wijkt af van het manifest.`);
+    // Upstream per-set card files may omit repeated set-name metadata. The
+    // pinned manifest is canonical for the set name; local-json validates a
+    // present card.set.id against this setId.
+    if (loaded.cards.length !== set.expectedCards) throw new Error(`${set.setId}: lokaal kaartenaantal wijkt af van het manifest.`);
     for (const card of loaded.cards) {
       if (!card.id || !card.name || !card.number) throw new Error(`${set.setId}: kaartmetadata ontbreekt.`);
       rows.push({ id: deterministicCatalogCardUuid(SOURCE, card.id), external_id: card.id, pokemon: card.name, set_name: set.name, set_code: set.setId, number: card.number, rarity: card.rarity ?? null, image_small: card.images?.small ?? null, image_large: card.images?.large ?? null, card_details: card.details });
