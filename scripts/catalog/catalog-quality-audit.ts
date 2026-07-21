@@ -26,6 +26,7 @@ type DatabaseSet = {
   printed_total: number | null; total: number | null; symbol_url: string | null; logo_url: string | null;
 };
 type DatabaseCard = { id: string; set_code: string; number: string; pokemon: string; card_details: unknown };
+type DatabaseSetReference = { set_catalog_id: string; source: string; external_id: string };
 
 export type QualityIssue =
   | 'missing_set_row' | 'missing_series' | 'missing_release_date' | 'missing_printed_total'
@@ -34,6 +35,8 @@ export type QualityIssue =
 
 export type SetQualityResult = {
   setCode: string;
+  catalogSetCode: string | null;
+  resolution: 'exact_set_code' | 'external_reference_alias' | 'missing';
   expectedCards: number;
   catalogCards: number;
   missingCardDetails: number;
@@ -98,8 +101,19 @@ function sameSetMetadata(source: SourceSet, database: DatabaseSet): boolean {
     && normalized(database.logo_url) === source.logoUrl;
 }
 
-export function buildQualityResults(manifestSets: ManifestSet[], sourceSets: Map<string, SourceSet>, databaseSets: DatabaseSet[], databaseCards: DatabaseCard[]): SetQualityResult[] {
+export function buildQualityResults(
+  manifestSets: ManifestSet[], sourceSets: Map<string, SourceSet>, databaseSets: DatabaseSet[], databaseCards: DatabaseCard[],
+  databaseSetReferences: DatabaseSetReference[] = [],
+): SetQualityResult[] {
   const setsByCode = new Map(databaseSets.map((set) => [set.set_code, set]));
+  const setsById = new Map(databaseSets.map((set) => [set.id, set]));
+  const pokemonTcgApiSetIdsByExternalId = new Map<string, Set<string>>();
+  for (const reference of databaseSetReferences) {
+    if (reference.source !== 'pokemon_tcg_api') continue;
+    const setIds = pokemonTcgApiSetIdsByExternalId.get(reference.external_id) ?? new Set<string>();
+    setIds.add(reference.set_catalog_id);
+    pokemonTcgApiSetIdsByExternalId.set(reference.external_id, setIds);
+  }
   const cardsBySet = new Map<string, DatabaseCard[]>();
   for (const card of databaseCards) {
     const cards = cardsBySet.get(card.set_code) ?? [];
@@ -109,8 +123,12 @@ export function buildQualityResults(manifestSets: ManifestSet[], sourceSets: Map
   return manifestSets.map((manifestSet) => {
     const source = sourceSets.get(manifestSet.setId);
     if (!source) throw new Error(`${manifestSet.setId}: bronmetadata ontbreekt.`);
-    const database = setsByCode.get(manifestSet.setId) ?? null;
-    const cards = cardsBySet.get(manifestSet.setId) ?? [];
+    const exactDatabase = setsByCode.get(manifestSet.setId) ?? null;
+    const aliasSetIds = [...(pokemonTcgApiSetIdsByExternalId.get(manifestSet.setId) ?? [])];
+    const aliasDatabase = exactDatabase || aliasSetIds.length !== 1 ? null : setsById.get(aliasSetIds[0]) ?? null;
+    const database = exactDatabase ?? aliasDatabase;
+    const resolution = exactDatabase ? 'exact_set_code' : aliasDatabase ? 'external_reference_alias' : 'missing';
+    const cards = database ? cardsBySet.get(database.set_code) ?? [] : [];
     const grouped = new Map<string, DatabaseCard[]>();
     for (const card of cards) {
       const key = `${card.number}\u0000${card.pokemon}`;
@@ -135,7 +153,8 @@ export function buildQualityResults(manifestSets: ManifestSet[], sourceSets: Map
     if (missingCardDetails > 0) issues.push('missing_card_details');
     if (duplicateGroups.length > 0) issues.push('duplicate_logical_card');
     return {
-      setCode: manifestSet.setId, expectedCards: manifestSet.expectedCards, catalogCards: cards.length,
+      setCode: manifestSet.setId, catalogSetCode: database?.set_code ?? null, resolution,
+      expectedCards: manifestSet.expectedCards, catalogCards: cards.length,
       missingCardDetails, duplicateLogicalCards: duplicateGroups.length,
       duplicateRows: duplicateGroups.reduce((sum, group) => sum + group.length, 0),
       issues, source, database,
@@ -176,12 +195,14 @@ async function main(): Promise<void> {
   if (!url || !key) throw new Error('SUPABASE_URL en SUPABASE_SERVICE_ROLE_KEY ontbreken.');
   const client = createClient(url, key);
   const before = { setsCatalog: await exactCount(client, 'sets_catalog'), cardsCatalog: await exactCount(client, 'cards_catalog') };
-  const [{ data: rawSets, error: setsError }, cards] = await Promise.all([
+  const [{ data: rawSets, error: setsError }, { data: rawSetReferences, error: referencesError }, cards] = await Promise.all([
     client.from('sets_catalog').select('id,set_code,name,series,release_date,printed_total,total,symbol_url,logo_url').order('set_code'),
+    client.from('set_external_references').select('set_catalog_id,source,external_id').eq('source', 'pokemon_tcg_api').order('set_catalog_id'),
     readAllCards(client),
   ]);
   if (setsError || !rawSets) throw new Error('sets_catalog-read mislukt.');
-  const results = buildQualityResults(manifestSets, sourceSets, rawSets as DatabaseSet[], cards);
+  if (referencesError || !rawSetReferences) throw new Error('set_external_references-read mislukt.');
+  const results = buildQualityResults(manifestSets, sourceSets, rawSets as DatabaseSet[], cards, rawSetReferences as DatabaseSetReference[]);
   const after = { setsCatalog: await exactCount(client, 'sets_catalog'), cardsCatalog: await exactCount(client, 'cards_catalog') };
   if (before.setsCatalog !== after.setsCatalog || before.cardsCatalog !== after.cardsCatalog) throw new Error('Audit abort: database veranderde tijdens de read-only meting.');
   const issueSets = results.filter((result) => result.issues.length > 0);
