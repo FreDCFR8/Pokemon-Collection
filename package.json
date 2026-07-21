@@ -15,6 +15,7 @@
     "catalog:set-mappings:apply": "node --experimental-strip-types scripts/catalog/apply-set-mappings.ts",
     "catalog:set-mappings:validate": "node --experimental-strip-types scripts/catalog/validate-set-mappings.ts",
     "catalog:backfill:details": "node --experimental-strip-types scripts/catalog/backfill-details.ts",
+    "catalog:details:complete-sets": "node --experimental-strip-types scripts/catalog/apply-catalog-details-complete-sets.ts",
     "catalog:phase7b:safe116": "node --experimental-strip-types scripts/catalog/phase-7b-import-safe-116.ts",
     "catalog:phase7b:safe-six-external-sets": "node --experimental-strip-types scripts/catalog/phase-7b-import-six-external-sets.ts",
     "catalog:phase7b:recover-six-legacy-duplicates": "node --experimental-strip-types scripts/catalog/phase-7b-recover-six-legacy-duplicates.ts",
