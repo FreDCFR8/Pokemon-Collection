@@ -9,6 +9,9 @@ test('complete-set details runner binds to the approved read-only quality audit'
   assert.match(runner, /017a7cb5030cca30b9059b3e7e91171fc9c84cf2b24e7c55431706c25945d42f/);
   assert.match(runner, /EXPECTED_SET_COUNT = 35/);
   assert.match(runner, /EXPECTED_DETAIL_ROWS = 607/);
+  assert.match(runner, /PRECHECK_BATCH_SIZE = 100/);
+  assert.match(runner, /chunks\(targets, PRECHECK_BATCH_SIZE\)/);
+  assert.match(runner, /Exacte detailkaart-precheck batch/);
   assert.match(runner, /issues\.length === 1 && result\.issues\[0\] === 'missing_card_details'/);
   assert.match(runner, /validateLocalDatasetCheckout/);
 });
