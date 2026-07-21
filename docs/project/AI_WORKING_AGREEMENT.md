@@ -109,6 +109,8 @@ For an existing PR revision, state explicitly:
 
 Before local work, Codex should confirm the current branch and clean working state and fetch the latest remote state.
 
+Before a PR is described as published, tested or ready for review, Codex must prove the exact remote state: commit the intended files, push the branch, fetch the remote branch again and confirm that the pushed commit SHA is the branch head and is the commit compared by the PR. All branch-level tests and operational audits must run from that verified remote commit. A local diff or local test result is never proof for a PR.
+
 ## 8. Database work
 
 Before a write:
