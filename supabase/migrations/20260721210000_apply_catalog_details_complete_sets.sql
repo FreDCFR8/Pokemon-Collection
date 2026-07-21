@@ -33,9 +33,15 @@ begin
     target_card_details jsonb
   )
   where c.id = r.id
-    and c.external_id = r.expected_external_id
     and c.set_code = r.expected_set_code
     and (c.card_details is null or c.card_details = '{}'::jsonb)
+    and exists (
+      select 1
+      from public.card_external_references as cer
+      where cer.card_catalog_id = c.id
+        and cer.source = 'pokemon_tcg_api'
+        and cer.external_id = r.expected_external_id
+    )
     and jsonb_typeof(r.target_card_details) = 'object'
     and r.target_card_details <> '{}'::jsonb;
 
