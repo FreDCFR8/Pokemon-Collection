@@ -24,9 +24,9 @@ type SourceSet = {
 type DatabaseSet = {
   id: string; set_code: string; name: string; series: string | null; release_date: string | null;
   printed_total: number | null; total: number | null; symbol_url: string | null; logo_url: string | null;
+  source?: string | null; source_id?: string | null;
 };
 type DatabaseCard = { id: string; set_code: string; number: string; pokemon: string; card_details: unknown };
-type DatabaseSetReference = { set_catalog_id: string; source: string; external_id: string };
 
 export type QualityIssue =
   | 'missing_set_row' | 'missing_series' | 'missing_release_date' | 'missing_printed_total'
@@ -103,17 +103,8 @@ function sameSetMetadata(source: SourceSet, database: DatabaseSet): boolean {
 
 export function buildQualityResults(
   manifestSets: ManifestSet[], sourceSets: Map<string, SourceSet>, databaseSets: DatabaseSet[], databaseCards: DatabaseCard[],
-  databaseSetReferences: DatabaseSetReference[] = [],
 ): SetQualityResult[] {
   const setsByCode = new Map(databaseSets.map((set) => [set.set_code, set]));
-  const setsById = new Map(databaseSets.map((set) => [set.id, set]));
-  const pokemonTcgApiSetIdsByExternalId = new Map<string, Set<string>>();
-  for (const reference of databaseSetReferences) {
-    if (reference.source !== 'pokemon_tcg_api') continue;
-    const setIds = pokemonTcgApiSetIdsByExternalId.get(reference.external_id) ?? new Set<string>();
-    setIds.add(reference.set_catalog_id);
-    pokemonTcgApiSetIdsByExternalId.set(reference.external_id, setIds);
-  }
   const cardsBySet = new Map<string, DatabaseCard[]>();
   for (const card of databaseCards) {
     const cards = cardsBySet.get(card.set_code) ?? [];
@@ -124,8 +115,8 @@ export function buildQualityResults(
     const source = sourceSets.get(manifestSet.setId);
     if (!source) throw new Error(`${manifestSet.setId}: bronmetadata ontbreekt.`);
     const exactDatabase = setsByCode.get(manifestSet.setId) ?? null;
-    const aliasSetIds = [...(pokemonTcgApiSetIdsByExternalId.get(manifestSet.setId) ?? [])];
-    const aliasDatabase = exactDatabase || aliasSetIds.length !== 1 ? null : setsById.get(aliasSetIds[0]) ?? null;
+    const legacyAliases = databaseSets.filter((set) => set.source === 'pokemon_tcg_api' && set.source_id === manifestSet.setId);
+    const aliasDatabase = exactDatabase || legacyAliases.length !== 1 ? null : legacyAliases[0];
     const database = exactDatabase ?? aliasDatabase;
     const resolution = exactDatabase ? 'exact_set_code' : aliasDatabase ? 'external_reference_alias' : 'missing';
     const cards = database ? cardsBySet.get(database.set_code) ?? [] : [];
@@ -195,14 +186,12 @@ async function main(): Promise<void> {
   if (!url || !key) throw new Error('SUPABASE_URL en SUPABASE_SERVICE_ROLE_KEY ontbreken.');
   const client = createClient(url, key);
   const before = { setsCatalog: await exactCount(client, 'sets_catalog'), cardsCatalog: await exactCount(client, 'cards_catalog') };
-  const [{ data: rawSets, error: setsError }, { data: rawSetReferences, error: referencesError }, cards] = await Promise.all([
-    client.from('sets_catalog').select('id,set_code,name,series,release_date,printed_total,total,symbol_url,logo_url').order('set_code'),
-    client.from('set_external_references').select('set_catalog_id,source,external_id').eq('source', 'pokemon_tcg_api').order('set_catalog_id'),
+  const [{ data: rawSets, error: setsError }, cards] = await Promise.all([
+    client.from('sets_catalog').select('id,set_code,name,series,release_date,printed_total,total,symbol_url,logo_url,source,source_id').order('set_code'),
     readAllCards(client),
   ]);
   if (setsError || !rawSets) throw new Error('sets_catalog-read mislukt.');
-  if (referencesError || !rawSetReferences) throw new Error('set_external_references-read mislukt.');
-  const results = buildQualityResults(manifestSets, sourceSets, rawSets as DatabaseSet[], cards, rawSetReferences as DatabaseSetReference[]);
+  const results = buildQualityResults(manifestSets, sourceSets, rawSets as DatabaseSet[], cards);
   const after = { setsCatalog: await exactCount(client, 'sets_catalog'), cardsCatalog: await exactCount(client, 'cards_catalog') };
   if (before.setsCatalog !== after.setsCatalog || before.cardsCatalog !== after.cardsCatalog) throw new Error('Audit abort: database veranderde tijdens de read-only meting.');
   const issueSets = results.filter((result) => result.issues.length > 0);
