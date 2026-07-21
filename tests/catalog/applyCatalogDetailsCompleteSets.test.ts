@@ -13,6 +13,10 @@ test('complete-set details runner binds to the approved read-only quality audit'
   assert.match(runner, /chunks\(targets, PRECHECK_BATCH_SIZE\)/);
   assert.match(runner, /Exacte detailkaart-precheck batch/);
   assert.match(runner, /canonieke catalogusidentiteit wijkt af/);
+  assert.match(runner, /options\.mode === 'idempotency'/);
+  assert.match(runner, /includeFilled \? entry\.expectedCards : auditSet\.missingCardDetails/);
+  assert.match(runner, /Volledige detailscope kon niet worden opgebouwd/);
+  assert.match(runner, /verifiedRows: targets\.length/);
   assert.match(runner, /issues\.length === 1 && result\.issues\[0\] === 'missing_card_details'/);
   assert.match(runner, /validateLocalDatasetCheckout/);
 });
