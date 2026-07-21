@@ -39,32 +39,29 @@ test('catalog quality audit compares source and PostgreSQL release dates semanti
   assert.deepEqual(results[0].issues, []);
 });
 
-test('catalog quality audit resolves sv4pt5 only through one exact Pokémon TCG API set reference', () => {
+test('catalog quality audit resolves sv4pt5 only through one exact legacy Pokémon TCG API source_id', () => {
   const scope = [{ setId: 'sv4pt5', expectedCards: 2, enabled: true }];
   const sourceSets = new Map([['sv4pt5', { setCode: 'sv4pt5', name: 'Paldean Fates', series: 'Scarlet & Violet', printedTotal: 2, total: 2, releaseDate: '2024/01/26', symbolUrl: 'symbol', logoUrl: 'logo' }]]);
-  const databaseSets = [{ id: 'set-45', set_code: 'sv45', name: 'Paldean Fates', series: 'Scarlet & Violet', release_date: '2024-01-26', printed_total: 2, total: 2, symbol_url: 'symbol', logo_url: 'logo' }];
+  const databaseSets = [{ id: 'set-45', set_code: 'sv45', name: 'Paldean Fates', series: 'Scarlet & Violet', release_date: '2024-01-26', printed_total: 2, total: 2, symbol_url: 'symbol', logo_url: 'logo', source: 'pokemon_tcg_api', source_id: 'sv4pt5' }];
   const cards = [
     { id: 'one', set_code: 'sv45', number: '1', pokemon: 'Mew', card_details: { hp: '60' } },
     { id: 'two', set_code: 'sv45', number: '2', pokemon: 'Pikachu', card_details: { hp: '70' } },
   ];
-  const results = buildQualityResults(scope, sourceSets, databaseSets, cards, [{ set_catalog_id: 'set-45', source: 'pokemon_tcg_api', external_id: 'sv4pt5' }]);
+  const results = buildQualityResults(scope, sourceSets, databaseSets, cards);
   assert.equal(results[0].catalogSetCode, 'sv45');
   assert.equal(results[0].resolution, 'external_reference_alias');
   assert.equal(results[0].catalogCards, 2);
   assert.deepEqual(results[0].issues, []);
 });
 
-test('catalog quality audit fails closed when an external alias is ambiguous', () => {
+test('catalog quality audit fails closed when a legacy Pokémon TCG API source_id alias is ambiguous', () => {
   const scope = [{ setId: 'sv4pt5', expectedCards: 0, enabled: true }];
   const sourceSets = new Map([['sv4pt5', { setCode: 'sv4pt5', name: 'Paldean Fates', series: 'Scarlet & Violet', printedTotal: 0, total: 0, releaseDate: '2024/01/26', symbolUrl: 'symbol', logoUrl: 'logo' }]]);
   const databaseSets = [
-    { id: 'set-a', set_code: 'sv45', name: 'Paldean Fates', series: 'Scarlet & Violet', release_date: '2024-01-26', printed_total: 0, total: 0, symbol_url: 'symbol', logo_url: 'logo' },
-    { id: 'set-b', set_code: 'unexpected', name: 'Paldean Fates', series: 'Scarlet & Violet', release_date: '2024-01-26', printed_total: 0, total: 0, symbol_url: 'symbol', logo_url: 'logo' },
+    { id: 'set-a', set_code: 'sv45', name: 'Paldean Fates', series: 'Scarlet & Violet', release_date: '2024-01-26', printed_total: 0, total: 0, symbol_url: 'symbol', logo_url: 'logo', source: 'pokemon_tcg_api', source_id: 'sv4pt5' },
+    { id: 'set-b', set_code: 'unexpected', name: 'Paldean Fates', series: 'Scarlet & Violet', release_date: '2024-01-26', printed_total: 0, total: 0, symbol_url: 'symbol', logo_url: 'logo', source: 'pokemon_tcg_api', source_id: 'sv4pt5' },
   ];
-  const results = buildQualityResults(scope, sourceSets, databaseSets, [], [
-    { set_catalog_id: 'set-a', source: 'pokemon_tcg_api', external_id: 'sv4pt5' },
-    { set_catalog_id: 'set-b', source: 'pokemon_tcg_api', external_id: 'sv4pt5' },
-  ]);
+  const results = buildQualityResults(scope, sourceSets, databaseSets, []);
   assert.equal(results[0].resolution, 'missing');
   assert.equal(results[0].catalogSetCode, null);
   assert.ok(results[0].issues.includes('missing_set_row'));
