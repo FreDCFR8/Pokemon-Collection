@@ -23,7 +23,7 @@ type ApprovedAudit = {
   dataset?: { version?: string }; summary?: { missingCardDetails?: number; duplicateLogicalCards?: number; duplicateRows?: number };
   results?: AuditResult[]; reportHash?: string;
 };
-type CatalogCard = { id: string; external_id: string | null; set_code: string | null; card_details: CardDetails | null };
+type CatalogCard = { id: string; set_code: string | null; card_details: CardDetails | null };
 type ExternalReference = { card_catalog_id: string; external_id: string };
 type DetailTarget = { id: string; externalId: string; setCode: string; details: CardDetails };
 
@@ -89,7 +89,7 @@ async function snapshot(client: ReturnType<typeof createClient>) {
 }
 
 async function readSetCards(client: ReturnType<typeof createClient>, setCode: string): Promise<CatalogCard[]> {
-  const { data, error } = await client.from('cards_catalog').select('id,external_id,set_code,card_details').eq('set_code', setCode).order('id');
+  const { data, error } = await client.from('cards_catalog').select('id,set_code,card_details').eq('set_code', setCode).order('id');
   if (error || !data) throw new Error(`${setCode}: cards_catalog-read mislukt.`);
   return data as CatalogCard[];
 }
@@ -131,19 +131,24 @@ async function buildTargets(client: ReturnType<typeof createClient>, inputRoot: 
 async function verifyTargetState(client: ReturnType<typeof createClient>, targets: DetailTarget[], expected: 'empty' | 'filled'): Promise<void> {
   const byId = new Map(targets.map((target) => [target.id, target]));
   const cards: CatalogCard[] = [];
+  const references: ExternalReference[] = [];
   for (const [index, batch] of chunks(targets, PRECHECK_BATCH_SIZE).entries()) {
     const { data, error } = await client
       .from('cards_catalog')
-      .select('id,external_id,set_code,card_details')
+      .select('id,set_code,card_details')
       .in('id', batch.map((target) => target.id));
     if (error) throw new Error(`Exacte detailkaart-precheck batch ${index + 1} mislukt: ${error.message}`);
     if (!data || data.length !== batch.length) throw new Error(`Exacte detailkaart-precheck batch ${index + 1} bevat ${data?.length ?? 0} kaarten; verwacht ${batch.length}.`);
     cards.push(...(data as CatalogCard[]));
+    references.push(...await readReferences(client, batch.map((target) => target.id)));
   }
   if (cards.length !== EXPECTED_DETAIL_ROWS) throw new Error(`Exacte detailkaart-precheck bevat ${cards.length} kaarten; verwacht ${EXPECTED_DETAIL_ROWS}.`);
+  const referencesByCardId = new Map<string, ExternalReference[]>();
+  for (const reference of references) referencesByCardId.set(reference.card_catalog_id, [...(referencesByCardId.get(reference.card_catalog_id) ?? []), reference]);
   for (const card of cards) {
     const target = byId.get(card.id);
-    if (!target || card.external_id !== target.externalId || card.set_code !== target.setCode) throw new Error(`${card.id}: catalogusidentiteit wijkt af.`);
+    const matchingReferences = target ? (referencesByCardId.get(card.id) ?? []).filter((reference) => reference.external_id === target.externalId) : [];
+    if (!target || card.set_code !== target.setCode || matchingReferences.length !== 1) throw new Error(`${card.id}: canonieke catalogusidentiteit wijkt af.`);
     if (expected === 'empty' ? !isEmptyDetails(card.card_details) : !cardDetailsSemanticallyEqual(card.card_details, target.details)) {
       throw new Error('Database-precheck wijkt af; niets werd gewijzigd.');
     }
