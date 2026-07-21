@@ -12,6 +12,7 @@ const APPROVAL = 'backfill-607-card-details-complete-sets';
 const APPROVED_AUDIT_HASH = '017a7cb5030cca30b9059b3e7e91171fc9c84cf2b24e7c55431706c25945d42f';
 const EXPECTED_SET_COUNT = 35;
 const EXPECTED_DETAIL_ROWS = 607;
+const PRECHECK_BATCH_SIZE = 100;
 const SOURCE = 'pokemon_tcg_api';
 
 type Mode = 'dry-run' | 'write' | 'idempotency';
@@ -37,6 +38,12 @@ function parseArgs(values: string[]) {
 
 function isEmptyDetails(value: unknown): boolean {
   return value === null || value === undefined || (typeof value === 'object' && !Array.isArray(value) && Object.keys(value as object).length === 0);
+}
+
+function chunks<T>(items: T[], size: number): T[][] {
+  const result: T[][] = [];
+  for (let start = 0; start < items.length; start += size) result.push(items.slice(start, start + size));
+  return result;
 }
 
 function parseApprovedAudit(path: string): AuditResult[] {
@@ -123,9 +130,18 @@ async function buildTargets(client: ReturnType<typeof createClient>, inputRoot: 
 
 async function verifyTargetState(client: ReturnType<typeof createClient>, targets: DetailTarget[], expected: 'empty' | 'filled'): Promise<void> {
   const byId = new Map(targets.map((target) => [target.id, target]));
-  const { data, error } = await client.from('cards_catalog').select('id,external_id,set_code,card_details').in('id', targets.map((target) => target.id));
-  if (error || !data || data.length !== EXPECTED_DETAIL_ROWS) throw new Error('Exacte detailkaart-precheck mislukt.');
-  for (const card of data as CatalogCard[]) {
+  const cards: CatalogCard[] = [];
+  for (const [index, batch] of chunks(targets, PRECHECK_BATCH_SIZE).entries()) {
+    const { data, error } = await client
+      .from('cards_catalog')
+      .select('id,external_id,set_code,card_details')
+      .in('id', batch.map((target) => target.id));
+    if (error) throw new Error(`Exacte detailkaart-precheck batch ${index + 1} mislukt: ${error.message}`);
+    if (!data || data.length !== batch.length) throw new Error(`Exacte detailkaart-precheck batch ${index + 1} bevat ${data?.length ?? 0} kaarten; verwacht ${batch.length}.`);
+    cards.push(...(data as CatalogCard[]));
+  }
+  if (cards.length !== EXPECTED_DETAIL_ROWS) throw new Error(`Exacte detailkaart-precheck bevat ${cards.length} kaarten; verwacht ${EXPECTED_DETAIL_ROWS}.`);
+  for (const card of cards) {
     const target = byId.get(card.id);
     if (!target || card.external_id !== target.externalId || card.set_code !== target.setCode) throw new Error(`${card.id}: catalogusidentiteit wijkt af.`);
     if (expected === 'empty' ? !isEmptyDetails(card.card_details) : !cardDetailsSemanticallyEqual(card.card_details, target.details)) {
