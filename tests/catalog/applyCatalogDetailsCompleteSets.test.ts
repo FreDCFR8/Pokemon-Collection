@@ -12,6 +12,7 @@ test('complete-set details runner binds to the approved read-only quality audit'
   assert.match(runner, /PRECHECK_BATCH_SIZE = 100/);
   assert.match(runner, /chunks\(targets, PRECHECK_BATCH_SIZE\)/);
   assert.match(runner, /Exacte detailkaart-precheck batch/);
+  assert.match(runner, /canonieke catalogusidentiteit wijkt af/);
   assert.match(runner, /issues\.length === 1 && result\.issues\[0\] === 'missing_card_details'/);
   assert.match(runner, /validateLocalDatasetCheckout/);
 });
@@ -32,6 +33,9 @@ test('transaction updates exactly the guarded card_details field with least priv
   assert.match(migration, /revoke all.*from authenticated/);
   assert.match(migration, /grant execute.*to service_role/);
   assert.match(migration, /set card_details = r\.target_card_details/);
+  assert.match(migration, /from public\.card_external_references as cer/);
+  assert.match(migration, /cer\.source = 'pokemon_tcg_api'/);
+  assert.match(migration, /cer\.external_id = r\.expected_external_id/);
   assert.doesNotMatch(migration, /set\s+set_code\s*=/);
   assert.doesNotMatch(migration, /update public\.collection_cards|update public\.card_external_references/);
 });
