@@ -24,6 +24,7 @@ type SourceSet = {
 type DatabaseSet = {
   id: string; set_code: string; name: string; series: string | null; release_date: string | null;
   printed_total: number | null; total: number | null; symbol_url: string | null; logo_url: string | null;
+  source?: string | null; source_id?: string | null;
 };
 type DatabaseCard = { id: string; set_code: string; number: string; pokemon: string; card_details: unknown };
 
@@ -34,6 +35,8 @@ export type QualityIssue =
 
 export type SetQualityResult = {
   setCode: string;
+  catalogSetCode: string | null;
+  resolution: 'exact_set_code' | 'external_reference_alias' | 'missing';
   expectedCards: number;
   catalogCards: number;
   missingCardDetails: number;
@@ -98,7 +101,9 @@ function sameSetMetadata(source: SourceSet, database: DatabaseSet): boolean {
     && normalized(database.logo_url) === source.logoUrl;
 }
 
-export function buildQualityResults(manifestSets: ManifestSet[], sourceSets: Map<string, SourceSet>, databaseSets: DatabaseSet[], databaseCards: DatabaseCard[]): SetQualityResult[] {
+export function buildQualityResults(
+  manifestSets: ManifestSet[], sourceSets: Map<string, SourceSet>, databaseSets: DatabaseSet[], databaseCards: DatabaseCard[],
+): SetQualityResult[] {
   const setsByCode = new Map(databaseSets.map((set) => [set.set_code, set]));
   const cardsBySet = new Map<string, DatabaseCard[]>();
   for (const card of databaseCards) {
@@ -109,8 +114,12 @@ export function buildQualityResults(manifestSets: ManifestSet[], sourceSets: Map
   return manifestSets.map((manifestSet) => {
     const source = sourceSets.get(manifestSet.setId);
     if (!source) throw new Error(`${manifestSet.setId}: bronmetadata ontbreekt.`);
-    const database = setsByCode.get(manifestSet.setId) ?? null;
-    const cards = cardsBySet.get(manifestSet.setId) ?? [];
+    const exactDatabase = setsByCode.get(manifestSet.setId) ?? null;
+    const legacyAliases = databaseSets.filter((set) => set.source === 'pokemon_tcg_api' && set.source_id === manifestSet.setId);
+    const aliasDatabase = exactDatabase || legacyAliases.length !== 1 ? null : legacyAliases[0];
+    const database = exactDatabase ?? aliasDatabase;
+    const resolution = exactDatabase ? 'exact_set_code' : aliasDatabase ? 'external_reference_alias' : 'missing';
+    const cards = database ? cardsBySet.get(database.set_code) ?? [] : [];
     const grouped = new Map<string, DatabaseCard[]>();
     for (const card of cards) {
       const key = `${card.number}\u0000${card.pokemon}`;
@@ -135,7 +144,8 @@ export function buildQualityResults(manifestSets: ManifestSet[], sourceSets: Map
     if (missingCardDetails > 0) issues.push('missing_card_details');
     if (duplicateGroups.length > 0) issues.push('duplicate_logical_card');
     return {
-      setCode: manifestSet.setId, expectedCards: manifestSet.expectedCards, catalogCards: cards.length,
+      setCode: manifestSet.setId, catalogSetCode: database?.set_code ?? null, resolution,
+      expectedCards: manifestSet.expectedCards, catalogCards: cards.length,
       missingCardDetails, duplicateLogicalCards: duplicateGroups.length,
       duplicateRows: duplicateGroups.reduce((sum, group) => sum + group.length, 0),
       issues, source, database,
@@ -177,7 +187,7 @@ async function main(): Promise<void> {
   const client = createClient(url, key);
   const before = { setsCatalog: await exactCount(client, 'sets_catalog'), cardsCatalog: await exactCount(client, 'cards_catalog') };
   const [{ data: rawSets, error: setsError }, cards] = await Promise.all([
-    client.from('sets_catalog').select('id,set_code,name,series,release_date,printed_total,total,symbol_url,logo_url').order('set_code'),
+    client.from('sets_catalog').select('id,set_code,name,series,release_date,printed_total,total,symbol_url,logo_url,source,source_id').order('set_code'),
     readAllCards(client),
   ]);
   if (setsError || !rawSets) throw new Error('sets_catalog-read mislukt.');
