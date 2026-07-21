@@ -100,7 +100,12 @@ async function readReferences(client: ReturnType<typeof createClient>, ids: stri
   return data as ExternalReference[];
 }
 
-async function buildTargets(client: ReturnType<typeof createClient>, inputRoot: string, auditSets: AuditResult[]): Promise<DetailTarget[]> {
+async function buildTargets(
+  client: ReturnType<typeof createClient>,
+  inputRoot: string,
+  auditSets: AuditResult[],
+  includeFilled: boolean,
+): Promise<DetailTarget[]> {
   const manifestBySet = new Map(parseManifest().filter((entry) => entry.enabled).map((entry) => [entry.setId, entry]));
   const targets: DetailTarget[] = [];
   for (const auditSet of auditSets) {
@@ -120,11 +125,19 @@ async function buildTargets(client: ReturnType<typeof createClient>, inputRoot: 
       const card = cardById.get(matches[0].card_catalog_id);
       if (!card || card.set_code !== entry.setId) throw new Error(`${entry.setId}/${local.id}: catalogusset wijkt af.`);
       ids.add(card.id);
-      if (isEmptyDetails(card.card_details)) targets.push({ id: card.id, externalId: local.id, setCode: entry.setId, details: local.details });
+      if (includeFilled || isEmptyDetails(card.card_details)) {
+        targets.push({ id: card.id, externalId: local.id, setCode: entry.setId, details: local.details });
+      }
     }
-    if (ids.size !== entry.expectedCards || targets.filter((target) => target.setCode === entry.setId).length !== auditSet.missingCardDetails) throw new Error(`${entry.setId}: detailscope wijkt af van het goedgekeurde auditrapport.`);
+    const expectedTargets = includeFilled ? entry.expectedCards : auditSet.missingCardDetails;
+    if (ids.size !== entry.expectedCards || targets.filter((target) => target.setCode === entry.setId).length !== expectedTargets) throw new Error(`${entry.setId}: detailscope wijkt af van het goedgekeurde auditrapport.`);
   }
-  if (targets.length !== EXPECTED_DETAIL_ROWS || new Set(targets.map((target) => target.id)).size !== EXPECTED_DETAIL_ROWS) throw new Error('Exacte 607-kaartenscope kon niet worden opgebouwd.');
+  const expectedTargetCount = includeFilled
+    ? auditSets.reduce((sum, auditSet) => sum + auditSet.expectedCards, 0)
+    : EXPECTED_DETAIL_ROWS;
+  if (targets.length !== expectedTargetCount || new Set(targets.map((target) => target.id)).size !== expectedTargetCount) {
+    throw new Error(includeFilled ? 'Volledige detailscope kon niet worden opgebouwd.' : 'Exacte 607-kaartenscope kon niet worden opgebouwd.');
+  }
   return targets.sort((left, right) => left.id.localeCompare(right.id));
 }
 
@@ -142,7 +155,7 @@ async function verifyTargetState(client: ReturnType<typeof createClient>, target
     cards.push(...(data as CatalogCard[]));
     references.push(...await readReferences(client, batch.map((target) => target.id)));
   }
-  if (cards.length !== EXPECTED_DETAIL_ROWS) throw new Error(`Exacte detailkaart-precheck bevat ${cards.length} kaarten; verwacht ${EXPECTED_DETAIL_ROWS}.`);
+  if (cards.length !== targets.length) throw new Error(`Exacte detailkaart-precheck bevat ${cards.length} kaarten; verwacht ${targets.length}.`);
   const referencesByCardId = new Map<string, ExternalReference[]>();
   for (const reference of references) referencesByCardId.set(reference.card_catalog_id, [...(referencesByCardId.get(reference.card_catalog_id) ?? []), reference]);
   for (const card of cards) {
@@ -163,7 +176,7 @@ async function main(): Promise<void> {
   const url = process.env.SUPABASE_URL; const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) throw new Error('SUPABASE_URL en SUPABASE_SERVICE_ROLE_KEY ontbreken.');
   const client = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
-  const targets = await buildTargets(client, options.inputRoot, auditSets);
+  const targets = await buildTargets(client, options.inputRoot, auditSets, options.mode === 'idempotency');
   const before = await snapshot(client);
   await verifyTargetState(client, targets, options.mode === 'idempotency' ? 'filled' : 'empty');
 
@@ -182,6 +195,7 @@ async function main(): Promise<void> {
     schemaVersion: 1, phase: 'Catalog card details backfill for complete sets', mode: options.mode,
     approvedAuditHash: APPROVED_AUDIT_HASH, datasetVersion: PINNED_DATASET_VERSION,
     setCount: EXPECTED_SET_COUNT, candidateRows: EXPECTED_DETAIL_ROWS,
+    verifiedRows: targets.length,
     plannedWrites: options.mode === 'dry-run' ? EXPECTED_DETAIL_ROWS : 0,
     databaseWritesTotal: writes, databaseCounts: { before, after }, status: 'PASS', reportHash: '',
   };
