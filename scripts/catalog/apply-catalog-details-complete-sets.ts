@@ -23,9 +23,9 @@ type ApprovedAudit = {
   dataset?: { version?: string }; summary?: { missingCardDetails?: number; duplicateLogicalCards?: number; duplicateRows?: number };
   results?: AuditResult[]; reportHash?: string;
 };
-type CatalogCard = { id: string; set_code: string | null; card_details: CardDetails | null };
-type ExternalReference = { card_catalog_id: string; external_id: string };
-type DetailTarget = { id: string; externalId: string; setCode: string; details: CardDetails };
+export type CatalogCard = { id: string; set_code: string | null; card_details: CardDetails | null };
+export type ExternalReference = { card_catalog_id: string; external_id: string };
+export type DetailTarget = { id: string; externalId: string; setCode: string; details: CardDetails };
 
 function parseArgs(values: string[]) {
   if (
@@ -141,7 +141,7 @@ async function buildTargets(
   return targets.sort((left, right) => left.id.localeCompare(right.id));
 }
 
-async function verifyTargetState(client: ReturnType<typeof createClient>, targets: DetailTarget[], expected: 'empty' | 'filled'): Promise<void> {
+export async function verifyTargetState(client: ReturnType<typeof createClient>, targets: DetailTarget[], expected: 'empty' | 'filled'): Promise<void> {
   const byId = new Map(targets.map((target) => [target.id, target]));
   const cards: CatalogCard[] = [];
   const references: ExternalReference[] = [];
