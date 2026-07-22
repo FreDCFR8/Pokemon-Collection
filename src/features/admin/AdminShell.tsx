@@ -1,0 +1,86 @@
+import { useEffect, useState } from 'react';
+import './adminShell.css';
+
+const adminNavigationItems = [
+  { label: 'Overzicht', slug: 'admin' },
+  { label: 'Gebruikers en profielen', slug: 'admin-users' },
+  { label: 'Instellingen', slug: 'admin-settings' },
+  { label: 'Activiteiten', slug: 'admin-activities' },
+  { label: 'Applicatiestatus', slug: 'admin-status' },
+] as const;
+
+type AdminNavigationItem = (typeof adminNavigationItems)[number];
+
+function getActiveAdminItem(): AdminNavigationItem {
+  const slug = window.location.hash.replace('#', '').toLowerCase();
+  return adminNavigationItems.find((item) => item.slug === slug) ?? adminNavigationItems[0];
+}
+
+const pageCopy: Record<AdminNavigationItem['slug'], { title: string; description: string }> = {
+  admin: {
+    title: 'Beheeromgeving',
+    description: 'Van hieruit beheer je later veilig de Pokémon Collection-omgeving van Lars en Lore.',
+  },
+  'admin-users': {
+    title: 'Gebruikers en profielen',
+    description: 'Profielbeheer wordt toegevoegd in Phase 1E. Er zijn in deze fase nog geen wijzigingsacties beschikbaar.',
+  },
+  'admin-settings': {
+    title: 'Instellingen',
+    description: 'Beveiligde gebruikers- en applicatie-instellingen worden toegevoegd in een afzonderlijke fase.',
+  },
+  'admin-activities': {
+    title: 'Activiteiten',
+    description: 'De activiteitengeschiedenis wordt pas toegevoegd nadat het logging- en privacycontract is geïmplementeerd.',
+  },
+  'admin-status': {
+    title: 'Applicatiestatus',
+    description: 'Veilige operationele statusinformatie wordt toegevoegd zonder technische geheimen of databasebediening bloot te stellen.',
+  },
+};
+
+export function AdminShell({ displayName, isSigningOut, onSignOut }: { displayName: string; isSigningOut: boolean; onSignOut: () => void }) {
+  const [activeItem, setActiveItem] = useState(getActiveAdminItem);
+
+  useEffect(() => {
+    const syncItem = () => setActiveItem(getActiveAdminItem());
+    window.addEventListener('hashchange', syncItem);
+    syncItem();
+    return () => window.removeEventListener('hashchange', syncItem);
+  }, []);
+
+  const copy = pageCopy[activeItem.slug];
+
+  return (
+    <main className="admin-shell">
+      <header className="admin-header">
+        <div>
+          <p className="admin-eyebrow">Administrator</p>
+          <h1>Pokémon Collection</h1>
+          <p className="admin-welcome">Aangemeld als {displayName}</p>
+        </div>
+        <button type="button" onClick={onSignOut} disabled={isSigningOut}>
+          {isSigningOut ? 'Uitloggen…' : 'Uitloggen'}
+        </button>
+      </header>
+
+      <nav className="admin-navigation" aria-label="Beheernavigatie">
+        {adminNavigationItems.map((item) => (
+          <a href={`#${item.slug}`} key={item.slug} aria-current={activeItem.slug === item.slug ? 'page' : undefined}>
+            {item.label}
+          </a>
+        ))}
+      </nav>
+
+      <section className="admin-content" aria-labelledby="admin-page-title">
+        <p className="admin-section-label">Beveiligde beheeromgeving</p>
+        <h2 id="admin-page-title">{copy.title}</h2>
+        <p>{copy.description}</p>
+        <div className="admin-scope-note">
+          <strong>Alleen lezen in Phase 1D</strong>
+          <span>Er zijn nog geen beheeracties, databasebewerkingen, imports of accountwijzigingen beschikbaar.</span>
+        </div>
+      </section>
+    </main>
+  );
+}
