@@ -59,7 +59,7 @@ function RecentCards({ summary }: { summary: DashboardSummary }) {
         <article className="dashboard-recent-card" key={`${summary.collectionId}-${card.id}`}>
           <div className="dashboard-recent-image">
             {card.imageSmall ? (
-              <img src={card.imageSmall} alt="" loading="lazy" />
+              <img src={card.imageSmall} alt={`Kaart van ${card.pokemon}`} loading="lazy" />
             ) : (
               <div className="dashboard-card-placeholder" aria-hidden="true">🃏</div>
             )}
