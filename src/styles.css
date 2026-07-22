@@ -149,9 +149,9 @@ button {
 .mobile-bottom-nav { display: none; }
 
 @media (max-width: 700px) {
-  .app-shell--dashboard { padding-top: 8px; padding-bottom: calc(94px + env(safe-area-inset-bottom)); }
-  .app-shell--dashboard .app-header,
-  .app-shell--dashboard .top-nav { display: none; }
+  .app-shell--child { padding-top: 8px; padding-bottom: calc(94px + env(safe-area-inset-bottom)); }
+  .app-shell--child .app-header,
+  .app-shell--child .top-nav { display: none; }
   .mobile-bottom-nav { position: fixed; z-index: 80; right: 10px; bottom: max(10px, env(safe-area-inset-bottom)); left: 10px; display: block; }
   .mobile-bottom-nav__bar { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); align-items: stretch; min-height: 64px; border: 1px solid rgb(98 155 255 / .3); border-radius: 20px; background: rgb(7 20 42 / .94); box-shadow: 0 16px 32px rgb(0 0 0 / .42), inset 0 1px 0 rgb(255 255 255 / .07); backdrop-filter: blur(18px); }
   .mobile-bottom-nav a, .mobile-bottom-nav button { display: grid; min-width: 0; min-height: 60px; place-items: center; align-content: center; gap: 2px; border: 0; background: transparent; color: #9fb1cb; text-decoration: none; }
