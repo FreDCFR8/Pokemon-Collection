@@ -3,6 +3,7 @@ import { ButtonLink } from '../../ui/ButtonLink';
 import { StatTile } from '../../ui/StatTile';
 import { loadAdminDashboard, loadChildDashboard } from './dashboardService';
 import type { DashboardComparison, DashboardSetInsight, DashboardState, DashboardSummary } from './dashboardTypes';
+import { DashboardHero, DashboardInsights, DashboardRecentCards, DashboardRecentSets, DashboardStatsBand } from './DashboardComponents';
 import './dashboard.css';
 
 const loadingState: DashboardState = {
@@ -215,26 +216,12 @@ export function ChildDashboard({ profileId, displayName, collectionId }: { profi
   if (!summary) return <section className="dashboard-state">Je verzameling is nog leeg.</section>;
 
   return (
-    <div className="dashboard-page">
-      <section className="dashboard-hero">
-        <div className="dashboard-hero-decoration" aria-hidden="true" />
-        <div className="dashboard-hero-topline">
-          <ProfileMark name={displayName} />
-          <span>Persoonlijke collectie</span>
-        </div>
-        <div className="dashboard-hero-copy">
-          <span>Welkom terug</span>
-          <h2>Hallo {displayName}!</h2>
-          <p>Bekijk je nieuwste kaarten en ga verder met de sets die je aan het verzamelen bent.</p>
-        </div>
-        <div className="dashboard-actions">
-          <ButtonLink href="#collection">Mijn collectie</ButtonLink>
-          <ButtonLink href="#wishlist" variant="secondary">Mijn wishlist</ButtonLink>
-          <ButtonLink href="#sets" variant="quiet">Sets bekijken</ButtonLink>
-          <ButtonLink href="#search" variant="quiet">Kaart zoeken</ButtonLink>
-        </div>
-      </section>
-      <Summary summary={summary} />
+    <div className="dashboard-v2-page">
+      <DashboardHero displayName={displayName} />
+      <DashboardStatsBand summary={summary} />
+      <DashboardRecentCards summary={summary} />
+      <DashboardInsights summary={summary} />
+      <DashboardRecentSets summary={summary} />
     </div>
   );
 }

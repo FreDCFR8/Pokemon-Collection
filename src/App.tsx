@@ -77,7 +77,7 @@ export function App() {
   if (!profile || !collection) return null;
 
   return (
-    <main className="app-shell">
+    <main className={`app-shell${activeNavigationItem.slug === 'dashboard' ? ' app-shell--dashboard' : ''}`}>
       <header className="app-header"><div><p className="eyebrow">Verzameling van {profile.displayName}</p><h1>Pokémon Collection</h1></div><button className="account-button" type="button" onClick={() => void identity.signOut()} disabled={identity.isSigningOut}>{identity.isSigningOut ? 'Uitloggen…' : 'Uitloggen'}</button></header>
       <nav className="top-nav" aria-label="Hoofdnavigatie">{navigationItems.map((item) => <a href={`#${item.slug}`} key={item.slug} aria-current={activeNavigationItem.slug === item.slug ? 'page' : undefined}>{item.label}</a>)}</nav>
       <MainContent activeNavigationItem={activeNavigationItem.label} profileId={profile.id} username={profile.username} displayName={profile.displayName} collectionId={collection.id} onProfileSaved={() => void identity.retry()} />

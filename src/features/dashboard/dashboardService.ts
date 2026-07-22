@@ -1,13 +1,16 @@
 import { createBrowserSupabaseClient } from '../../lib/supabase';
-import { getSetsCatalog, type SetsCatalogRow } from '../../services/setsCatalogService';
+import { getRecentSetsCatalog, getSetsCatalog, type SetsCatalogRow } from '../../services/setsCatalogService';
 import type {
   DashboardComparison,
   DashboardRecentCard,
   DashboardRarityInsight,
+  DashboardRecentSet,
   DashboardSetInsight,
   DashboardState,
   DashboardSummary,
 } from './dashboardTypes';
+import { buildRarityInsights, buildRecentSets, buildSetInsights } from './dashboardInsights';
+export { buildRarityInsights, buildRecentSets, buildSetInsights } from './dashboardInsights';
 
 type ProfileRow = { id: string; display_name: string };
 type CollectionRow = { id: string; profile_id: string };
@@ -33,55 +36,8 @@ function safeErrorState(): DashboardState {
   return { status: 'error', message: 'Het dashboard kon niet veilig worden geladen. Probeer het opnieuw.', summaries: [], comparison: null };
 }
 
-function buildRarityInsights(rows: CollectionCardRow[]): DashboardRarityInsight[] {
-  const idsByRarity = new Map<string, Set<string>>();
 
-  for (const row of rows) {
-    const card = row.cards_catalog;
-    if (!card) continue;
-    const rarity = card.rarity?.trim() || 'Onbekend';
-    const ids = idsByRarity.get(rarity) ?? new Set<string>();
-    ids.add(card.id);
-    idsByRarity.set(rarity, ids);
-  }
-
-  return [...idsByRarity.entries()]
-    .map(([rarity, ids]) => ({ rarity, uniqueCards: ids.size }))
-    .sort((first, second) => second.uniqueCards - first.uniqueCards || first.rarity.localeCompare(second.rarity, 'nl'))
-    .slice(0, 4);
-}
-
-function buildSetInsights(ownedRows: CollectionCardRow[], sets: SetsCatalogRow[]): DashboardSetInsight[] {
-  const idsBySetCode = new Map<string, Set<string>>();
-
-  for (const row of ownedRows) {
-    const card = row.cards_catalog;
-    if (!card?.set_code) continue;
-    const ids = idsBySetCode.get(card.set_code) ?? new Set<string>();
-    ids.add(card.id);
-    idsBySetCode.set(card.set_code, ids);
-  }
-
-  return sets
-    .flatMap((set) => {
-      const total = set.total ?? set.printed_total;
-      const ownedCount = idsBySetCode.get(set.set_code)?.size ?? 0;
-      if (ownedCount === 0 || total === null || total <= 0) return [];
-      const progressPercent = Math.min(100, Math.round((ownedCount / total) * 100));
-      return [{
-        setCode: set.set_code,
-        setName: set.name,
-        ownedCount,
-        total,
-        missingCount: Math.max(0, total - ownedCount),
-        progressPercent,
-      }];
-    })
-    .sort((first, second) => second.progressPercent - first.progressPercent || second.ownedCount - first.ownedCount || first.setName.localeCompare(second.setName, 'nl'))
-    .slice(0, 4);
-}
-
-function toSummary(profile: ProfileRow, collection: CollectionRow, rows: CollectionCardRow[], sets: SetsCatalogRow[]): DashboardSummary {
+function toSummary(profile: ProfileRow, collection: CollectionRow, rows: CollectionCardRow[], sets: SetsCatalogRow[], recentSets: SetsCatalogRow[] = [], recentSetsStatus: 'ready' | 'unavailable' = 'ready'): DashboardSummary {
   const collectionRows = rows.filter((row) => row.collection_id === collection.id);
   const ownedRows = collectionRows.filter((row) => row.status === 'owned');
   const wishlistRows = collectionRows.filter((row) => row.status === 'wishlist');
@@ -89,7 +45,7 @@ function toSummary(profile: ProfileRow, collection: CollectionRow, rows: Collect
   const recentCards: DashboardRecentCard[] = ownedRows
     .filter((row) => row.cards_catalog)
     .sort((first, second) => `${second.added_at}-${second.created_at}`.localeCompare(`${first.added_at}-${first.created_at}`))
-    .slice(0, 4)
+    .slice(0, 8)
     .map((row) => ({
       id: row.cards_catalog!.id,
       pokemon: row.cards_catalog!.pokemon,
@@ -100,6 +56,7 @@ function toSummary(profile: ProfileRow, collection: CollectionRow, rows: Collect
       addedAt: row.added_at,
     }));
   const setInsights = buildSetInsights(ownedRows, sets);
+  const duplicateQuantity = ownedRows.reduce((total, row) => total + Math.max(0, row.quantity - 1), 0);
 
   return {
     profileId: profile.id,
@@ -108,12 +65,15 @@ function toSummary(profile: ProfileRow, collection: CollectionRow, rows: Collect
     totalQuantity: ownedRows.reduce((total, row) => total + row.quantity, 0),
     uniqueOwnedCards: ownedCardIds.length,
     wishlistCards: wishlistRows.length,
-    duplicateQuantity: ownedRows.reduce((total, row) => total + Math.max(0, row.quantity - 1), 0),
+    duplicateQuantity,
+    duplicatePercent: ownedCardIds.length + duplicateQuantity > 0 ? Math.round((duplicateQuantity / (ownedCardIds.length + duplicateQuantity)) * 100) : 0,
     ownedCardIds,
     recentCards,
     rarityInsights: buildRarityInsights(ownedRows),
     setInsights,
     continueCollecting: setInsights.find((set) => set.missingCount > 0) ?? null,
+    recentSets: buildRecentSets(recentSets, setInsights),
+    recentSetsStatus,
   };
 }
 
@@ -147,9 +107,13 @@ async function loadRows(collectionIds: string[]): Promise<CollectionCardRow[] | 
 
 export async function loadChildDashboard(profileId: string, displayName: string, collectionId: string): Promise<DashboardState> {
   try {
-    const [rows, sets] = await Promise.all([loadRows([collectionId]), getSetsCatalog()]);
+    const [rows, sets, recentSetsResult] = await Promise.all([
+      loadRows([collectionId]),
+      getSetsCatalog(),
+      getRecentSetsCatalog().then((recentSets) => ({ recentSets, status: 'ready' as const })).catch(() => ({ recentSets: [], status: 'unavailable' as const })),
+    ]);
     if (!rows) return safeErrorState();
-    const summary = toSummary({ id: profileId, display_name: displayName }, { id: collectionId, profile_id: profileId }, rows, sets);
+    const summary = toSummary({ id: profileId, display_name: displayName }, { id: collectionId, profile_id: profileId }, rows, sets, recentSetsResult.recentSets, recentSetsResult.status);
     return {
       status: 'ready',
       message: summary.totalQuantity > 0 || summary.wishlistCards > 0 ? 'Dashboard geladen.' : 'Je verzameling is nog leeg.',
