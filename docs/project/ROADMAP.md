@@ -43,6 +43,17 @@ This document shows product direction and phase status. It intentionally avoids 
 - 🚧 Next: one read-only audit for the 18 exception sets (`svp` plus the 17 excluded review sets)
 - 🔎 Manual-review and conflict sets remain write-blocked until that audit has an independently reviewed result
 
+## Dashboard
+
+The current Dashboard remains a technical Phase 2/3 readiness surface and will be replaced by a dedicated child-facing product dashboard. The approved analysis and design contract is defined in `docs/product/DASHBOARD_D1_ANALYSIS_AND_DESIGN.md`.
+
+- ✅ Dashboard D1 — current-state analysis, product design, data definitions and implementation contract
+- 🚧 Dashboard D2 — dark responsive child dashboard shell and removal of readiness UI from the product route
+- ⏳ Dashboard D3 — verified bounded metrics, recent additions and continue-collecting data
+- ⏳ Dashboard D4 — optional approved artwork, profile imagery and subtle motion after real-device validation
+
+Dashboard D2 may not display invented totals or recommendations. Dashboard D3 requires read-only production evidence before connecting timestamps, counts or aggregations.
+
 ## Sets and binder experience
 
 The remaining catalog-import scope is limited to 18 exception sets. PR147 remains closed without merge. The next work is read-only evidence only; automatic writes for those exception sets are not approved.
