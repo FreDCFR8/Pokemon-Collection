@@ -30,6 +30,7 @@ export type DashboardSummary = {
   uniqueOwnedCards: number;
   wishlistCards: number;
   duplicateQuantity: number;
+  ownedCardIds: string[];
   recentCards: DashboardRecentCard[];
   rarityInsights: DashboardRarityInsight[];
   setInsights: DashboardSetInsight[];
