@@ -1,0 +1,19 @@
+template: docs-only
+profile: docs-only
+
+required_input:
+  task: Beschrijf de gewenste documentatie-uitkomst.
+
+optional_input:
+  target_docs: Gewenste documenten of documenteigenaars.
+  acceptance: Taakspecifieke link-, consistentie- of inhoudscriteria.
+  overrides: Alleen expliciet goedgekeurde afwijkingen.
+
+example:
+  repository: FreDCFR8/Pokemon-Collection
+  entrypoint: docs/00_CODEX_ENTRYPOINT.md
+  template: docs-only
+  task: Werk de duurzame documentatie bij voor de goedgekeurde beslissing.
+  acceptance:
+    - Geen runtimecode, dependencies of databasebestanden gewijzigd.
+    - Interne verwijzingen zijn correct.
