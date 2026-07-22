@@ -12,18 +12,3 @@ export function Button({ children, className = '', type = 'button', variant = 'p
     </button>
   );
 }
-
-type ButtonLinkProps = {
-  children: ReactNode;
-  className?: string;
-  href: string;
-  variant?: 'primary' | 'secondary' | 'quiet';
-};
-
-export function ButtonLink({ children, className = '', href, variant = 'primary' }: ButtonLinkProps) {
-  return (
-    <a className={`ui-button ui-button--${variant} ${className}`.trim()} href={href}>
-      {children}
-    </a>
-  );
-}
