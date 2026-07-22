@@ -1,5 +1,6 @@
 import { createBrowserSupabaseClient } from '../../lib/supabase';
 import type { AppProfile, ProfileReadinessState } from './profileReadinessTypes';
+import { getIdentitySnapshot } from '../auth/identityRuntimeTypes';
 
 type ProfileReadinessRow = {
   id: string;
@@ -11,6 +12,11 @@ type ProfileReadinessRow = {
 };
 
 export async function checkProfileReadiness(): Promise<ProfileReadinessState> {
+  const identity = getIdentitySnapshot();
+  if (identity.status === 'authenticated_ready' && identity.profile) return { status: 'profile-ready', message: 'App-profiel gevonden.', profile: identity.profile };
+  if (identity.status === 'signed_out') return { status: 'signed-out', message: 'Log eerst in om je profiel te openen.', profile: null };
+  if (identity.status === 'authenticated_profile_missing') return { status: 'profile-missing', message: identity.message, profile: null };
+  if (identity.status === 'error') return { status: 'error', message: identity.message, profile: null };
   const supabase = createBrowserSupabaseClient();
 
   if (!supabase) {

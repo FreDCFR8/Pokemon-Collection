@@ -449,3 +449,4 @@ Stop implementation and report before proceeding when:
 - Public or guest behavior may not be promised before current grants and RLS policies prove it.
 - UI visibility is never authorization.
 - Logging must be designed at the trusted mutation boundary, not added as scattered frontend calls.
+- Browserauth-services must share the central identity snapshot and one Supabase client; creating parallel session/profile runtimes can reintroduce stale cross-account data.

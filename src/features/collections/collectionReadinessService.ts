@@ -1,6 +1,7 @@
 import { createBrowserSupabaseClient } from '../../lib/supabase';
 import { checkProfileReadiness } from '../profiles';
 import type { AppCollection, CollectionReadinessState, CollectionType } from './collectionReadinessTypes';
+import { getIdentitySnapshot } from '../auth/identityRuntimeTypes';
 
 type CollectionReadinessRow = {
   id: string;
@@ -20,6 +21,8 @@ function toSafeErrorMessage(message: string | undefined): string {
 }
 
 export async function checkCollectionReadiness(): Promise<CollectionReadinessState> {
+  const identity = getIdentitySnapshot();
+  if (identity.status === 'authenticated_ready' && identity.mainCollection) return { status: 'collection-ready', message: 'Hoofdcollectie gevonden.', collections: [identity.mainCollection], mainCollection: identity.mainCollection };
   const profileReadiness = await checkProfileReadiness();
 
   if (profileReadiness.status === 'config-missing') {
