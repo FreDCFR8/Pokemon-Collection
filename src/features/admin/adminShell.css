@@ -1,0 +1,127 @@
+.admin-shell {
+  min-height: 100vh;
+  padding: 20px 16px 40px;
+  background: #0f172a;
+  color: #e2e8f0;
+}
+
+.admin-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  width: min(100%, 1080px);
+  margin: 0 auto;
+  padding: 12px 0 24px;
+}
+
+.admin-header h1,
+.admin-content h2 {
+  margin: 0;
+}
+
+.admin-header h1 {
+  font-size: clamp(1.7rem, 8vw, 3rem);
+  line-height: 1;
+}
+
+.admin-eyebrow,
+.admin-section-label {
+  margin: 0 0 7px;
+  color: #7dd3fc;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.admin-welcome {
+  margin: 8px 0 0;
+  color: #94a3b8;
+}
+
+.admin-header button {
+  min-height: 44px;
+  border: 1px solid #475569;
+  border-radius: 999px;
+  padding: 0 16px;
+  background: #1e293b;
+  color: #f8fafc;
+  font-weight: 800;
+}
+
+.admin-navigation {
+  display: flex;
+  gap: 8px;
+  width: min(100%, 1080px);
+  margin: 0 auto;
+  padding: 0 0 22px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.admin-navigation::-webkit-scrollbar {
+  display: none;
+}
+
+.admin-navigation a {
+  flex: 0 0 auto;
+  border: 1px solid #334155;
+  border-radius: 999px;
+  padding: 10px 14px;
+  background: #1e293b;
+  color: #cbd5e1;
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.admin-navigation a[aria-current='page'] {
+  border-color: #38bdf8;
+  background: #0c4a6e;
+  color: #f0f9ff;
+}
+
+.admin-content {
+  width: min(100%, 1080px);
+  margin: 0 auto;
+  border: 1px solid #334155;
+  border-radius: 24px;
+  padding: 24px;
+  background: #111827;
+  box-shadow: 0 20px 60px rgb(0 0 0 / 0.3);
+}
+
+.admin-content h2 {
+  font-size: clamp(1.5rem, 7vw, 2.5rem);
+}
+
+.admin-content > p:not(.admin-section-label) {
+  max-width: 720px;
+  color: #94a3b8;
+  line-height: 1.65;
+}
+
+.admin-scope-note {
+  display: grid;
+  gap: 6px;
+  margin-top: 24px;
+  border-left: 4px solid #38bdf8;
+  border-radius: 0 14px 14px 0;
+  padding: 14px 16px;
+  background: #0f2137;
+}
+
+.admin-scope-note span {
+  color: #94a3b8;
+  line-height: 1.5;
+}
+
+@media (min-width: 720px) {
+  .admin-shell {
+    padding: 32px 24px 56px;
+  }
+
+  .admin-content {
+    padding: 36px;
+  }
+}
