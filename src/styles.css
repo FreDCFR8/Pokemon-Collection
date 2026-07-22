@@ -81,7 +81,8 @@ button {
   text-transform: uppercase;
 }
 
-.menu-button {
+.menu-button,
+.account-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -91,6 +92,32 @@ button {
   border-radius: 999px;
   background: #ffffff;
   color: #172033;
+}
+
+.account-button {
+  width: auto;
+  min-height: 44px;
+  padding: 0 16px;
+  font-weight: 700;
+}
+
+.identity-state {
+  margin-top: min(18vh, 160px);
+  padding: 28px;
+  border: 1px solid #dbe3ef;
+  border-radius: 24px;
+  background: #fff;
+  box-shadow: 0 18px 50px rgb(15 23 42 / 0.08);
+}
+
+.identity-state button {
+  min-height: 44px;
+  margin: 12px 12px 0 0;
+  border: 1px solid #cbd5e1;
+  border-radius: 14px;
+  padding: 0 16px;
+  background: #fff;
+  font-weight: 700;
 }
 
 .top-nav {

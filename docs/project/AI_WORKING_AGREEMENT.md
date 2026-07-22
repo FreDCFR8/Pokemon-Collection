@@ -118,6 +118,8 @@ The following errors were avoidable in prior catalog work and must not recur:
 - Record the read-only evidence (query purpose, result and date) in the PR description or review note before claiming the implementation approach is correct.
 - Never create a PR merely to test an unverified database assumption. First obtain the evidence; then implement the smallest correction on the existing PR when its objective is unchanged.
 - A test must exercise the production decision path and its real data model. Source-text checks, mocks of a different table or tests that omit the decisive columns are insufficient acceptance evidence.
+- Runtime acceptance requires behavioral tests. Regex, source-text and file-inspection tests are not valid functional evidence.
+- A central runtime is the only source of truth. Legacy consumers may not retain fallback queries or parallel runtimes without explicit architecture approval.
 - Tests, build, audit and review must run from the same verified remote PR head SHA. If that SHA cannot be proven, the result is `UNVERIFIED`, never `PASS`, `published` or `ready for review`.
 - A failed PR audit is a stop condition. Diagnose the mismatch from evidence before changing code; do not create a replacement PR while the same scoped PR can safely receive the correction.
 - A read-only audit with `ACTION_REQUIRED` proves only that it performed no writes. It does not prove the proposed correction works; the required target fields must be checked explicitly.

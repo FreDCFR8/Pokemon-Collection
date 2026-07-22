@@ -13,3 +13,8 @@ export type { KnownChildUsername, UsernameAuthTarget } from './usernameAuthMappi
 export { isKnownChildUsername, normalizeUsername, resolveUsernameAuthTarget } from './usernameAuthMapping';
 export { AuthStateCard } from './AuthStateCard';
 export { LoginPanel } from './LoginPanel';
+export { useIdentity } from './IdentityProvider';
+export { logout } from './logoutService';
+export type { IdentityState, IdentityStatus } from './identityRuntimeTypes';
+export { createIdentityRuntime } from './identityRuntime';
+export type { IdentityRuntime } from './identityRuntime';

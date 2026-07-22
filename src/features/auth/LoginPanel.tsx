@@ -9,16 +9,9 @@ const initialLoginPanelState: LoginPanelState = {
   username: '',
   password: '',
   status: 'disabled',
-  message: 'Vul je gebruikersnaam en wachtwoord in om de toekomstige login-flow visueel voor te bereiden.',
+  message: 'Vul je gebruikersnaam en wachtwoord in.',
   authTargetPrepared: false,
   loginExecuted: false,
-};
-
-const authServiceStatusLabels: Record<LoginPanelState['status'], string> = {
-  disabled: 'Uitgeschakeld',
-  ready_for_later: 'Klaar voor latere activatie',
-  failed: 'Niet klaar',
-  authenticated: 'Ingelogd',
 };
 
 export function LoginPanel() {
@@ -60,11 +53,9 @@ export function LoginPanel() {
 
   return (
     <section className="login-panel" aria-labelledby="login-panel-title">
-      <p className="eyebrow">Login voorbereiding</p>
-      <h2 id="login-panel-title">Login UI klaarzetten</h2>
-      <p>
-        Deze interface activeert alleen voor bekende gebruikersnamen een gecontroleerde Supabase Auth login-call.
-      </p>
+      <p className="eyebrow">Welkom terug</p>
+      <h2 id="login-panel-title">Log in</h2>
+      <p>Open je eigen verzameling met je gebruikersnaam en wachtwoord.</p>
 
       <form className="login-form" onSubmit={(event) => event.preventDefault()}>
         <label htmlFor="login-username">
@@ -102,32 +93,6 @@ export function LoginPanel() {
         {formState.message}
       </p>
 
-      <dl className="status-list">
-        <div>
-          <dt>Auth-target</dt>
-          <dd>{formState.authTargetPrepared ? 'Voorbereid' : 'Niet voorbereid'}</dd>
-        </div>
-        <div>
-          <dt>Login-call</dt>
-          <dd>{formState.loginExecuted ? 'Uitgevoerd' : 'Niet uitgevoerd'}</dd>
-        </div>
-        <div>
-          <dt>Auth-service</dt>
-          <dd>{authServiceStatusLabels[formState.status]}</dd>
-        </div>
-        <div>
-          <dt>Sessie</dt>
-          <dd>{formState.sessionPresent ? 'Actief' : 'Niet bevestigd'}</dd>
-        </div>
-        <div>
-          <dt>Profieldata</dt>
-          <dd>Niet geladen</dd>
-        </div>
-        <div>
-          <dt>Collectiegegevens</dt>
-          <dd>Niet geladen</dd>
-        </div>
-      </dl>
     </section>
   );
 }

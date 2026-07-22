@@ -1,128 +1,21 @@
-import { createBrowserSupabaseClient } from '../../lib/supabase';
-import { checkProfileReadiness } from '../profiles';
-import type { AppCollection, CollectionReadinessState, CollectionType } from './collectionReadinessTypes';
-
-type CollectionReadinessRow = {
-  id: string;
-  profile_id: string;
-  name: string;
-  type: CollectionType;
-  created_at: string;
-  updated_at: string;
-};
-
-function toSafeErrorMessage(message: string | undefined): string {
-  if (!message) {
-    return 'Onbekende collectiecontrolefout.';
-  }
-
-  return message.replace(/https?:\/\/\S+/g, '[url verborgen]').slice(0, 240);
-}
+import { getIdentitySnapshot } from '../auth/identityRuntimeTypes';
+import type { CollectionReadinessState } from './collectionReadinessTypes';
 
 export async function checkCollectionReadiness(): Promise<CollectionReadinessState> {
-  const profileReadiness = await checkProfileReadiness();
-
-  if (profileReadiness.status === 'config-missing') {
-    return {
-      status: 'config-missing',
-      message: profileReadiness.message,
-      collections: [],
-      mainCollection: null,
-    };
+  const identity = getIdentitySnapshot();
+  switch (identity.status) {
+    case 'authenticated_ready':
+      return identity.mainCollection
+        ? { status: 'collection-ready', message: 'Hoofdcollectie gevonden.', collections: [identity.mainCollection], mainCollection: identity.mainCollection }
+        : { status: 'collection-missing', message: 'Er is geen hoofdcollectie beschikbaar.', collections: [], mainCollection: null };
+    case 'authenticated_profile_missing':
+      return { status: 'profile-missing', message: identity.message, collections: [], mainCollection: null };
+    case 'signed_out':
+      return { status: 'signed-out', message: 'Log eerst in om je collectie te openen.', collections: [], mainCollection: null };
+    case 'initializing':
+    case 'authenticated_profile_loading':
+      return { status: 'loading', message: identity.message, collections: [], mainCollection: null };
+    case 'error':
+      return { status: 'error', message: identity.message, collections: [], mainCollection: null };
   }
-
-  if (profileReadiness.status === 'signed-out') {
-    return {
-      status: 'signed-out',
-      message: profileReadiness.message,
-      collections: [],
-      mainCollection: null,
-    };
-  }
-
-  if (profileReadiness.status === 'profile-missing') {
-    return {
-      status: 'profile-missing',
-      message: profileReadiness.message,
-      collections: [],
-      mainCollection: null,
-    };
-  }
-
-  if (profileReadiness.status === 'error') {
-    return {
-      status: 'error',
-      message: profileReadiness.message,
-      collections: [],
-      mainCollection: null,
-      errorMessage: toSafeErrorMessage(profileReadiness.errorMessage),
-    };
-  }
-
-  const profile = profileReadiness.profile;
-
-  if (!profile) {
-    return {
-      status: 'profile-missing',
-      message: 'Er is nog geen app-profiel gekoppeld aan deze Supabase gebruiker.',
-      collections: [],
-      mainCollection: null,
-    };
-  }
-
-  const supabase = createBrowserSupabaseClient();
-
-  if (!supabase) {
-    return {
-      status: 'config-missing',
-      message: 'Collectiecontrole kan niet starten omdat de publieke Supabase configuratie ontbreekt.',
-      collections: [],
-      mainCollection: null,
-    };
-  }
-
-  const { data, error } = await supabase
-    .from('collections')
-    .select('id, profile_id, name, type, created_at, updated_at')
-    .eq('profile_id', profile.id)
-    .order('name', { ascending: true });
-
-  if (error) {
-    return {
-      status: 'error',
-      message: 'Collectiecontrole is mislukt.',
-      collections: [],
-      mainCollection: null,
-      errorMessage: toSafeErrorMessage(error.message),
-    };
-  }
-
-  const collections: AppCollection[] = ((data ?? []) as CollectionReadinessRow[]).map(
-    ({ id, profile_id, name, type, created_at, updated_at }) => ({
-      id,
-      profileId: profile_id,
-      name,
-      type,
-      createdAt: created_at,
-      updatedAt: updated_at,
-    }),
-  );
-
-  const mainCollection = collections.find((collection) => collection.type === 'main') ?? null;
-
-  if (!mainCollection) {
-    return {
-      status: 'collection-missing',
-      message: 'Er is nog geen hoofdcollectie gekoppeld aan dit profiel.',
-      collections,
-      mainCollection: null,
-    };
-  }
-
-  return {
-    status: 'collection-ready',
-    message: 'Hoofdcollectie gevonden.',
-    collections,
-    mainCollection,
-  };
 }

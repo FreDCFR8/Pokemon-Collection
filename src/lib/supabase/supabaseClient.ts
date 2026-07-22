@@ -1,5 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
+let browserClient: SupabaseClient | null | undefined;
+
 export interface SupabasePublicConfig {
   url: string;
   anonKey: string;
@@ -27,5 +29,6 @@ export function createBrowserSupabaseClient(
     return null;
   }
 
-  return createClient(config.url, config.anonKey);
+  browserClient ??= createClient(config.url, config.anonKey);
+  return browserClient;
 }

@@ -1,10 +1,6 @@
 import { useEffect, useState } from 'react';
-import { AuthStateCard, LoginPanel } from './features/auth';
-import { CollectionCardsPreviewCard } from './features/collectionCards';
+import { LoginPanel, useIdentity } from './features/auth';
 import { CollectionPage } from './features/collectionPage';
-import { CollectionReadinessCard } from './features/collections';
-import { EnvConfigStatusCard } from './features/config';
-import { ProfileReadinessCard, ProfileStatusCard } from './features/profiles';
 import { SetsPage } from './features/setsPage';
 import { WishlistPage } from './features/wishlistPage';
 import { CatalogSearchPage } from './features/catalogSearch';
@@ -55,30 +51,7 @@ function PlaceholderCard({ title, description }: { title: string; description: s
 
 function DashboardPage() {
   return (
-    <>
-      <section className="hero-panel">
-        <p className="eyebrow">Config readiness</p>
-        <h2>Configuratie voorbereid zonder data-opvraging</h2>
-        <p>
-          De app kan nu tonen of de publieke configuratie aanwezig lijkt. De Collection-tab laadt read-only
-          collectiekaarten pas wanneer de readiness flow groen is.
-        </p>
-      </section>
-
-      <EnvConfigStatusCard />
-      <section className="auth-layout" aria-label="Authenticatie voorbereiding">
-        <AuthStateCard />
-        <LoginPanel />
-        <ProfileReadinessCard />
-        <CollectionReadinessCard />
-        <CollectionCardsPreviewCard />
-      </section>
-      <ProfileStatusCard />
-
-      <section className="placeholder-grid" aria-label="Dashboard planning">
-        <PlaceholderCard title="Dashboard" description="Placeholder voor het toekomstige overzicht." />
-      </section>
-    </>
+    <section className="hero-panel"><p className="eyebrow">Mijn verzameling</p><h2>Klaar om kaarten te ontdekken?</h2><p>Gebruik de navigatie om je collectie, wishlist en favoriete sets te bekijken.</p></section>
   );
 }
 
@@ -107,6 +80,7 @@ function MainContent({ activeNavigationItem }: { activeNavigationItem: Navigatio
 
 export function App() {
   const [activeNavigationItem, setActiveNavigationItem] = useState(getActiveNavigationItem);
+  const identity = useIdentity();
 
   useEffect(() => {
     const syncActiveNavigationItem = () => {
@@ -121,15 +95,25 @@ export function App() {
     };
   }, []);
 
+  if (identity.status === 'initializing' || identity.status === 'authenticated_profile_loading') {
+    return <main className="app-shell"><section className="identity-state" aria-live="polite"><h1>Pokémon Collection</h1><p>{identity.message}</p></section></main>;
+  }
+  if (identity.status === 'signed_out') {
+    return <main className="app-shell"><header className="app-header"><div><p className="eyebrow">Pokémon Collection</p><h1>Jouw kaarten, jouw avontuur</h1></div></header><LoginPanel /></main>;
+  }
+  if (identity.status === 'authenticated_profile_missing' || identity.status === 'error') {
+    return <main className="app-shell"><section className="identity-state" role="alert"><h1>{identity.status === 'error' ? 'Dat ging niet goed' : 'Profiel niet gevonden'}</h1><p>{identity.message}</p><button type="button" onClick={() => void identity.retry()}>Opnieuw proberen</button><button type="button" onClick={() => void identity.signOut()}>Uitloggen</button></section></main>;
+  }
+
   return (
     <main className="app-shell">
       <header className="app-header">
         <div>
-          <p className="eyebrow">Phase 3B</p>
+          <p className="eyebrow">Verzameling van {identity.profile?.displayName}</p>
           <h1>Pokémon Collection</h1>
         </div>
-        <button className="menu-button" type="button" aria-label="Menu openen">
-          ☰
+        <button className="account-button" type="button" onClick={() => void identity.signOut()} disabled={identity.isSigningOut}>
+          {identity.isSigningOut ? 'Uitloggen…' : 'Uitloggen'}
         </button>
       </header>
 
