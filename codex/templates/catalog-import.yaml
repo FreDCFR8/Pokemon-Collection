@@ -1,0 +1,25 @@
+template: catalog-import
+profile: catalog-import
+
+required_input:
+  task: Beschrijf exact de setscope en of de opdracht uitsluitend audit/dry-run is.
+
+optional_input:
+  dataset: Bron en pinned versie.
+  set_scope: Exacte setcodes of manifest.
+  write_approval: Alleen opnemen wanneer de projecteigenaar expliciet writes goedkeurde.
+  acceptance: Taakspecifieke aantallen, classificaties en rapportvelden.
+  overrides: Alleen expliciet goedgekeurde afwijkingen.
+
+example:
+  repository: FreDCFR8/Pokemon-Collection
+  entrypoint: docs/00_CODEX_ENTRYPOINT.md
+  template: catalog-import
+  task: Voer een read-only audit uit voor de opgegeven setscope.
+  set_scope:
+    - svp
+  acceptance:
+    - databaseWritesTotal is 0.
+    - Rapporteer per set PASS, BLOCKED of NEEDS_MANUAL_REVIEW.
+
+# Zonder expliciete write_approval blijft iedere databasewrite verboden.

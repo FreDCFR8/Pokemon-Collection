@@ -1,0 +1,24 @@
+template: review
+profile: review
+
+required_input:
+  task: Beschrijf exact wat onafhankelijk beoordeeld moet worden.
+
+optional_input:
+  focus: Architectuur, code, database, security, performance, UX of PR.
+  evidence: Bekende PR, commit, rapport of foutoutput.
+  acceptance: Gewenste adviesvorm.
+
+example:
+  repository: FreDCFR8/Pokemon-Collection
+  entrypoint: docs/00_CODEX_ENTRYPOINT.md
+  template: review
+  task: Review de opgegeven wijziging onafhankelijk.
+  focus:
+    - correctness
+    - regression_risk
+  acceptance:
+    - Geef bevindingen op ernst.
+    - Adviseer herstellen, vervangen of goedkeuren.
+
+# Dit profiel maakt geen branch, codewijziging, PR of databasewrite.
