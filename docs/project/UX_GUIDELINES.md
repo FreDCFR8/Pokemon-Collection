@@ -129,9 +129,18 @@ Every data-driven feature includes:
 
 Never present a failed ownership query as proof that a card is absent.
 
-## 9. Mobile and desktop
+## 9. Mobile, iPad and desktop
 
-iPhone is the primary reference for user-facing development.
+iPhone remains the compact mobile reference for user-facing development. iPad is the primary everyday device for Lars and Lore and must receive explicit manual testing before child-facing work is approved.
+
+For iPad:
+
+- use the additional space to improve readability and reachability, not to expose administrator complexity;
+- keep card imagery dominant;
+- avoid stretched single-column phone layouts when a bounded or adaptive layout is clearer;
+- support portrait and landscape when the feature reasonably allows both;
+- verify safe areas, modal scrolling, touch targets and keyboard appearance;
+- ensure the active child profile remains clearly visible during collection-changing actions.
 
 Desktop remains supported:
 
@@ -139,9 +148,43 @@ Desktop remains supported:
 - content should not stretch unnecessarily;
 - hover is optional enhancement, never required interaction;
 - keyboard and focus behavior must remain usable;
-- desktop changes must not weaken the mobile flow.
+- desktop changes must not weaken the mobile or iPad flow.
 
-## 10. Visual consistency
+## 10. Child and administrator modes
+
+The child experience and administrator experience are intentionally separated.
+
+Child mode:
+
+- focuses on Sets, Collection, Wishlist, Search and Card Detail;
+- shows no administrator navigation, technical diagnostics or import controls;
+- uses friendly product language rather than role, audit or database terminology;
+- makes the active child identity obvious enough to prevent editing the wrong collection;
+- requires a deliberate profile-switching flow rather than an accidental one-tap switch inside a mutation flow;
+- keeps destructive actions clearly distinguishable and provides confirmation or recovery only where it improves safety without adding constant friction.
+
+Administrator mode:
+
+- may expose child-profile management, **Activiteiten**, household statistics and settings;
+- must remain understandable and must not become a general database console;
+- visually distinguishes administrator-only areas from child-facing collection use;
+- requires server-enforced authorization even when the controls are hidden elsewhere;
+- presents activity as a readable timeline with filters, not as raw database rows.
+
+The product term is **Activiteiten**. Terms such as audit log, event table and mutation record belong only in technical documentation.
+
+## 11. Activity and recovery UX
+
+- Activity items state who acted, what changed, which card or setting was affected and when it happened.
+- Filters may include child profile, collection, action type and date.
+- Normal browsing and search are not presented as activity by default.
+- A recovery action is shown only when the operation is explicitly reversible and still safe in the current state.
+- Use **Herstellen** for product-level recovery; do not imply that every historical event can be undone.
+- A successful recovery creates a new visible activity item rather than removing the original one.
+- Failed or no-longer-safe recovery explains the reason without exposing database internals.
+- Children do not see the household-wide activity timeline unless a later product decision explicitly permits a scoped personal view.
+
+## 12. Visual consistency
 
 - Reuse spacing, radius, typography and status patterns.
 - Avoid page-specific variants of the same ownership control.
@@ -150,7 +193,7 @@ Desktop remains supported:
 - Avoid permanent technical copy in product-facing screens.
 - Prefer one reusable component over multiple near-identical detail designs after the shared behavior is understood.
 
-## 11. UX review checklist
+## 13. UX review checklist
 
 Before approving user-facing work, verify:
 
@@ -162,7 +205,11 @@ Before approving user-facing work, verify:
 - loading, error and pending states are safe;
 - accessibility behavior is present;
 - iPhone testing is complete;
+- iPad testing is complete for child-facing features;
+- portrait and landscape are checked where relevant;
 - desktop is checked when relevant;
+- child and administrator controls remain correctly separated;
+- the active child profile is unambiguous during mutations;
 - the design can evolve without duplicating the same interaction elsewhere.
 
 A feature is UX-complete only after explicit UX review and manual preview testing.
