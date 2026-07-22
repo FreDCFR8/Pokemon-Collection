@@ -78,6 +78,7 @@ async function toSummary(profile: ProfileRow, collection: CollectionRow, rows: C
   const collectionRows = rows.filter((row) => row.collection_id === collection.id);
   const ownedRows = collectionRows.filter((row) => row.status === 'owned');
   const wishlistRows = collectionRows.filter((row) => row.status === 'wishlist');
+  const ownedCardIds = [...new Set(ownedRows.map((row) => row.cards_catalog?.id).filter((id): id is string => Boolean(id)))];
   const recentCards: DashboardRecentCard[] = ownedRows
     .filter((row) => row.cards_catalog)
     .sort((first, second) => `${second.added_at}-${second.created_at}`.localeCompare(`${first.added_at}-${first.created_at}`))
@@ -98,9 +99,10 @@ async function toSummary(profile: ProfileRow, collection: CollectionRow, rows: C
     displayName: profile.display_name,
     collectionId: collection.id,
     totalQuantity: ownedRows.reduce((total, row) => total + row.quantity, 0),
-    uniqueOwnedCards: new Set(ownedRows.map((row) => row.cards_catalog?.id).filter(Boolean)).size,
+    uniqueOwnedCards: ownedCardIds.length,
     wishlistCards: wishlistRows.length,
     duplicateQuantity: ownedRows.reduce((total, row) => total + Math.max(0, row.quantity - 1), 0),
+    ownedCardIds,
     recentCards,
     rarityInsights: buildRarityInsights(ownedRows),
     setInsights,
@@ -116,7 +118,7 @@ function buildComparison(summaries: DashboardSummary[]): DashboardComparison | n
 
   return {
     combinedQuantity: summaries.reduce((total, summary) => total + summary.totalQuantity, 0),
-    combinedUniqueCards: new Set(summaries.flatMap((summary) => summary.recentCards.map((card) => card.id))).size,
+    combinedUniqueCards: new Set(summaries.flatMap((summary) => summary.ownedCardIds)).size,
     combinedWishlistCards: summaries.reduce((total, summary) => total + summary.wishlistCards, 0),
     combinedDuplicateQuantity: summaries.reduce((total, summary) => total + summary.duplicateQuantity, 0),
     leadingCollectorName: runnerUp && leader.uniqueOwnedCards !== runnerUp.uniqueOwnedCards ? leader.displayName : null,
