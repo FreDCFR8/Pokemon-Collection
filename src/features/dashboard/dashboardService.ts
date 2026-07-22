@@ -1,6 +1,5 @@
 import { createBrowserSupabaseClient } from '../../lib/supabase';
-import { getSetsCatalog } from '../../services/setsCatalogService';
-import { getSetProgressForCollection } from '../setsPage/services/setsProgressService';
+import { getSetsCatalog, type SetsCatalogRow } from '../../services/setsCatalogService';
 import type {
   DashboardComparison,
   DashboardRecentCard,
@@ -52,29 +51,37 @@ function buildRarityInsights(rows: CollectionCardRow[]): DashboardRarityInsight[
     .slice(0, 4);
 }
 
-async function buildSetInsights(collectionId: string): Promise<DashboardSetInsight[]> {
-  const [progressRows, sets] = await Promise.all([getSetProgressForCollection(collectionId), getSetsCatalog()]);
-  const setsByCode = new Map(sets.map((set) => [set.set_code, set]));
+function buildSetInsights(ownedRows: CollectionCardRow[], sets: SetsCatalogRow[]): DashboardSetInsight[] {
+  const idsBySetCode = new Map<string, Set<string>>();
 
-  return progressRows
-    .flatMap((progress) => {
-      const set = setsByCode.get(progress.setCode);
-      const total = progress.total ?? progress.printedTotal;
-      if (!set || total === null || total <= 0 || progress.progressPercent === null) return [];
+  for (const row of ownedRows) {
+    const card = row.cards_catalog;
+    if (!card?.set_code) continue;
+    const ids = idsBySetCode.get(card.set_code) ?? new Set<string>();
+    ids.add(card.id);
+    idsBySetCode.set(card.set_code, ids);
+  }
+
+  return sets
+    .flatMap((set) => {
+      const total = set.total ?? set.printed_total;
+      const ownedCount = idsBySetCode.get(set.set_code)?.size ?? 0;
+      if (ownedCount === 0 || total === null || total <= 0) return [];
+      const progressPercent = Math.min(100, Math.round((ownedCount / total) * 100));
       return [{
-        setCode: progress.setCode,
+        setCode: set.set_code,
         setName: set.name,
-        ownedCount: progress.ownedCount,
+        ownedCount,
         total,
-        missingCount: Math.max(0, total - progress.ownedCount),
-        progressPercent: progress.progressPercent,
+        missingCount: Math.max(0, total - ownedCount),
+        progressPercent,
       }];
     })
     .sort((first, second) => second.progressPercent - first.progressPercent || second.ownedCount - first.ownedCount || first.setName.localeCompare(second.setName, 'nl'))
     .slice(0, 4);
 }
 
-async function toSummary(profile: ProfileRow, collection: CollectionRow, rows: CollectionCardRow[]): Promise<DashboardSummary> {
+function toSummary(profile: ProfileRow, collection: CollectionRow, rows: CollectionCardRow[], sets: SetsCatalogRow[]): DashboardSummary {
   const collectionRows = rows.filter((row) => row.collection_id === collection.id);
   const ownedRows = collectionRows.filter((row) => row.status === 'owned');
   const wishlistRows = collectionRows.filter((row) => row.status === 'wishlist');
@@ -92,7 +99,7 @@ async function toSummary(profile: ProfileRow, collection: CollectionRow, rows: C
       quantity: row.quantity,
       addedAt: row.added_at,
     }));
-  const setInsights = await buildSetInsights(collection.id);
+  const setInsights = buildSetInsights(ownedRows, sets);
 
   return {
     profileId: profile.id,
@@ -140,9 +147,9 @@ async function loadRows(collectionIds: string[]): Promise<CollectionCardRow[] | 
 
 export async function loadChildDashboard(profileId: string, displayName: string, collectionId: string): Promise<DashboardState> {
   try {
-    const rows = await loadRows([collectionId]);
+    const [rows, sets] = await Promise.all([loadRows([collectionId]), getSetsCatalog()]);
     if (!rows) return safeErrorState();
-    const summary = await toSummary({ id: profileId, display_name: displayName }, { id: collectionId, profile_id: profileId }, rows);
+    const summary = toSummary({ id: profileId, display_name: displayName }, { id: collectionId, profile_id: profileId }, rows, sets);
     return {
       status: 'ready',
       message: summary.totalQuantity > 0 || summary.wishlistCards > 0 ? 'Dashboard geladen.' : 'Je verzameling is nog leeg.',
@@ -159,9 +166,10 @@ export async function loadAdminDashboard(): Promise<DashboardState> {
   if (!supabase) return safeErrorState();
 
   try {
-    const [profilesResult, collectionsResult] = await Promise.all([
+    const [profilesResult, collectionsResult, sets] = await Promise.all([
       supabase.from('profiles').select('id, display_name').eq('role', 'child').order('display_name', { ascending: true }),
       supabase.from('collections').select('id, profile_id').eq('type', 'main'),
+      getSetsCatalog(),
     ]);
     if (profilesResult.error || collectionsResult.error) return safeErrorState();
 
@@ -175,10 +183,10 @@ export async function loadAdminDashboard(): Promise<DashboardState> {
     const rows = await loadRows(relevantCollections.map((collection) => collection.id));
     if (!rows) return safeErrorState();
 
-    const summaries = await Promise.all(profiles.flatMap((profile) => {
+    const summaries = profiles.flatMap((profile) => {
       const collection = collectionByProfile.get(profile.id);
-      return collection ? [toSummary(profile, collection, rows)] : [];
-    }));
+      return collection ? [toSummary(profile, collection, rows, sets)] : [];
+    });
 
     return summaries.length > 0
       ? { status: 'ready', message: 'Beheerdashboard geladen.', summaries, comparison: buildComparison(summaries) }
