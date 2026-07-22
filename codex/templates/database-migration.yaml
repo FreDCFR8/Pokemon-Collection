@@ -1,0 +1,24 @@
+template: database-migration
+profile: database-migration
+
+required_input:
+  task: Beschrijf schema- of datadoel en de exacte beoogde toestand.
+
+optional_input:
+  target_scope: Tabellen, rijen, constraints, policies of functies.
+  write_approval: Alleen opnemen na expliciete toestemming van de projecteigenaar.
+  acceptance: Exacte before/after-, RLS- en postcheckcriteria.
+  overrides: Alleen expliciet goedgekeurde afwijkingen.
+
+example:
+  repository: FreDCFR8/Pokemon-Collection
+  entrypoint: docs/00_CODEX_ENTRYPOINT.md
+  template: database-migration
+  task: Ontwerp en valideer de beschreven migratie zonder ze uit te voeren.
+  target_scope:
+    - public.example_table
+  acceptance:
+    - Lever read-only evidence en exact migratieplan.
+    - Voer geen databasewrites uit.
+
+# Zonder expliciete write_approval blijft uitvoering verboden.
