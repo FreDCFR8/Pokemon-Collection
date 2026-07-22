@@ -16,3 +16,5 @@ export { LoginPanel } from './LoginPanel';
 export { useIdentity } from './IdentityProvider';
 export { logout } from './logoutService';
 export type { IdentityState, IdentityStatus } from './identityRuntimeTypes';
+export { createIdentityRuntime } from './identityRuntime';
+export type { IdentityRuntime } from './identityRuntime';
