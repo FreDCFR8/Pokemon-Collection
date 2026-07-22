@@ -1,0 +1,120 @@
+version: 2
+
+shared:
+  language: nl
+  repository: FreDCFR8/Pokemon-Collection
+  entrypoint: docs/00_CODEX_ENTRYPOINT.md
+  main_stable: true
+  one_branch_per_goal: true
+  one_pr_per_goal: true
+  no_scope_expansion: true
+  no_secrets: true
+  no_force_push: true
+  no_merge_without_owner_approval: true
+  database_writes: denied_unless_explicitly_approved
+  corrections_stay_in_same_pr: true
+  report_changed_files: true
+  report_evidence: true
+
+profiles:
+  docs-only:
+    change_scope:
+      allowed:
+        - documentation
+        - codex configuration
+        - pull request template
+      prohibited:
+        - runtime code
+        - dependencies
+        - database schema
+        - database data
+    verification:
+      required:
+        - inspect_changed_files
+        - check_internal_links_and_paths
+        - git_diff_check
+      conditional: []
+
+  review:
+    write_repository: false
+    create_branch: false
+    create_pull_request: false
+    database_writes: false
+    verification:
+      required:
+        - inspect_relevant_code_and_docs
+        - report_findings_with_evidence
+      conditional:
+        - inspect_ci_when_relevant
+
+  standard-feature:
+    change_scope:
+      allowed:
+        - task_required_code
+        - task_required_tests
+        - task_required_docs
+      prohibited:
+        - unrelated_refactors
+        - dependency_changes_without_need
+    verification:
+      required:
+        - relevant_tests
+        - typecheck_when_typescript_changes
+        - build_when_runtime_or_build_config_changes
+        - git_diff_check
+        - verify_changed_files
+      conditional:
+        - preview_test_for_user_facing_changes
+        - iphone_test_by_owner_for_mobile_ui
+        - database_read_only_evidence_for_database_dependent_behavior
+
+  bugfix:
+    inherits: standard-feature
+    requirements:
+      - prove_root_cause_before_patch
+      - add_or_update_regression_test_when_practical
+      - preserve_approved_behavior
+      - prefer_smallest_safe_fix
+
+  catalog-import:
+    change_scope:
+      prohibited:
+        - collection_cards_mutation
+        - automatic_catalog_deletes
+        - silent_metadata_overwrite
+    verification:
+      required:
+        - source_and_manifest_validation
+        - read_only_preflight
+        - dry_run
+        - expected_received_counts
+        - conflict_and_blocked_item_report
+        - exact_write_manifest_before_any_approved_write
+        - postcheck
+        - idempotency_check_after_any_approved_write
+        - protected_table_verification
+        - relevant_tests
+        - typecheck
+        - git_diff_check
+      database_writes: denied_unless_task_contains_explicit_write_approval
+
+  database-migration:
+    verification:
+      required:
+        - read_only_schema_and_data_evidence
+        - exact_target_scope
+        - expected_before_after_state
+        - stop_conditions
+        - transaction_safety_or_documented_reason
+        - rollback_or_recovery_plan
+        - postcheck
+        - rls_and_constraint_review
+        - relevant_tests
+        - git_diff_check
+      database_writes: denied_unless_task_contains_explicit_write_approval
+
+selection_rules:
+  - Use the narrowest profile that fully covers the task.
+  - A template may add task-specific requirements but may not weaken shared safety rules.
+  - Run only applicable checks; skipped checks require a one-line reason.
+  - Full test suites are required only when risk, shared infrastructure, or the task explicitly justifies them.
