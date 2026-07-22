@@ -47,6 +47,7 @@ end;
 $$;
 
 revoke all on function public.update_profile_display_name(uuid, text) from public;
+revoke execute on function public.update_profile_display_name(uuid, text) from anon;
 grant execute on function public.update_profile_display_name(uuid, text) to authenticated;
 
 comment on function public.update_profile_display_name(uuid, text) is
