@@ -98,6 +98,21 @@ The remaining catalog-import scope is limited to 18 exception sets. PR147 remain
 - ⏳ missing workflow
 - ⏳ condition and status editing
 
+## User management and activity
+
+The existing authentication, profile, collection and RLS foundation will be extended rather than replaced. Detailed architecture is defined in `docs/architecture/USER_MANAGEMENT_AND_ACTIVITY.md`.
+
+- ✅ architecture and lasting decisions documented
+- 🔎 Phase 9A — household account and child-profile access model
+- 🔎 Phase 9B — administrator role, permission matrix and RLS design
+- ⏳ Phase 9C — child-safe iPad profile selection and active-profile safeguards
+- ⏳ Phase 9D — central activity history for meaningful mutations
+- ⏳ Phase 9E — administrator activity timeline and filters
+- ⏳ Phase 9F — first explicitly reversible actions and recovery controls
+- ⏳ Phase 9G — administrator settings and household statistics
+
+Implementation is blocked until the account model, administrator protection, event retention and initial reversible actions are explicitly approved.
+
 ## Data enrichment
 
 - ⏳ price synchronization
