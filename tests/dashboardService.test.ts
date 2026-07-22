@@ -1,0 +1,55 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { buildRarityInsights, buildRecentSets, buildSetInsights, selectVisibleSetInsights } from '../src/features/dashboard/dashboardInsights.ts';
+import { dashboardSetHref } from '../src/features/dashboard/dashboardNavigation.ts';
+
+const row = (cardId: string, setCode: string, rarity: string, status = 'owned') => ({
+  id: `collection-${cardId}`,
+  collection_id: 'collection-1',
+  quantity: 1,
+  status,
+  added_at: '2026-07-22',
+  created_at: '2026-07-22',
+  cards_catalog: { id: cardId, pokemon: 'Test Pokémon', set_name: 'Test set', set_code: setCode, number: '1', rarity, image_small: null },
+});
+
+test('dashboard insights keep wishlist out of owned set progress and use unique cards', () => {
+  const rows = [row('one', 'sv1', 'Rare'), row('one', 'sv1', 'Rare'), row('wish', 'sv1', 'Common', 'wishlist')];
+  const sets = [{ id: 'set-1', set_code: 'sv1', name: 'Test set', series: null, generation: null, release_date: '2026-01-01', printed_total: 10, total: 10, symbol_url: null, logo_url: null, source: null, source_id: null }];
+  assert.deepEqual(buildSetInsights(rows.filter((entry) => entry.status === 'owned') as never, sets), [{ setCode: 'sv1', setName: 'Test set', ownedCount: 1, total: 10, missingCount: 9, progressPercent: 10 }]);
+});
+
+test('rarity insights expose exact unique counts and percentages', () => {
+  const insights = buildRarityInsights([row('one', 'sv1', 'Rare'), row('two', 'sv1', 'Common'), row('two', 'sv1', 'Common')] as never);
+  assert.deepEqual(insights, [{ rarity: 'Common', uniqueCards: 1, percent: 50 }, { rarity: 'Rare', uniqueCards: 1, percent: 50 }]);
+});
+
+test('recent set summaries preserve bounded deterministic catalog order and missing artwork', () => {
+  const sets = [
+    { id: 'set-2', set_code: 'sv2', name: 'Nieuwste', series: null, generation: null, release_date: '2026-02-01', printed_total: 20, total: 20, symbol_url: null, logo_url: null, source: null, source_id: null },
+    { id: 'set-1', set_code: 'sv1', name: 'Ouder', series: null, generation: null, release_date: '2026-01-01', printed_total: 10, total: 10, symbol_url: 'symbol.png', logo_url: null, source: null, source_id: null },
+  ];
+  const summaries = buildRecentSets(sets, [{ setCode: 'sv1', setName: 'Ouder', ownedCount: 2, total: 10, missingCount: 8, progressPercent: 20 }]);
+  assert.deepEqual(summaries.map((set) => [set.setCode, set.logoUrl, set.symbolUrl, set.ownedCount, set.progressPercent]), [['sv2', null, null, null, null], ['sv1', null, 'symbol.png', 2, 20]]);
+});
+
+test('recent sets retain progress that falls outside the visible top four set insights', () => {
+  const sets = ['a', 'b', 'c', 'd', 'e'].map((setCode, index) => ({ id: setCode, set_code: setCode, name: `Set ${setCode}`, series: null, generation: null, release_date: `2026-0${index + 1}-01`, printed_total: 10, total: 10, symbol_url: null, logo_url: null, source: null, source_id: null }));
+  const rows = sets.flatMap((set, index) => Array.from({ length: 5 - index }, (_, cardIndex) => row(`${set.set_code}-${cardIndex}`, set.set_code, 'Common')));
+  const allInsights = buildSetInsights(rows as never, sets);
+  const recent = buildRecentSets([sets[4]], allInsights);
+  assert.equal(selectVisibleSetInsights(allInsights).some((insight) => insight.setCode === 'e'), false);
+  assert.deepEqual(recent[0] && [recent[0].ownedCount, recent[0].progressPercent], [1, 10]);
+});
+
+test('rarity insights group remaining rarities as Overig and keep ring percentages at exactly 100%', () => {
+  const insights = buildRarityInsights(['Rare', 'Common', 'Uncommon', 'Double Rare', 'Illustration Rare'].map((rarity, index) => row(`rarity-${index}`, 'sv1', rarity)) as never);
+  assert.deepEqual(insights.map((insight) => insight.rarity), ['Common', 'Double Rare', 'Illustration Rare', 'Overig']);
+  assert.equal(insights.find((insight) => insight.rarity === 'Overig')?.uniqueCards, 2);
+  assert.equal(insights.reduce((total, insight) => total + insight.percent, 0), 100);
+});
+
+test('dashboard set navigation preserves canonical set and card identifiers', () => {
+  assert.equal(dashboardSetHref('sv4pt5'), '#sets?set=sv4pt5');
+  assert.equal(dashboardSetHref('sv4pt5', 'catalog-card-42'), '#sets?set=sv4pt5&card=catalog-card-42');
+});

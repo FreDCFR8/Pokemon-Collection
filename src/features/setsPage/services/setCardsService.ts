@@ -24,6 +24,7 @@ export type SetCardsResult = {
 
 export type GetSetCardsParams = {
   setCode: string;
+  cardCatalogId?: string;
   offset?: number;
   limit?: number;
   searchTerm?: string;
@@ -54,6 +55,7 @@ function normalizeSearchTerm(searchTerm: string | undefined): string {
 
 export async function getSetCards({
   setCode,
+  cardCatalogId,
   offset,
   limit,
   searchTerm,
@@ -75,6 +77,8 @@ export async function getSetCards({
     .from('cards_catalog')
     .select(SET_CARDS_SELECT, { count: 'exact' })
     .eq('set_code', setCode);
+
+  if (cardCatalogId) query = query.eq('id', cardCatalogId);
 
   if (normalizedSearchTerm) {
     const searchPattern = `%${normalizedSearchTerm}%`;

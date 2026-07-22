@@ -50,3 +50,21 @@ export async function getSetsCatalog(): Promise<SetsCatalogRow[]> {
 
   return data ?? [];
 }
+
+/** A bounded catalogue read for dashboard discovery; failures stay isolated there. */
+export async function getRecentSetsCatalog(limit = 6): Promise<SetsCatalogRow[]> {
+  const supabase = createBrowserSupabaseClient();
+  if (!supabase) throw new Error('Sets catalog is niet beschikbaar.');
+
+  const { data, error } = await supabase
+    .from('sets_catalog')
+    .select(SETS_CATALOG_SELECT)
+    .order('release_date', { ascending: false, nullsFirst: false })
+    .order('name', { ascending: true })
+    .order('set_code', { ascending: true })
+    .limit(Math.min(Math.max(limit, 1), 6))
+    .returns<SetsCatalogRow[]>();
+
+  if (error) throw new Error('Recente sets konden niet worden opgehaald.');
+  return data ?? [];
+}

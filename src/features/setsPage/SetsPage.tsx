@@ -109,7 +109,7 @@ function formatSetProgressText(ownedCount: number, total: number | null) {
   return 'Nog geen totaal bekend';
 }
 
-export function SetsPage() {
+export function SetsPage({ requestedSetCode = null, requestedCardId = null }: { requestedSetCode?: string | null; requestedCardId?: string | null }) {
   const [setsPageState, setSetsPageState] = useState<SetsPageState>({ status: 'loading', sets: [] });
   const [setsProgressState, setSetsProgressState] = useState<SetsProgressState>({
     status: 'idle',
@@ -141,6 +141,8 @@ export function SetsPage() {
   const setCardButtonRefs = useRef(new Map<string, HTMLButtonElement>());
   const overlayCloseButtonRef = useRef<HTMLButtonElement | null>(null);
   const overlayScrollRef = useRef<HTMLDivElement | null>(null);
+  const requestedRouteRef = useRef<string | null>(null);
+  const requestedCardLoadRef = useRef<string | null>(null);
 
   function invalidateSetCardMutations() {
     setCardMutationRequestIdRef.current += 1;
@@ -1000,6 +1002,38 @@ export function SetsPage() {
       }
     }, 0);
   }
+
+  useEffect(() => {
+    if (setsPageState.status !== 'success' || !requestedSetCode) return;
+    const target = setsPageState.sets.find((set) => set.set_code === requestedSetCode);
+    const routeKey = `${requestedSetCode}:${requestedCardId ?? ''}`;
+    if (target && requestedRouteRef.current !== routeKey) {
+      requestedRouteRef.current = routeKey;
+      openSetOverlay(target.id);
+    }
+  }, [requestedCardId, requestedSetCode, setsPageState]);
+
+  useEffect(() => {
+    if (!requestedCardId || !openSet || setCardsOverlayState.status !== 'success') return;
+    if (setCardsOverlayState.cards.some((card) => card.id === requestedCardId)) {
+      setSelectedSetCardId(requestedCardId);
+    }
+  }, [openSet, requestedCardId, setCardsOverlayState.cards, setCardsOverlayState.status]);
+
+  useEffect(() => {
+    if (!requestedCardId || !openSet || setCardsOverlayState.status !== 'success' || setCardsOverlayState.cards.some((card) => card.id === requestedCardId)) return;
+    const requestKey = `${openSet.set_code}:${requestedCardId}`;
+    if (requestedCardLoadRef.current === requestKey) return;
+    requestedCardLoadRef.current = requestKey;
+    let active = true;
+    void getSetCards({ setCode: openSet.set_code, cardCatalogId: requestedCardId, limit: 1 }).then((result) => {
+      if (!active || result.cards.length === 0) return;
+      const card = result.cards[0];
+      setSetCardsOverlayState((current) => current.cards.some((item) => item.id === card.id) ? current : { ...current, cards: [...current.cards, card] });
+      setSelectedSetCardId(card.id);
+    }).catch(() => undefined);
+    return () => { active = false; };
+  }, [openSet, requestedCardId, setCardsOverlayState.cards, setCardsOverlayState.status]);
 
   useEffect(() => {
     let isMounted = true;

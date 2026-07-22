@@ -2,6 +2,7 @@ export type DashboardRecentCard = {
   id: string;
   pokemon: string;
   setName: string | null;
+  setCode: string | null;
   number: string | null;
   imageSmall: string | null;
   quantity: number;
@@ -20,6 +21,18 @@ export type DashboardSetInsight = {
 export type DashboardRarityInsight = {
   rarity: string;
   uniqueCards: number;
+  percent: number;
+};
+
+export type DashboardRecentSet = {
+  setCode: string;
+  name: string;
+  releaseDate: string | null;
+  total: number | null;
+  logoUrl: string | null;
+  symbolUrl: string | null;
+  ownedCount: number | null;
+  progressPercent: number | null;
 };
 
 export type DashboardSummary = {
@@ -30,11 +43,14 @@ export type DashboardSummary = {
   uniqueOwnedCards: number;
   wishlistCards: number;
   duplicateQuantity: number;
+  duplicatePercent: number;
   ownedCardIds: string[];
   recentCards: DashboardRecentCard[];
   rarityInsights: DashboardRarityInsight[];
   setInsights: DashboardSetInsight[];
   continueCollecting: DashboardSetInsight | null;
+  recentSets: DashboardRecentSet[];
+  recentSetsStatus: 'ready' | 'unavailable';
 };
 
 export type DashboardComparison = {
