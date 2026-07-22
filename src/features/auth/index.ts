@@ -9,8 +9,13 @@ export type {
   AuthLoginServiceStatus,
 } from './authLoginServiceTypes';
 export { prepareAuthLogin } from './authLoginService';
-export type { KnownChildUsername, UsernameAuthTarget } from './usernameAuthMappingTypes';
-export { isKnownChildUsername, normalizeUsername, resolveUsernameAuthTarget } from './usernameAuthMapping';
+export type { KnownChildUsername, KnownUsername, UsernameAuthTarget } from './usernameAuthMappingTypes';
+export {
+  isKnownChildUsername,
+  isKnownUsername,
+  normalizeUsername,
+  resolveUsernameAuthTarget,
+} from './usernameAuthMapping';
 export { AuthStateCard } from './AuthStateCard';
 export { LoginPanel } from './LoginPanel';
 export { useIdentity } from './IdentityProvider';

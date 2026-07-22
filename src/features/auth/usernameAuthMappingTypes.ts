@@ -1,8 +1,9 @@
 export type KnownChildUsername = 'lars' | 'lore';
+export type KnownUsername = KnownChildUsername | 'frederik';
 
 export type UsernameAuthTarget = {
-  username: KnownChildUsername;
+  username: KnownUsername;
   hiddenAuthEmail: string;
   displayName: string;
-  childKey: KnownChildUsername;
+  childKey: KnownChildUsername | null;
 };

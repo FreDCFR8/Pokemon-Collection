@@ -1,4 +1,4 @@
-export type ProfileRole = 'parent_admin' | 'child';
+export type ProfileRole = 'admin' | 'child';
 
 export type ProfileId = string;
 export type AuthUserId = string;
@@ -24,5 +24,5 @@ export function isChildProfile(profile: Profile): boolean {
 }
 
 export function isParentAdminProfile(profile: Profile): boolean {
-  return profile.role === 'parent_admin';
+  return profile.role === 'admin';
 }

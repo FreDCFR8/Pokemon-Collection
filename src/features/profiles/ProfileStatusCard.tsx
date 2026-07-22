@@ -5,7 +5,7 @@ const plannedProfiles: Profile[] = [
     id: 'planned-parent-admin',
     authUserId: 'planned-auth-parent-admin',
     displayName: 'Parent/Admin',
-    role: 'parent_admin',
+    role: 'admin',
     createdAt: 'planned',
     updatedAt: 'planned',
   },
@@ -40,7 +40,7 @@ export function ProfileStatusCard() {
         {plannedProfiles.map((profile) => (
           <li key={profile.id}>
             <span>{profile.displayName}</span>
-            <strong>{profile.role === 'parent_admin' ? 'Parent/admin' : 'Child'}</strong>
+            <strong>{profile.role === 'admin' ? 'Parent/admin' : 'Child'}</strong>
           </li>
         ))}
       </ul>
