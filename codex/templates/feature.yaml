@@ -1,0 +1,20 @@
+template: feature
+profile: standard-feature
+
+required_input:
+  task: Concrete product- of technische wijziging.
+
+optional_input:
+  scope: Alleen taak-specifieke grenzen.
+  acceptance: Alleen criteria boven op het profiel.
+  overrides: Alleen expliciet goedgekeurde afwijkingen.
+
+example:
+  repository: FreDCFR8/Pokemon-Collection
+  entrypoint: docs/00_CODEX_ENTRYPOINT.md
+  template: feature
+  task: Voeg de goedgekeurde functionaliteit toe.
+  scope:
+    - Beperk wijzigingen tot het betrokken productgebied.
+  acceptance:
+    - Beschrijf het unieke verwachte gedrag.
