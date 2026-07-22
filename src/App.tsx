@@ -1,10 +1,6 @@
 import { useEffect, useState } from 'react';
-import { AuthStateCard, LoginPanel } from './features/auth';
-import { CollectionCardsPreviewCard } from './features/collectionCards';
 import { CollectionPage } from './features/collectionPage';
-import { CollectionReadinessCard } from './features/collections';
-import { EnvConfigStatusCard } from './features/config';
-import { ProfileReadinessCard, ProfileStatusCard } from './features/profiles';
+import { DashboardPage } from './features/dashboard';
 import { SetsPage } from './features/setsPage';
 import { WishlistPage } from './features/wishlistPage';
 import { CatalogSearchPage } from './features/catalogSearch';
@@ -53,35 +49,6 @@ function PlaceholderCard({ title, description }: { title: string; description: s
   );
 }
 
-function DashboardPage() {
-  return (
-    <>
-      <section className="hero-panel">
-        <p className="eyebrow">Config readiness</p>
-        <h2>Configuratie voorbereid zonder data-opvraging</h2>
-        <p>
-          De app kan nu tonen of de publieke configuratie aanwezig lijkt. De Collection-tab laadt read-only
-          collectiekaarten pas wanneer de readiness flow groen is.
-        </p>
-      </section>
-
-      <EnvConfigStatusCard />
-      <section className="auth-layout" aria-label="Authenticatie voorbereiding">
-        <AuthStateCard />
-        <LoginPanel />
-        <ProfileReadinessCard />
-        <CollectionReadinessCard />
-        <CollectionCardsPreviewCard />
-      </section>
-      <ProfileStatusCard />
-
-      <section className="placeholder-grid" aria-label="Dashboard planning">
-        <PlaceholderCard title="Dashboard" description="Placeholder voor het toekomstige overzicht." />
-      </section>
-    </>
-  );
-}
-
 function MainContent({ activeNavigationItem }: { activeNavigationItem: NavigationLabel }) {
   switch (activeNavigationItem) {
     case 'Dashboard':
@@ -124,10 +91,7 @@ export function App() {
   return (
     <main className="app-shell">
       <header className="app-header">
-        <div>
-          <p className="eyebrow">Phase 3B</p>
-          <h1>Pokémon Collection</h1>
-        </div>
+        <h1>Pokémon Collection</h1>
         <button className="menu-button" type="button" aria-label="Menu openen">
           ☰
         </button>

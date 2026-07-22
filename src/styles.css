@@ -512,6 +512,179 @@ button {
   color: #1d4ed8;
 }
 
+/* Dashboard D2 visual shell */
+.dashboard-shell {
+  display: grid;
+  gap: clamp(18px, 3vw, 28px);
+  border-radius: 30px;
+  background:
+    radial-gradient(circle at 92% 4%, rgb(124 92 255 / 0.2), transparent 32%),
+    linear-gradient(145deg, #101a3a 0%, #17163b 100%);
+  padding: clamp(16px, 3vw, 28px);
+  color: #f8faff;
+  box-shadow: 0 24px 60px rgb(15 23 42 / 0.2);
+}
+
+.dashboard-hero {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  border: 1px solid rgb(255 255 255 / 0.12);
+  border-radius: 24px;
+  background: linear-gradient(135deg, rgb(75 92 190 / 0.32), rgb(255 255 255 / 0.06));
+  padding: clamp(20px, 4vw, 32px);
+}
+
+.dashboard-kicker {
+  margin: 0 0 6px;
+  color: #bfc9ff;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.dashboard-hero h2 {
+  margin: 0;
+  font-size: clamp(1.8rem, 6vw, 3rem);
+  line-height: 1.05;
+}
+
+.dashboard-hero p:last-child {
+  margin: 10px 0 0;
+  color: #dbe3ff;
+  line-height: 1.5;
+}
+
+.dashboard-avatar {
+  display: grid;
+  flex: 0 0 auto;
+  width: clamp(64px, 12vw, 88px);
+  aspect-ratio: 1;
+  place-items: center;
+  border: 3px solid rgb(255 255 255 / 0.28);
+  border-radius: 50%;
+  background: linear-gradient(145deg, #ffd468, #ff8d72);
+  color: #35224d;
+  font-size: clamp(1.6rem, 5vw, 2.3rem);
+  font-weight: 900;
+  box-shadow: 0 12px 28px rgb(4 8 26 / 0.28);
+}
+
+.dashboard-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.dashboard-action {
+  display: grid;
+  min-width: 0;
+  min-height: 104px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 13px;
+  border: 1px solid rgb(255 255 255 / 0.12);
+  border-radius: 20px;
+  background: #f8faff;
+  padding: 16px;
+  color: #182044;
+  box-shadow: 0 12px 24px rgb(4 8 26 / 0.18);
+}
+
+.dashboard-action:focus-visible {
+  outline: 3px solid #ffd468;
+  outline-offset: 3px;
+}
+
+.dashboard-action-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
+  background: #e9edff;
+  padding: 9px;
+  stroke: #4654b8;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+
+.dashboard-action-wishlist .dashboard-action-icon { background: #ffe9ef; stroke: #b63c68; }
+.dashboard-action-sets .dashboard-action-icon { background: #e4f7ef; stroke: #14745c; }
+.dashboard-action-search .dashboard-action-icon { background: #fff1d8; stroke: #9a5b09; }
+
+.dashboard-action strong,
+.dashboard-action small {
+  display: block;
+}
+
+.dashboard-action strong {
+  font-size: 1rem;
+}
+
+.dashboard-action small {
+  margin-top: 4px;
+  color: #59617d;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.dashboard-action-arrow {
+  color: #6771a6;
+  font-size: 1.25rem;
+  font-weight: 900;
+}
+
+.dashboard-content-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.dashboard-section {
+  min-width: 0;
+  border: 1px solid rgb(255 255 255 / 0.1);
+  border-radius: 22px;
+  background: rgb(255 255 255 / 0.07);
+  padding: clamp(17px, 3vw, 22px);
+}
+
+.dashboard-section h2 {
+  margin: 0 0 14px;
+  font-size: clamp(1.05rem, 3vw, 1.3rem);
+}
+
+.dashboard-placeholder {
+  display: flex;
+  min-height: 100px;
+  align-items: center;
+  gap: 12px;
+  border: 1px dashed rgb(199 210 254 / 0.35);
+  border-radius: 16px;
+  padding: 16px;
+  color: #ced6f5;
+  line-height: 1.5;
+}
+
+.dashboard-placeholder span {
+  color: #aebaff;
+  font-size: 1.4rem;
+}
+
+.dashboard-placeholder p { margin: 0; }
+.dashboard-placeholder-error { border-style: solid; border-color: #ff9ea9; color: #ffe2e6; }
+
+@media (max-width: 560px) {
+  .dashboard-shell { border-radius: 24px; }
+  .dashboard-actions,
+  .dashboard-content-grid { grid-template-columns: 1fr; }
+  .dashboard-action { min-height: 92px; }
+  .dashboard-avatar { width: 64px; }
+}
+
 .collection-page {
   border: 1px solid #dbe3ef;
   border-radius: 24px;
