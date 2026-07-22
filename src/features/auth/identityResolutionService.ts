@@ -16,6 +16,11 @@ export async function resolveAuthenticatedIdentity(client: SupabaseClient, user:
   const row = profileResult.data;
   if (row.auth_user_id !== user.id) return identityErrorState();
   const profile: AppProfile = { id: row.id, authUserId: row.auth_user_id, username: row.username, displayName: row.display_name, role: row.role, childKey: row.child_key };
+
+  if (profile.role === 'admin') {
+    return { status: 'authenticated_ready', user, profile, mainCollection: null, message: `Welkom, ${profile.displayName}.` };
+  }
+
   const collectionResult = await client.from('collections').select('id, profile_id, name, type, created_at, updated_at').eq('profile_id', profile.id).eq('type', 'main').maybeSingle<CollectionRow>();
   if (collectionResult.error || !collectionResult.data || collectionResult.data.profile_id !== profile.id) return identityErrorState();
   const collection = collectionResult.data;
