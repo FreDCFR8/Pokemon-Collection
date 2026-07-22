@@ -126,6 +126,10 @@ The following errors were avoidable in prior catalog work and must not recur:
 - For every catalog write, freeze an exact pre-write manifest of target row IDs, expected before-state, intended action and expected after-state. Post-write idempotency must validate that exact manifest, never reconstruct a broader scope from set-level counts.
 - Do not infer a successful write or completed backfill from an incomplete aggregate value. Verify the intended target rows, expected delta, unrelated rows and remaining exceptions separately.
 - When a process failure is discovered, update the existing durable owner document before starting the next related phase. State the prevention rule, not merely the incident. Do not create duplicate pitfall documents or repeat the rule in every future prompt.
+- A suspected regression must be reproduced on the current remote PR head before code is changed. Stale local commits, older Preview deployments or unverified branch heads are insufficient evidence.
+- When a suspected regression appears on only one device, browser or Preview session, verify the same flow in a second independent environment before classifying it as a code regression. Temporary cache, deployment, network or CDN behavior must be excluded first.
+- Regression verification for runtime PRs covers the affected flow and the established core journeys that could be indirectly impacted: authentication and account switching, Sets, Catalog, Collection, Wishlist, card images and card detail where applicable.
+- Manual Preview evidence follows the order: current deployment confirmed → desktop check when relevant → iPhone check for mobile-facing behavior → merge decision. A passing build alone never replaces this evidence.
 
 Use the database-related profile and PR template for the evidence checklist instead of copying the checklist into every task.
 
