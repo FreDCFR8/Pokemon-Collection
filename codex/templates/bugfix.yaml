@@ -1,0 +1,22 @@
+template: bugfix
+profile: bugfix
+
+required_input:
+  task: Beschrijf fout, verwacht gedrag en relevante evidence.
+
+optional_input:
+  reproduction: Bekende reproduceerstappen.
+  scope: Alleen taak-specifieke grenzen.
+  acceptance: Unieke regressiecriteria.
+  overrides: Alleen expliciet goedgekeurde afwijkingen.
+
+example:
+  repository: FreDCFR8/Pokemon-Collection
+  entrypoint: docs/00_CODEX_ENTRYPOINT.md
+  template: bugfix
+  task: Herstel de bevestigde fout zonder ander gedrag te wijzigen.
+  reproduction:
+    - Beschrijf de concrete fouttoestand.
+  acceptance:
+    - De fout is niet meer reproduceerbaar.
+    - Goedgekeurd bestaand gedrag blijft behouden.
