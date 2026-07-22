@@ -233,7 +233,7 @@ Required principles:
 
 ## 14. Codex charter
 
-A Codex assignment is fully copyable and includes project context, phase, objective, exact scope, prohibited changes, acceptance criteria, verification and PR requirements.
+A Codex assignment must be fully actionable and preserve project context, scope, prohibited changes, acceptance criteria, verification and PR requirements. These requirements may be supplied centrally through `docs/00_CODEX_ENTRYPOINT.md`, `codex/profiles.yaml`, a task template and the PR template; they do not need to be repeated verbatim in every assignment.
 
 Existing PR corrections update the existing branch and PR. Multiple correction rounds are allowed while the original purpose remains intact. Codex output is always reviewed; a passing build alone does not prove runtime, database or UX correctness.
 
@@ -267,6 +267,8 @@ Use:
 - `PROJECT_STATUS.md` for current operational state;
 - `ROADMAP.md` for planned direction;
 - `DECISION_LOG.md` for important decisions and their reasons;
+- `docs/00_CODEX_ENTRYPOINT.md` as the only fixed entrypoint for Codex assignments;
+- `codex/profiles.yaml` and `codex/templates/` for reusable execution requirements;
 - `docs/product/FUNCTIONAL_SPECIFICATION.md` for approved functional behavior, users, flows, status and product boundaries;
 - specialist documents for detailed architecture, database and integration subjects.
 
@@ -274,7 +276,7 @@ Avoid duplicated documents and repeated decisions.
 
 ## 17. Definition of Done
 
-A phase is complete only when all applicable conditions in `AI_WORKING_AGREEMENT.md` are met, including technical review, UX review, build and diff verification, preview testing, relevant device testing, documentation updates and merge.
+A phase is complete only when all applicable conditions in `AI_WORKING_AGREEMENT.md` are met, including technical review, UX review, applicable build and diff verification, preview testing, relevant device testing, documentation updates and merge. Task profiles may mark checks as not applicable, but must provide a reason.
 
 ## 18. Long-term direction
 
