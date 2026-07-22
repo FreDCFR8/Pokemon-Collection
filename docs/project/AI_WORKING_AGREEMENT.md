@@ -9,7 +9,7 @@ This document defines how the user, ChatGPT and Codex collaborate on Pokémon Co
 - Explain risks and decisions without unnecessary jargon.
 - Do not hide uncertainty or present assumptions as facts.
 - Ask for clarification only when ambiguity creates a real implementation or safety risk.
-- Codex assignments and SQL must be delivered as one complete copyable block when requested.
+- Codex assignments use compact YAML by default and refer to `docs/00_CODEX_ENTRYPOINT.md`; SQL must remain one complete copyable block when requested.
 
 ## 2. Roles
 
@@ -28,12 +28,12 @@ Every meaningful feature follows this order:
 3. analyse the mobile and desktop UX;
 4. compare meaningful alternatives when the choice is consequential;
 5. define the phase, scope, non-goals and verification plan;
-6. prepare the Codex assignment or controlled SQL;
+6. prepare the compact Codex assignment, controlled SQL or direct repository change;
 7. implement on one focused branch and PR;
 8. perform technical, architecture and security review;
 9. perform explicit UX review;
 10. apply one or more corrections inside the same PR while its purpose remains unchanged;
-11. verify build, diff and deployment;
+11. verify applicable checks, diff and deployment;
 12. test the Vercel Preview manually, with iPhone as the primary reference and desktop when relevant;
 13. merge only after technical and UX approval;
 14. update durable documentation when required.
@@ -83,29 +83,28 @@ Review explicitly:
 
 The standard card-navigation model is Sets → Binder → Card Detail. Binder grids stay visually clean; metadata and management controls belong in card detail unless a later decision explicitly changes this.
 
-## 7. Codex workflow
+## 7. Codex workflow v2
 
-Local Codex is the preferred implementation workflow when available.
+`docs/00_CODEX_ENTRYPOINT.md` is the only fixed startdocument for Codex assignments.
 
-A Codex assignment includes:
+A normal assignment contains only:
 
-- repository and stack;
-- exact phase name and verified context;
-- objective and product behavior;
-- architecture and UX constraints;
-- allowed files and prohibited changes;
-- database, RLS, security and performance requirements;
-- acceptance criteria;
-- build, type, diff and status checks;
-- PR title and PR-body requirements.
+- repository;
+- entrypoint;
+- selected template;
+- concrete task;
+- unique scope or acceptance criteria;
+- explicit overrides only when required.
 
-For an existing PR revision, state explicitly:
+Reusable requirements live in:
 
-- update the existing branch;
-- do not create a new branch;
-- do not create a new PR;
-- make only the requested correction;
-- preserve already approved behavior.
+- `codex/profiles.yaml` for task rules and applicable verification;
+- `codex/templates/` for compact task structures;
+- `.github/pull_request_template.md` for PR reporting.
+
+Do not repeat the complete project history, standard tests, PR checklist or safety rules in every assignment. Central references are part of the assignment and have the same force as repeated text.
+
+For an existing PR revision, state only the PR/branch, requested correction and any exceptional constraints. The permanent rule remains: update the existing branch and PR while the objective is unchanged.
 
 Before local work, Codex should confirm the current branch and clean working state and fetch the latest remote state.
 
@@ -124,9 +123,9 @@ The following errors were avoidable in prior catalog work and must not recur:
 - A read-only audit with `ACTION_REQUIRED` proves only that it performed no writes. It does not prove the proposed correction works; the required target fields must be checked explicitly.
 - For every catalog write, freeze an exact pre-write manifest of target row IDs, expected before-state, intended action and expected after-state. Post-write idempotency must validate that exact manifest, never reconstruct a broader scope from set-level counts.
 - Do not infer a successful write or completed backfill from an incomplete aggregate value. Verify the intended target rows, expected delta, unrelated rows and remaining exceptions separately.
-- When a process failure is discovered, update this agreement or a durable decision record before starting the next related phase. The update must state the new prevention rule, not merely describe the incident.
+- When a process failure is discovered, update the existing durable owner document before starting the next related phase. State the prevention rule, not merely the incident. Do not create duplicate pitfall documents or repeat the rule in every future prompt.
 
-Suggested continuing practice: use a short evidence checklist in every database-related PR: verified remote SHA, read-only schema/identity proof, exact changed files, automated test result, operational audit command, expected target result and explicit no-write confirmation.
+Use the database-related profile and PR template for the evidence checklist instead of copying the checklist into every task.
 
 ## 8. Database work
 
@@ -184,10 +183,12 @@ A technically working PR may still be rejected when its product or UX flow is wr
 A feature or phase is complete only when all applicable items are satisfied:
 
 - architecture review approved;
-- UX review approved;
+- UX review approved when applicable;
 - code review approved;
 - scope is complete and unrelated files are absent;
-- `npm run build` or the relevant verification succeeds;
+- applicable relevant tests succeed;
+- typecheck succeeds when TypeScript behavior or types changed;
+- build succeeds when runtime or build configuration changed;
 - `git diff --check` succeeds;
 - changed-file scope is verified;
 - database post-checks match expected results when applicable;
@@ -201,6 +202,8 @@ A feature or phase is complete only when all applicable items are satisfied:
 - the PR is mergeable and has been merged;
 - the next phase is clear.
 
+A profile may mark a check not applicable. The PR must then contain a short reason. The full test suite is not automatically required for every documentation or narrowly scoped change.
+
 ## 12. Documentation ownership
 
 Use:
@@ -211,6 +214,8 @@ Use:
 - `PROJECT_STATUS.md` for current operational state only;
 - `ROADMAP.md` for phase direction and planning;
 - `DECISION_LOG.md` for lasting decisions and their reasons;
+- `docs/00_CODEX_ENTRYPOINT.md` for routing every Codex assignment;
+- `codex/profiles.yaml` for reusable task requirements;
 - specialist documents for detailed schema or integration subjects.
 
 Avoid duplicate facts and do not create a new document for every minor change.
@@ -222,8 +227,8 @@ When a chat becomes slow or too large:
 1. merge or clearly record the current PR state;
 2. update durable documentation when needed;
 3. start a new chat inside the same project;
-4. instruct the new chat to read the project documents first;
-5. provide only the current unresolved task and latest evidence.
+4. refer the new chat to `docs/00_CODEX_ENTRYPOINT.md` and the current unresolved task;
+5. provide only the latest evidence that is not yet durably recorded.
 
 The repository documentation is the durable source of truth. Chat history is supporting context, not the project record.
 
@@ -236,6 +241,6 @@ When an error is found:
 - identify impact;
 - propose the smallest safe correction;
 - re-verify the outcome;
-- document the lesson when it changes future work.
+- document the lesson in the existing owner document when it changes future work.
 
 The user may accept or reject a recommendation, but approvals authorize only the explicitly described phase.
