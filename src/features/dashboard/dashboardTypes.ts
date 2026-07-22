@@ -2,6 +2,7 @@ export type DashboardRecentCard = {
   id: string;
   pokemon: string;
   setName: string | null;
+  setCode: string | null;
   number: string | null;
   imageSmall: string | null;
   quantity: number;

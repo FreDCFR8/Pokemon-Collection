@@ -50,6 +50,7 @@ function toSummary(profile: ProfileRow, collection: CollectionRow, rows: Collect
       id: row.cards_catalog!.id,
       pokemon: row.cards_catalog!.pokemon,
       setName: row.cards_catalog!.set_name,
+      setCode: row.cards_catalog!.set_code,
       number: row.cards_catalog!.number,
       imageSmall: row.cards_catalog!.image_small,
       quantity: row.quantity,

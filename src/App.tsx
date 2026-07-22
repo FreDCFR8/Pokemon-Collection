@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { LoginPanel, useIdentity } from './features/auth';
 import { AdminShell } from './features/admin/AdminShell';
 import { CollectionPage } from './features/collectionPage';
@@ -28,7 +28,7 @@ function safelyDecodeHash(hash: string): string {
 }
 
 function getActiveNavigationItem(): NavigationItem {
-  const rawHash = window.location.hash.replace('#', '');
+  const rawHash = window.location.hash.replace('#', '').split('?')[0];
   const normalizedHash = safelyDecodeHash(rawHash).toLowerCase();
   if (legacyPokedexSlugs.has(rawHash) || legacyPokedexSlugs.has(normalizedHash)) {
     return navigationItems.find((item) => item.slug === 'pokedex') ?? defaultNavigationItem;
@@ -36,15 +36,48 @@ function getActiveNavigationItem(): NavigationItem {
   return navigationItems.find((item) => item.slug === normalizedHash) ?? defaultNavigationItem;
 }
 
+function getRouteParameter(name: string): string | null {
+  const query = window.location.hash.split('?')[1];
+  return query ? new URLSearchParams(query).get(name) : null;
+}
+
+const mobileNavigationItems = [
+  { slug: 'dashboard', label: 'Dashboard', icon: '⌂' },
+  { slug: 'collection', label: 'Collectie', icon: '▣' },
+  { slug: 'sets', label: 'Sets', icon: '◇' },
+  { slug: 'pokedex', label: 'Pokédex', icon: '◌' },
+  { slug: 'wishlist', label: 'Wishlist', icon: '♡' },
+  { slug: 'search', label: 'Zoeken', icon: '⌕' },
+] as const;
+
+function MobileBottomNavigation({ activeSlug, isSigningOut, onSignOut }: { activeSlug: string; isSigningOut: boolean; onSignOut: () => void }) {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    function closeOnOutside(event: PointerEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) setIsMenuOpen(false);
+    }
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') setIsMenuOpen(false);
+    }
+    document.addEventListener('pointerdown', closeOnOutside);
+    window.addEventListener('keydown', closeOnEscape);
+    return () => { document.removeEventListener('pointerdown', closeOnOutside); window.removeEventListener('keydown', closeOnEscape); };
+  }, []);
+
+  return <nav className="mobile-bottom-nav" aria-label="Mobiele hoofdnavigatie"><div className="mobile-bottom-nav__bar">{mobileNavigationItems.map((item) => <a href={`#${item.slug}`} key={item.slug} aria-current={activeSlug === item.slug ? 'page' : undefined} onClick={() => setIsMenuOpen(false)}><span aria-hidden="true">{item.icon}</span><small>{item.label}</small></a>)}<div className="mobile-bottom-nav__menu" ref={menuRef}><button type="button" aria-label="Open menu" aria-expanded={isMenuOpen} onClick={() => setIsMenuOpen((open) => !open)}><span aria-hidden="true">☰</span><small>Menu</small></button>{isMenuOpen ? <div className="mobile-bottom-nav__popover"><a href="#profile" onClick={() => setIsMenuOpen(false)}>Profiel</a><button type="button" onClick={onSignOut} disabled={isSigningOut}>{isSigningOut ? 'Uitloggen…' : 'Uitloggen'}</button></div> : null}</div></div></nav>;
+}
+
 function PlaceholderCard({ title, description }: { title: string; description: string }) {
   return <section className="placeholder-card" aria-labelledby={`${title}-title`}><h2 id={`${title}-title`}>{title}</h2><p>{description}</p></section>;
 }
 
-function MainContent({ activeNavigationItem, profileId, username, displayName, collectionId, onProfileSaved }: { activeNavigationItem: NavigationLabel; profileId: string; username: string; displayName: string; collectionId: string; onProfileSaved: () => void }) {
+function MainContent({ activeNavigationItem, profileId, username, displayName, collectionId, requestedSetCode, requestedCardId, onProfileSaved }: { activeNavigationItem: NavigationLabel; profileId: string; username: string; displayName: string; collectionId: string; requestedSetCode: string | null; requestedCardId: string | null; onProfileSaved: () => void }) {
   switch (activeNavigationItem) {
     case 'Dashboard': return <ChildDashboard profileId={profileId} displayName={displayName} collectionId={collectionId} />;
     case 'Collection': return <CollectionPage />;
-    case 'Sets': return <SetsPage />;
+    case 'Sets': return <SetsPage requestedSetCode={requestedSetCode} requestedCardId={requestedCardId} />;
     case 'Wishlist': return <WishlistPage />;
     case 'Zoeken': return <CatalogSearchPage />;
     case 'Pokédex': return <section className="placeholder-grid" aria-label="Pokédex scherm"><PlaceholderCard title="Pokédex" description="Placeholder voor toekomstige Pokédex-functionaliteit." /></section>;
@@ -64,6 +97,11 @@ export function App() {
     return () => window.removeEventListener('hashchange', sync);
   }, []);
 
+  useEffect(() => {
+    document.body.classList.toggle('dashboard-active', activeNavigationItem.slug === 'dashboard');
+    return () => document.body.classList.remove('dashboard-active');
+  }, [activeNavigationItem.slug]);
+
   if (identity.status === 'initializing' || identity.status === 'authenticated_profile_loading') return <main className="app-shell"><section className="identity-state" aria-live="polite"><h1>Pokémon Collection</h1><p>{identity.message}</p></section></main>;
   if (identity.status === 'signed_out') return <main className="app-shell"><header className="app-header"><div><p className="eyebrow">Pokémon Collection</p><h1>Jouw kaarten, jouw avontuur</h1></div></header><LoginPanel /></main>;
   if (identity.status === 'authenticated_profile_missing' || identity.status === 'error') return <main className="app-shell"><section className="identity-state" role="alert"><h1>{identity.status === 'error' ? 'Dat ging niet goed' : 'Profiel niet gevonden'}</h1><p>{identity.message}</p><button type="button" onClick={() => void identity.retry()}>Opnieuw proberen</button><button type="button" onClick={() => void identity.signOut()}>Uitloggen</button></section></main>;
@@ -80,7 +118,8 @@ export function App() {
     <main className={`app-shell${activeNavigationItem.slug === 'dashboard' ? ' app-shell--dashboard' : ''}`}>
       <header className="app-header"><div><p className="eyebrow">Verzameling van {profile.displayName}</p><h1>Pokémon Collection</h1></div><button className="account-button" type="button" onClick={() => void identity.signOut()} disabled={identity.isSigningOut}>{identity.isSigningOut ? 'Uitloggen…' : 'Uitloggen'}</button></header>
       <nav className="top-nav" aria-label="Hoofdnavigatie">{navigationItems.map((item) => <a href={`#${item.slug}`} key={item.slug} aria-current={activeNavigationItem.slug === item.slug ? 'page' : undefined}>{item.label}</a>)}</nav>
-      <MainContent activeNavigationItem={activeNavigationItem.label} profileId={profile.id} username={profile.username} displayName={profile.displayName} collectionId={collection.id} onProfileSaved={() => void identity.retry()} />
+      <MainContent activeNavigationItem={activeNavigationItem.label} profileId={profile.id} username={profile.username} displayName={profile.displayName} collectionId={collection.id} requestedSetCode={getRouteParameter('set')} requestedCardId={getRouteParameter('card')} onProfileSaved={() => void identity.retry()} />
+      <MobileBottomNavigation activeSlug={activeNavigationItem.slug} isSigningOut={identity.isSigningOut} onSignOut={() => void identity.signOut()} />
     </main>
   );
 }

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildRarityInsights, buildRecentSets, buildSetInsights, selectVisibleSetInsights } from '../src/features/dashboard/dashboardInsights.ts';
+import { dashboardSetHref } from '../src/features/dashboard/dashboardNavigation.ts';
 
 const row = (cardId: string, setCode: string, rarity: string, status = 'owned') => ({
   id: `collection-${cardId}`,
@@ -46,4 +47,9 @@ test('rarity insights group remaining rarities as Overig and keep ring percentag
   assert.deepEqual(insights.map((insight) => insight.rarity), ['Common', 'Double Rare', 'Illustration Rare', 'Overig']);
   assert.equal(insights.find((insight) => insight.rarity === 'Overig')?.uniqueCards, 2);
   assert.equal(insights.reduce((total, insight) => total + insight.percent, 0), 100);
+});
+
+test('dashboard set navigation preserves canonical set and card identifiers', () => {
+  assert.equal(dashboardSetHref('sv4pt5'), '#sets?set=sv4pt5');
+  assert.equal(dashboardSetHref('sv4pt5', 'catalog-card-42'), '#sets?set=sv4pt5&card=catalog-card-42');
 });

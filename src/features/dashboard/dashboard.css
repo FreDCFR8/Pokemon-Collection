@@ -50,3 +50,19 @@
 @media (min-width: 701px) { .dashboard-v2-recent-cards { grid-template-columns: repeat(4, minmax(0, 1fr)); grid-auto-flow: unset; overflow: visible; }.dashboard-v2-card__image { min-height: 220px; }.dashboard-v2-sets { grid-template-columns: repeat(4, minmax(0, 1fr)); grid-auto-flow: unset; overflow: visible; }.dashboard-admin-children { grid-template-columns: repeat(2, minmax(0, 1fr)); }.dashboard-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 @media (min-width: 1120px) { .dashboard-v2-recent-cards { grid-template-columns: repeat(8, minmax(0, 1fr)); }.dashboard-v2-card__image { min-height: 180px; } }
 @media (prefers-reduced-motion: no-preference) { .dashboard-v2-card img, .dashboard-v2-set { transition: transform .18s ease, box-shadow .18s ease; }.dashboard-v2-card:hover img { transform: translateY(-3px); }.dashboard-v2-set:hover { transform: translateY(-2px); box-shadow: 0 12px 26px rgb(0 0 0 / .24); } }
+
+.dashboard-v2-stat { color: inherit; text-decoration: none; }
+.dashboard-v2-stat:focus-visible,
+.dashboard-v2-card:focus-visible,
+.dashboard-v2-progress:focus-visible { outline: 3px solid #00c8ff; outline-offset: 3px; }
+.dashboard-v2-progress { color: #f7fbff; text-decoration: none; border-radius: 10px; padding: 4px; margin: -4px; }
+.dashboard-v2-progress:hover { background: rgb(47 124 255 / .08); }
+.dashboard-v2-set__empty { color: #7186a9 !important; }
+
+@media (max-width: 700px) {
+  .app-shell--dashboard { padding-bottom: calc(94px + env(safe-area-inset-bottom)); }
+  .app-shell--dashboard .app-header,
+  .app-shell--dashboard .top-nav { display: none; }
+  .dashboard-v2-page { margin-top: 0; }
+  .dashboard-v2-card__image { min-height: 174px; }
+}
