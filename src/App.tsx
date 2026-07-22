@@ -6,6 +6,7 @@ import { SetsPage } from './features/setsPage';
 import { WishlistPage } from './features/wishlistPage';
 import { CatalogSearchPage } from './features/catalogSearch';
 import { ProfileSettingsForm } from './features/profileSettings/ProfileSettingsForm';
+import { ChildDashboard } from './features/dashboard';
 
 const navigationItems = [
   { label: 'Dashboard', slug: 'dashboard' },
@@ -39,20 +40,16 @@ function PlaceholderCard({ title, description }: { title: string; description: s
   return <section className="placeholder-card" aria-labelledby={`${title}-title`}><h2 id={`${title}-title`}>{title}</h2><p>{description}</p></section>;
 }
 
-function DashboardPage() {
-  return <section className="hero-panel"><p className="eyebrow">Mijn verzameling</p><h2>Klaar om kaarten te ontdekken?</h2><p>Gebruik de navigatie om je collectie, wishlist en favoriete sets te bekijken.</p></section>;
-}
-
-function MainContent({ activeNavigationItem, profileId, username, displayName, onProfileSaved }: { activeNavigationItem: NavigationLabel; profileId: string; username: string; displayName: string; onProfileSaved: () => void }) {
+function MainContent({ activeNavigationItem, profileId, username, displayName, collectionId, onProfileSaved }: { activeNavigationItem: NavigationLabel; profileId: string; username: string; displayName: string; collectionId: string; onProfileSaved: () => void }) {
   switch (activeNavigationItem) {
-    case 'Dashboard': return <DashboardPage />;
+    case 'Dashboard': return <ChildDashboard profileId={profileId} displayName={displayName} collectionId={collectionId} />;
     case 'Collection': return <CollectionPage />;
     case 'Sets': return <SetsPage />;
     case 'Wishlist': return <WishlistPage />;
     case 'Zoeken': return <CatalogSearchPage />;
     case 'Pokédex': return <section className="placeholder-grid" aria-label="Pokédex scherm"><PlaceholderCard title="Pokédex" description="Placeholder voor toekomstige Pokédex-functionaliteit." /></section>;
     case 'Profiel': return <div className="profile-settings-grid"><ProfileSettingsForm profileId={profileId} username={username} initialDisplayName={displayName} onSaved={onProfileSaved} /></div>;
-    default: return <DashboardPage />;
+    default: return <ChildDashboard profileId={profileId} displayName={displayName} collectionId={collectionId} />;
   }
 }
 
@@ -76,13 +73,14 @@ export function App() {
   }
 
   const profile = identity.profile;
-  if (!profile) return null;
+  const collection = identity.mainCollection;
+  if (!profile || !collection) return null;
 
   return (
     <main className="app-shell">
       <header className="app-header"><div><p className="eyebrow">Verzameling van {profile.displayName}</p><h1>Pokémon Collection</h1></div><button className="account-button" type="button" onClick={() => void identity.signOut()} disabled={identity.isSigningOut}>{identity.isSigningOut ? 'Uitloggen…' : 'Uitloggen'}</button></header>
       <nav className="top-nav" aria-label="Hoofdnavigatie">{navigationItems.map((item) => <a href={`#${item.slug}`} key={item.slug} aria-current={activeNavigationItem.slug === item.slug ? 'page' : undefined}>{item.label}</a>)}</nav>
-      <MainContent activeNavigationItem={activeNavigationItem.label} profileId={profile.id} username={profile.username} displayName={profile.displayName} onProfileSaved={() => void identity.retry()} />
+      <MainContent activeNavigationItem={activeNavigationItem.label} profileId={profile.id} username={profile.username} displayName={profile.displayName} collectionId={collection.id} onProfileSaved={() => void identity.retry()} />
     </main>
   );
 }
