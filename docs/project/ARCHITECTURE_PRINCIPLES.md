@@ -58,6 +58,13 @@ Avoid premature generic abstractions. Extract shared components when at least on
 - RLS and database constraints own final authorization and data invariants.
 - Documentation files each have one defined purpose.
 
+### Centralized derived statistics
+
+- All derived statistics, dashboard totals, comparisons, progress calculations and report insights must originate from one reviewed central service or pure aggregation layer.
+- UI components receive already calculated result models and must not independently reproduce business formulas.
+- A second calculation path is allowed only after an explicit architecture decision explains why the central path cannot be reused.
+- Shared formulas must distinguish source data, filtering rules and aggregation semantics explicitly so Collection, Wishlist, Sets and administrator views cannot drift apart.
+
 ## 6. Small controlled changes
 
 - One branch equals one purpose.
