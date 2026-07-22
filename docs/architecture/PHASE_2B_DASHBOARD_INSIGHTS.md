@@ -38,7 +38,7 @@ Extend the Phase 2A read-only dashboards with useful collection insights for Lar
 
 ## Architecture rule
 
-All derived dashboard statistics originate in `dashboardService.ts`. Components receive calculated result models and do not implement collection formulas. The durable rule is also recorded in `docs/project/ARCHITECTURE_PRINCIPLES.md`.
+All derived dashboard statistics originate in `dashboardService.ts`. Components receive calculated result models and do not implement collection formulas. The durable rule is also recorded in `docs/project/ARCHITECTURE_PRINCIPLES.md` and `docs/project/AI_WORKING_AGREEMENT.md`.
 
 ## Explicit non-goals
 
