@@ -267,6 +267,7 @@ Use:
 - `PROJECT_STATUS.md` for current operational state;
 - `ROADMAP.md` for planned direction;
 - `DECISION_LOG.md` for important decisions and their reasons;
+- `docs/product/FUNCTIONAL_SPECIFICATION.md` for approved functional behavior, users, flows, status and product boundaries;
 - specialist documents for detailed architecture, database and integration subjects.
 
 Avoid duplicated documents and repeated decisions.
