@@ -22,15 +22,14 @@ function DashboardIcon({ name }: { name: DashboardAction['icon'] }) {
 }
 
 function DashboardPlaceholder({ state, emptyText }: { state: DashboardContentState; emptyText: string }) {
-  if (state === 'loading') {
-    return <div className="dashboard-placeholder dashboard-placeholder-loading" role="status">Bezig met laden…</div>;
+  switch (state) {
+    case 'loading':
+      return <div className="dashboard-placeholder dashboard-placeholder-loading" role="status">Bezig met laden…</div>;
+    case 'empty':
+      return <div className="dashboard-placeholder"><span aria-hidden="true">◇</span><p>{emptyText}</p></div>;
+    case 'error':
+      return <div className="dashboard-placeholder dashboard-placeholder-error" role="alert">Dit onderdeel kon niet worden geladen.</div>;
   }
-
-  if (state === 'error') {
-    return <div className="dashboard-placeholder dashboard-placeholder-error" role="alert">Dit onderdeel kon niet worden geladen.</div>;
-  }
-
-  return <div className="dashboard-placeholder"><span aria-hidden="true">◇</span><p>{emptyText}</p></div>;
 }
 
 export function DashboardPage({

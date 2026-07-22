@@ -1,4 +1,4 @@
-export type DashboardContentState = 'ready' | 'loading' | 'empty' | 'error';
+export type DashboardContentState = 'loading' | 'empty' | 'error';
 
 export type DashboardDestination = '#collection' | '#wishlist' | '#sets' | '#search';
 
