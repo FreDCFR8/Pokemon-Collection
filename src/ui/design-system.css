@@ -1,0 +1,246 @@
+:root {
+  --color-canvas: #f4f7fb;
+  --color-surface: #ffffff;
+  --color-surface-subtle: #f8fafc;
+  --color-surface-raised: #ffffff;
+  --color-text: #172033;
+  --color-text-muted: #64748b;
+  --color-text-soft: #94a3b8;
+  --color-border: #dbe3ef;
+  --color-border-strong: #cbd5e1;
+  --color-brand: #2563eb;
+  --color-brand-strong: #1d4ed8;
+  --color-brand-soft: #eff6ff;
+  --color-success: #0f766e;
+  --color-success-soft: #ecfdf5;
+  --color-warning: #b45309;
+  --color-warning-soft: #fffbeb;
+  --color-danger: #b91c1c;
+  --color-danger-soft: #fef2f2;
+  --color-focus: rgb(37 99 235 / 0.22);
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
+  --radius-pill: 999px;
+
+  --shadow-sm: 0 8px 24px rgb(15 23 42 / 0.06);
+  --shadow-md: 0 16px 42px rgb(15 23 42 / 0.08);
+  --shadow-focus: 0 0 0 4px var(--color-focus);
+
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-md: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.375rem;
+  --font-size-2xl: clamp(1.55rem, 7vw, 2.4rem);
+
+  --line-tight: 1.15;
+  --line-normal: 1.5;
+  --line-relaxed: 1.65;
+
+  --control-min-height: 44px;
+  --content-width: 1120px;
+  --motion-fast: 140ms;
+  --motion-normal: 220ms;
+}
+
+.ui-surface {
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-md);
+}
+
+.ui-surface--subtle {
+  background: var(--color-surface-subtle);
+  box-shadow: none;
+}
+
+.ui-surface--flat {
+  box-shadow: none;
+}
+
+.ui-surface--pad-sm { padding: var(--space-4); }
+.ui-surface--pad-md { padding: var(--space-5); }
+.ui-surface--pad-lg { padding: var(--space-6); }
+
+.ui-button {
+  display: inline-flex;
+  min-height: var(--control-min-height);
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  padding: 0 var(--space-4);
+  font: inherit;
+  font-weight: 800;
+  line-height: 1;
+  text-align: center;
+  cursor: pointer;
+  transition: transform var(--motion-fast) ease, background-color var(--motion-fast) ease, border-color var(--motion-fast) ease;
+}
+
+.ui-button--primary {
+  background: var(--color-brand);
+  color: #fff;
+}
+
+.ui-button--primary:hover { background: var(--color-brand-strong); }
+
+.ui-button--secondary {
+  border-color: var(--color-border-strong);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.ui-button--quiet {
+  background: var(--color-brand-soft);
+  color: var(--color-brand-strong);
+}
+
+.ui-button:active:not(:disabled) { transform: translateY(1px); }
+.ui-button:disabled { cursor: not-allowed; opacity: 0.55; }
+
+.ui-button:focus-visible,
+.ui-icon-button:focus-visible,
+.ui-surface a:focus-visible {
+  outline: 0;
+  box-shadow: var(--shadow-focus);
+}
+
+.ui-icon-button {
+  display: inline-grid;
+  width: var(--control-min-height);
+  height: var(--control-min-height);
+  place-items: center;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.ui-stat-tile {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  background: var(--color-surface-subtle);
+}
+
+.ui-stat-tile__label {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
+.ui-stat-tile__value {
+  color: var(--color-text);
+  font-size: clamp(1.35rem, 7vw, 2rem);
+  line-height: var(--line-tight);
+}
+
+.ui-badge {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  border-radius: var(--radius-pill);
+  padding: 4px 10px;
+  background: var(--color-brand-soft);
+  color: var(--color-brand-strong);
+  font-size: var(--font-size-xs);
+  font-weight: 800;
+}
+
+.ui-badge--success { background: var(--color-success-soft); color: var(--color-success); }
+.ui-badge--warning { background: var(--color-warning-soft); color: var(--color-warning); }
+.ui-badge--danger { background: var(--color-danger-soft); color: var(--color-danger); }
+.ui-badge--neutral { background: var(--color-surface-subtle); color: var(--color-text-muted); }
+
+.ui-section-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.ui-section-heading__copy {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.ui-section-heading__eyebrow {
+  margin: 0;
+  color: var(--color-brand);
+  font-size: var(--font-size-xs);
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ui-section-heading h2,
+.ui-section-heading h3 {
+  margin: 0;
+  color: var(--color-text);
+  line-height: var(--line-tight);
+}
+
+.ui-section-heading__description {
+  margin: var(--space-1) 0 0;
+  color: var(--color-text-muted);
+  line-height: var(--line-normal);
+}
+
+.ui-feedback-state {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  background: var(--color-surface);
+}
+
+.ui-feedback-state strong { color: var(--color-text); }
+.ui-feedback-state span { color: var(--color-text-muted); line-height: var(--line-normal); }
+.ui-feedback-state--error { border-color: #fecaca; background: var(--color-danger-soft); }
+.ui-feedback-state--empty { border-style: dashed; background: var(--color-surface-subtle); }
+
+@media (min-width: 760px) {
+  .ui-surface--pad-md { padding: var(--space-6); }
+  .ui-surface--pad-lg { padding: var(--space-8); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-fast: 0ms;
+    --motion-normal: 0ms;
+  }
+
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { StatTile } from '../../ui/StatTile';
 import { loadAdminDashboard, loadChildDashboard } from './dashboardService';
 import type { DashboardComparison, DashboardSetInsight, DashboardState, DashboardSummary } from './dashboardTypes';
 import './dashboard.css';
@@ -6,7 +7,7 @@ import './dashboard.css';
 const loadingState: DashboardState = { status: 'loading', message: 'Dashboard wordt geladen…', summaries: [], comparison: null };
 
 function StatCard({ label, value }: { label: string; value: number }) {
-  return <article className="dashboard-stat"><span>{label}</span><strong>{value.toLocaleString('nl-BE')}</strong></article>;
+  return <StatTile className="dashboard-stat" label={label} value={value.toLocaleString('nl-BE')} />;
 }
 
 function ProgressItem({ insight }: { insight: DashboardSetInsight }) {
