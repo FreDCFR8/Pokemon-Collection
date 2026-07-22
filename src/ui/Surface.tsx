@@ -1,7 +1,9 @@
-import type { ElementType, HTMLAttributes, ReactNode } from 'react';
+import type { HTMLAttributes, ReactNode } from 'react';
+
+type SurfaceElement = 'article' | 'div' | 'section';
 
 type SurfaceProps = HTMLAttributes<HTMLElement> & {
-  as?: ElementType;
+  as?: SurfaceElement;
   children: ReactNode;
   padding?: 'sm' | 'md' | 'lg';
   tone?: 'default' | 'subtle';
