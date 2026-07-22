@@ -31,6 +31,8 @@ The role includes questioning assumptions, comparing alternatives, guarding arch
 11. New functionality must not silently weaken security, performance or data integrity.
 12. Important architecture, schema, RLS, integration and foundational product decisions are documented.
 13. Functional correctness does not by itself mean a feature is product-ready.
+14. Regression claims require evidence from the current remote PR head and relevant runtime environments; stale deployments or isolated device behavior are not sufficient proof.
+15. Durable process lessons are added to the existing owner document so future work inherits the improved method without duplicating documentation.
 
 ## 4. Standard workflow
 
@@ -46,9 +48,11 @@ Every meaningful phase follows this sequence:
 8. review architecture, code, data, security and performance;
 9. review UX, mobile behavior, desktop behavior and accessibility;
 10. apply correction rounds inside the same PR while its purpose remains unchanged;
-11. test the Vercel Preview and relevant devices;
-12. merge only after technical and UX approval;
-13. update durable documentation when required.
+11. confirm the exact remote PR head and current Vercel Preview deployment;
+12. test the affected flow and relevant established journeys on desktop when relevant and iPhone for mobile-facing behavior;
+13. distinguish reproducible code regressions from temporary cache, deployment, network or CDN behavior;
+14. merge only after technical and UX approval;
+15. update durable documentation when required.
 
 Large, multi-purpose or speculative changes are split into smaller phases. Larger product areas are designed and phased before implementation begins.
 
@@ -231,11 +235,18 @@ Required principles:
 - New write paths require review of allowed fields, race behavior and abuse cases.
 - Error states do not expose secrets or internal implementation details.
 
-## 14. Codex charter
+## 14. AI collaboration standard
 
-A Codex assignment must be fully actionable and preserve project context, scope, prohibited changes, acceptance criteria, verification and PR requirements. These requirements may be supplied centrally through `docs/00_CODEX_ENTRYPOINT.md`, `codex/profiles.yaml`, a task template and the PR template; they do not need to be repeated verbatim in every assignment.
-
-Existing PR corrections update the existing branch and PR. Multiple correction rounds are allowed while the original purpose remains intact. Codex output is always reviewed; a passing build alone does not prove runtime, database or UX correctness.
+- `docs/00_CODEX_ENTRYPOINT.md` is the fixed start point for Codex work.
+- Normal assignments remain compact and use the repository, entrypoint, template, concrete task, unique acceptance criteria and exceptional overrides only.
+- Reusable rules belong in profiles, templates and durable documentation rather than being copied into every prompt.
+- Codex implements approved scope; ChatGPT reviews architecture, behavior, UX, evidence and regression risk; the user remains final decision-maker.
+- One central runtime or service is the authoritative source of truth for a responsibility. Parallel fallbacks require an explicit architecture decision.
+- Runtime acceptance uses behavioral tests. Source-text, regex and file-inspection checks may support review but do not prove user-visible behavior.
+- Existing PR corrections stay in the same branch and PR while the objective remains unchanged.
+- A PR is not described as ready until its remote head SHA, relevant checks, current Preview deployment and applicable manual device tests are verified.
+- A suspected regression is not fixed speculatively. First reproduce it against the current remote PR head and compare a second independent environment when the behavior is isolated to one device, browser or session.
+- New reusable prevention rules update the existing owner document. Incident narratives and duplicate instruction documents are avoided.
 
 ## 15. Pull-request review charter
 
