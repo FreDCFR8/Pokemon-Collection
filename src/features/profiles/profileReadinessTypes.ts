@@ -1,4 +1,4 @@
-export type ProfileRole = 'parent' | 'child';
+export type ProfileRole = 'admin' | 'child';
 
 export type ProfileReadinessStatus =
   | 'loading'
