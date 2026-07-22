@@ -66,6 +66,12 @@ Before implementation, determine:
 
 Prefer reuse over duplication and small composable components over growing page-specific implementations.
 
+### Derived statistics rule
+
+- All derived statistics, dashboard totals, comparisons, progress calculations and report insights must originate from one reviewed central service or pure aggregation layer.
+- UI components receive already calculated results and must not independently reproduce business formulas.
+- A second calculation path requires an explicit architecture decision and verification that its semantics cannot drift from the central path.
+
 ## 6. UX review agreement
 
 A feature is not complete merely because it works.
