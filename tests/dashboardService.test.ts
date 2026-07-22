@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildRarityInsights, buildRecentSets, buildSetInsights } from '../src/features/dashboard/dashboardInsights.ts';
+import { buildRarityInsights, buildRecentSets, buildSetInsights, selectVisibleSetInsights } from '../src/features/dashboard/dashboardInsights.ts';
 
 const row = (cardId: string, setCode: string, rarity: string, status = 'owned') => ({
   id: `collection-${cardId}`,
@@ -30,4 +30,20 @@ test('recent set summaries preserve bounded deterministic catalog order and miss
   ];
   const summaries = buildRecentSets(sets, [{ setCode: 'sv1', setName: 'Ouder', ownedCount: 2, total: 10, missingCount: 8, progressPercent: 20 }]);
   assert.deepEqual(summaries.map((set) => [set.setCode, set.logoUrl, set.symbolUrl, set.ownedCount, set.progressPercent]), [['sv2', null, null, null, null], ['sv1', null, 'symbol.png', 2, 20]]);
+});
+
+test('recent sets retain progress that falls outside the visible top four set insights', () => {
+  const sets = ['a', 'b', 'c', 'd', 'e'].map((setCode, index) => ({ id: setCode, set_code: setCode, name: `Set ${setCode}`, series: null, generation: null, release_date: `2026-0${index + 1}-01`, printed_total: 10, total: 10, symbol_url: null, logo_url: null, source: null, source_id: null }));
+  const rows = sets.flatMap((set, index) => Array.from({ length: 5 - index }, (_, cardIndex) => row(`${set.set_code}-${cardIndex}`, set.set_code, 'Common')));
+  const allInsights = buildSetInsights(rows as never, sets);
+  const recent = buildRecentSets([sets[4]], allInsights);
+  assert.equal(selectVisibleSetInsights(allInsights).some((insight) => insight.setCode === 'e'), false);
+  assert.deepEqual(recent[0] && [recent[0].ownedCount, recent[0].progressPercent], [1, 10]);
+});
+
+test('rarity insights group remaining rarities as Overig and keep ring percentages at exactly 100%', () => {
+  const insights = buildRarityInsights(['Rare', 'Common', 'Uncommon', 'Double Rare', 'Illustration Rare'].map((rarity, index) => row(`rarity-${index}`, 'sv1', rarity)) as never);
+  assert.deepEqual(insights.map((insight) => insight.rarity), ['Common', 'Double Rare', 'Illustration Rare', 'Overig']);
+  assert.equal(insights.find((insight) => insight.rarity === 'Overig')?.uniqueCards, 2);
+  assert.equal(insights.reduce((total, insight) => total + insight.percent, 0), 100);
 });

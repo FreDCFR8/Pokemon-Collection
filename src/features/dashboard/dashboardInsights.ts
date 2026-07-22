@@ -22,11 +22,19 @@ export function buildRarityInsights(rows: DashboardCollectionCardRow[]): Dashboa
     ids.add(card.id);
     idsByRarity.set(rarity, ids);
   }
-  const total = new Set(rows.map((row) => row.cards_catalog?.id).filter((id): id is string => Boolean(id))).size;
-  return [...idsByRarity.entries()]
-    .map(([rarity, ids]) => ({ rarity, uniqueCards: ids.size, percent: total ? Math.round((ids.size / total) * 100) : 0 }))
-    .sort((first, second) => second.uniqueCards - first.uniqueCards || first.rarity.localeCompare(second.rarity, 'nl'))
-    .slice(0, 4);
+  const ranked = [...idsByRarity.entries()]
+    .map(([rarity, ids]) => ({ rarity, uniqueCards: ids.size }))
+    .sort((first, second) => second.uniqueCards - first.uniqueCards || first.rarity.localeCompare(second.rarity, 'nl'));
+  const grouped = ranked.length > 4
+    ? [...ranked.slice(0, 3), { rarity: 'Overig', uniqueCards: ranked.slice(3).reduce((total, insight) => total + insight.uniqueCards, 0) }]
+    : ranked;
+  const total = grouped.reduce((sum, insight) => sum + insight.uniqueCards, 0);
+  const exact = grouped.map((insight) => ({ ...insight, rawPercent: total ? (insight.uniqueCards / total) * 100 : 0 }));
+  const remaining = 100 - exact.reduce((sum, insight) => sum + Math.floor(insight.rawPercent), 0);
+  const roundedIndexes = [...exact.keys()]
+    .sort((first, second) => (exact[second].rawPercent % 1) - (exact[first].rawPercent % 1) || first - second)
+    .slice(0, remaining);
+  return exact.map((insight, index) => ({ rarity: insight.rarity, uniqueCards: insight.uniqueCards, percent: Math.floor(insight.rawPercent) + (roundedIndexes.includes(index) ? 1 : 0) }));
 }
 
 export function buildSetInsights(ownedRows: DashboardCollectionCardRow[], sets: SetsCatalogRow[]): DashboardSetInsight[] {
@@ -44,7 +52,11 @@ export function buildSetInsights(ownedRows: DashboardCollectionCardRow[], sets: 
     if (ownedCount === 0 || total === null || total <= 0) return [];
     const progressPercent = Math.min(100, Math.round((ownedCount / total) * 100));
     return [{ setCode: set.set_code, setName: set.name, ownedCount, total, missingCount: Math.max(0, total - ownedCount), progressPercent }];
-  }).sort((first, second) => second.progressPercent - first.progressPercent || second.ownedCount - first.ownedCount || first.setName.localeCompare(second.setName, 'nl')).slice(0, 4);
+  }).sort((first, second) => second.progressPercent - first.progressPercent || second.ownedCount - first.ownedCount || first.setName.localeCompare(second.setName, 'nl'));
+}
+
+export function selectVisibleSetInsights(insights: DashboardSetInsight[]): DashboardSetInsight[] {
+  return insights.slice(0, 4);
 }
 
 export function buildRecentSets(sets: SetsCatalogRow[], setInsights: DashboardSetInsight[]): DashboardRecentSet[] {

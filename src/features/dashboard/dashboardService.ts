@@ -9,8 +9,8 @@ import type {
   DashboardState,
   DashboardSummary,
 } from './dashboardTypes';
-import { buildRarityInsights, buildRecentSets, buildSetInsights } from './dashboardInsights';
-export { buildRarityInsights, buildRecentSets, buildSetInsights } from './dashboardInsights';
+import { buildRarityInsights, buildRecentSets, buildSetInsights, selectVisibleSetInsights } from './dashboardInsights';
+export { buildRarityInsights, buildRecentSets, buildSetInsights, selectVisibleSetInsights } from './dashboardInsights';
 
 type ProfileRow = { id: string; display_name: string };
 type CollectionRow = { id: string; profile_id: string };
@@ -55,7 +55,8 @@ function toSummary(profile: ProfileRow, collection: CollectionRow, rows: Collect
       quantity: row.quantity,
       addedAt: row.added_at,
     }));
-  const setInsights = buildSetInsights(ownedRows, sets);
+  const allSetInsights = buildSetInsights(ownedRows, sets);
+  const setInsights = selectVisibleSetInsights(allSetInsights);
   const duplicateQuantity = ownedRows.reduce((total, row) => total + Math.max(0, row.quantity - 1), 0);
 
   return {
@@ -71,8 +72,8 @@ function toSummary(profile: ProfileRow, collection: CollectionRow, rows: Collect
     recentCards,
     rarityInsights: buildRarityInsights(ownedRows),
     setInsights,
-    continueCollecting: setInsights.find((set) => set.missingCount > 0) ?? null,
-    recentSets: buildRecentSets(recentSets, setInsights),
+    continueCollecting: allSetInsights.find((set) => set.missingCount > 0) ?? null,
+    recentSets: buildRecentSets(recentSets, allSetInsights),
     recentSetsStatus,
   };
 }
