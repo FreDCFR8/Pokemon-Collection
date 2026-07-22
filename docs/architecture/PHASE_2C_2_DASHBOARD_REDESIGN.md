@@ -45,6 +45,7 @@ Apply the Phase 2C-1 design system to a complete visual redesign of the child an
 - Existing links remain semantic anchors.
 - New actions use the 44-pixel design-system control minimum.
 - Reduced-motion behavior is preserved.
+- Card images have useful alternative text.
 - Decorative profile and background elements are hidden from assistive technology.
 
 ## Responsive requirements
@@ -74,7 +75,8 @@ Recent cards intentionally remain at a maximum of two columns inside the bounded
 - Database writes: `0`.
 - Migrations: none.
 - RLS or permission changes: none.
-- Vercel status: pending at the current remote head.
+- Current remote head: `e474da57d3f9460b2f610c2fe3409de248176cf7`.
+- Vercel status: pending.
 - Manual iPhone, normal desktop and 50%-zoom checks remain required.
 
 ## Stop conditions
