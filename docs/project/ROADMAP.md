@@ -8,11 +8,12 @@ This document shows product direction and phase status. It intentionally avoids 
 - 🚧 active or next
 - ⏳ planned
 - 🔎 requires design or validation first
+- ⛔ closed or blocked
 
 ## Foundation
 
 - ✅ clean V3 repository and stack
-- ✅ authentication, profiles and collections
+- ✅ authentication, profiles and collections foundation
 - ✅ normalized catalog and collection model
 - ✅ RLS foundation
 - ✅ stable project charter, decision log and working agreement
@@ -43,16 +44,43 @@ This document shows product direction and phase status. It intentionally avoids 
 - 🚧 Next: one read-only audit for the 18 exception sets (`svp` plus the 17 excluded review sets)
 - 🔎 Manual-review and conflict sets remain write-blocked until that audit has an independently reviewed result
 
+## Identity, access and administration
+
+The app already contains functional login, session, profile and collection-resolution building blocks, but not yet one complete product-ready identity system. The approved architecture and implementation contract is defined in `docs/architecture/PHASE_1A_IDENTITY_ACCESS_ADMIN_CONTRACT.md` and extends `docs/architecture/USER_MANAGEMENT_AND_ACTIVITY.md`.
+
+Approved account model:
+
+- separate authenticated account for Lars;
+- separate authenticated account for Lore;
+- separate administrator account;
+- each child account resolves exactly one child profile;
+- no child profile switching;
+- guest access is out of scope and has no current priority.
+
+Phase order:
+
+- ✅ Phase 1A — identity, access, administrator, settings and logging architecture contract
+- 🚧 Phase 1B — central reactive auth/profile runtime, product login and logout
+- 🔎 Phase 1C — trusted role source, role migration and child/admin RLS
+- ⏳ Phase 1D — protected administrator shell
+- ⏳ Phase 1E — approved user and profile settings
+- ⏳ Phase 1F — trusted product activity foundation
+- ⏳ Phase 1G — administrator activity view and safe operational status
+- ⏳ Phase 1H — restart child dashboard on the proven identity foundation
+
+No administrator UI, dashboard identity, activity logging or role-dependent feature may be implemented by hardcoding a profile or relying only on hidden UI controls.
+
 ## Dashboard
 
-The current Dashboard remains a technical Phase 2/3 readiness surface and will be replaced by a dedicated child-facing product dashboard. The approved analysis and design contract is defined in `docs/product/DASHBOARD_D1_ANALYSIS_AND_DESIGN.md`.
+The earlier Dashboard D1 design remains useful as a visual and product reference, but its implementation dependencies were incomplete.
 
-- ✅ Dashboard D1 — current-state analysis, product design, data definitions and implementation contract
-- 🚧 Dashboard D2 — dark responsive child dashboard shell and removal of readiness UI from the product route
-- ⏳ Dashboard D3 — verified bounded metrics, recent additions and continue-collecting data
-- ⏳ Dashboard D4 — optional approved artwork, profile imagery and subtle motion after real-device validation
+- ✅ Dashboard D1 — initial current-state analysis and visual/product direction
+- ⛔ PR178 Dashboard D2 — closed without merge after login removal, hardcoded Lars identity and incorrect layout exposed missing identity dependencies
+- ⏳ Dashboard restart — Phase 1H, after the required identity and role foundations are implemented
+- ⏳ Dashboard data — verified bounded metrics, recent additions and continue-collecting data after the shell is approved
+- ⏳ Optional artwork and motion — only after real-device validation
 
-Dashboard D2 may not display invented totals or recommendations. Dashboard D3 requires read-only production evidence before connecting timestamps, counts or aggregations.
+The dashboard may not remove functional auth/profile flows hidden inside technical readiness components. It may not display invented totals, recommendations or an unverified active profile.
 
 ## Sets and binder experience
 
@@ -109,21 +137,6 @@ The remaining catalog-import scope is limited to 18 exception sets. PR147 remain
 - ⏳ missing workflow
 - ⏳ condition and status editing
 
-## User management and activity
-
-The existing authentication, profile, collection and RLS foundation will be extended rather than replaced. Detailed architecture is defined in `docs/architecture/USER_MANAGEMENT_AND_ACTIVITY.md`.
-
-- ✅ architecture and lasting decisions documented
-- 🔎 Phase 9A — household account and child-profile access model
-- 🔎 Phase 9B — administrator role, permission matrix and RLS design
-- ⏳ Phase 9C — child-safe iPad profile selection and active-profile safeguards
-- ⏳ Phase 9D — central activity history for meaningful mutations
-- ⏳ Phase 9E — administrator activity timeline and filters
-- ⏳ Phase 9F — first explicitly reversible actions and recovery controls
-- ⏳ Phase 9G — administrator settings and household statistics
-
-Implementation is blocked until the account model, administrator protection, event retention and initial reversible actions are explicitly approved.
-
 ## Data enrichment
 
 - ⏳ price synchronization
@@ -138,7 +151,7 @@ Implementation is blocked until the account model, administrator protection, eve
 
 ## Product focus
 
-Catalogusdekking en collectiebeheer zijn de primaire productfocus. Trade staat expliciet op de laagste prioriteit.
+Catalogusdekking, betrouwbare toegang en collectiebeheer zijn de primaire productfocus. Trade staat expliciet op de laagste prioriteit. Guest access is niet gepland in de huidige Identity and Access scope.
 
 ## Planning rule
 
@@ -147,7 +160,8 @@ Before starting a large product area:
 1. define the product flow;
 2. define UX and reusable component boundaries;
 3. inspect database and security requirements;
-4. split implementation into small PR-sized phases;
-5. begin coding only after the design is approved.
+4. identify all existing components that combine technical presentation with functional behavior;
+5. split implementation into small PR-sized phases;
+6. begin coding only after the dependencies and design are approved.
 
 Roadmap order may change after analysis. Stability, data integrity, security and performance remain non-negotiable.
