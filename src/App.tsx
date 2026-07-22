@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { LoginPanel, useIdentity } from './features/auth';
+import { AdminShell } from './features/admin/AdminShell';
 import { CollectionPage } from './features/collectionPage';
 import { SetsPage } from './features/setsPage';
 import { WishlistPage } from './features/wishlistPage';
@@ -103,6 +104,16 @@ export function App() {
   }
   if (identity.status === 'authenticated_profile_missing' || identity.status === 'error') {
     return <main className="app-shell"><section className="identity-state" role="alert"><h1>{identity.status === 'error' ? 'Dat ging niet goed' : 'Profiel niet gevonden'}</h1><p>{identity.message}</p><button type="button" onClick={() => void identity.retry()}>Opnieuw proberen</button><button type="button" onClick={() => void identity.signOut()}>Uitloggen</button></section></main>;
+  }
+
+  if (identity.profile?.role === 'admin') {
+    return (
+      <AdminShell
+        displayName={identity.profile.displayName}
+        isSigningOut={identity.isSigningOut}
+        onSignOut={() => void identity.signOut()}
+      />
+    );
   }
 
   return (
