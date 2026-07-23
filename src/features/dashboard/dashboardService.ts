@@ -40,7 +40,7 @@ function safeErrorState(): DashboardState {
 
 function toSummary(profile: ProfileRow, collection: CollectionRow, rows: CollectionCardRow[], sets: SetsCatalogRow[], recentSets: SetsCatalogRow[] = [], recentSetsStatus: 'ready' | 'unavailable' = 'ready'): DashboardSummary {
   const collectionRows = rows.filter((row) => row.collection_id === collection.id);
-  const ownedRows = collectionRows.filter((row) => row.status === 'owned');
+  const ownedRows = collectionRows.filter((row) => row.status === 'owned' && row.quantity > 0);
   const wishlistRows = collectionRows.filter((row) => row.status === 'wishlist');
   const ownedCardIds = [...new Set(ownedRows.map((row) => row.cards_catalog?.id).filter((id): id is string => Boolean(id)))];
   const setByCode = new Map(sets.map((set) => [set.set_code, set]));
@@ -113,7 +113,8 @@ async function loadRows(collectionIds: string[]): Promise<CollectionCardRow[] | 
   const { data, error } = await supabase
     .from('collection_cards')
     .select('id, collection_id, quantity, status, added_at, created_at, cards_catalog(id, pokemon, set_name, set_code, number, rarity, image_small, image_large, card_details)')
-    .in('collection_id', collectionIds);
+    .in('collection_id', collectionIds)
+    .or('status.eq.wishlist,and(status.eq.owned,quantity.gt.0)');
 
   return error ? null : ((data ?? []) as unknown as CollectionCardRow[]);
 }

@@ -12,9 +12,14 @@ export type DashboardCollectionCardRow = {
   } | null;
 };
 
+function isPositiveOwnedRow(row: DashboardCollectionCardRow): boolean {
+  return row.status === 'owned' && row.quantity > 0;
+}
+
 export function buildRarityInsights(rows: DashboardCollectionCardRow[]): DashboardRarityInsight[] {
   const idsByRarity = new Map<string, Set<string>>();
   for (const row of rows) {
+    if (!isPositiveOwnedRow(row)) continue;
     const card = row.cards_catalog;
     if (!card) continue;
     const rarity = card.rarity?.trim() || 'Onbekend';
@@ -40,6 +45,7 @@ export function buildRarityInsights(rows: DashboardCollectionCardRow[]): Dashboa
 export function buildSetInsights(ownedRows: DashboardCollectionCardRow[], sets: SetsCatalogRow[]): DashboardSetInsight[] {
   const idsBySetCode = new Map<string, Set<string>>();
   for (const row of ownedRows) {
+    if (!isPositiveOwnedRow(row)) continue;
     const card = row.cards_catalog;
     if (!card?.set_code) continue;
     const ids = idsBySetCode.get(card.set_code) ?? new Set<string>();
