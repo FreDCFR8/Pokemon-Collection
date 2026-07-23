@@ -76,7 +76,7 @@ function PlaceholderCard({ title, description }: { title: string; description: s
 function MainContent({ activeNavigationItem, profileId, username, displayName, collectionId, requestedSetCode, requestedCardId, onProfileSaved }: { activeNavigationItem: NavigationLabel; profileId: string; username: string; displayName: string; collectionId: string; requestedSetCode: string | null; requestedCardId: string | null; onProfileSaved: () => void }) {
   switch (activeNavigationItem) {
     case 'Dashboard': return <ChildDashboard profileId={profileId} displayName={displayName} collectionId={collectionId} />;
-    case 'Collection': return <CollectionPage />;
+    case 'Collection': return <CollectionPage displayName={displayName} />;
     case 'Sets': return <SetsPage requestedSetCode={requestedSetCode} requestedCardId={requestedCardId} />;
     case 'Wishlist': return <WishlistPage />;
     case 'Zoeken': return <CatalogSearchPage />;
