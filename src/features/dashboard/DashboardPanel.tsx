@@ -93,6 +93,8 @@ export function ChildDashboard({ profileId, displayName, collectionId }: { profi
   const summary = state.summaries[0];
   const selectedIndex = useMemo(() => summary?.recentCards.findIndex((card) => card.id === selectedCardId) ?? -1, [selectedCardId, summary]);
   const selectedCard = selectedIndex >= 0 && summary ? summary.recentCards[selectedIndex] : null;
+  const previousCard = selectedIndex > 0 && summary ? summary.recentCards[selectedIndex - 1] : null;
+  const nextCard = selectedIndex >= 0 && summary && selectedIndex < summary.recentCards.length - 1 ? summary.recentCards[selectedIndex + 1] : null;
 
   useEffect(() => {
     if (!selectedCard) {
@@ -115,7 +117,7 @@ export function ChildDashboard({ profileId, displayName, collectionId }: { profi
   if (state.status === 'error') return <section className="dashboard-state" role="alert"><strong>Dat ging niet goed</strong><span>{state.message}</span></section>;
   if (!summary) return <section className="dashboard-state">Je verzameling is nog leeg.</section>;
 
-  return <div className="dashboard-v2-page"><DashboardHero displayName={displayName} /><DashboardStatsBand summary={summary} /><DashboardRecentCards summary={summary} onOpenCard={(card) => setSelectedCardId(card.id)} /><DashboardInsights summary={summary} /><DashboardRecentSets summary={summary} />{selectedCard ? <CardDetailDialog card={toCardDetailCard(selectedCard)} ownership={ownership} mutation={{ status: 'idle' }} capabilities={{ canAdd: false, canIncrease: false, canDecrease: false }} copy={createCollectionCardDetailProductCopy(ownership)} readOnly onClose={() => setSelectedCardId(null)} navigation={{ currentIndex: selectedIndex, total: summary.recentCards.length, onPrevious: () => setSelectedCardId(summary.recentCards[selectedIndex - 1]?.id ?? selectedCard.id), onNext: () => setSelectedCardId(summary.recentCards[selectedIndex + 1]?.id ?? selectedCard.id) }} /> : null}</div>;
+  return <div className="dashboard-v2-page"><DashboardHero displayName={displayName} /><DashboardStatsBand summary={summary} /><DashboardRecentCards summary={summary} onOpenCard={(card) => setSelectedCardId(card.id)} /><DashboardInsights summary={summary} /><DashboardRecentSets summary={summary} />{selectedCard ? <CardDetailDialog card={toCardDetailCard(selectedCard)} ownership={ownership} mutation={{ status: 'idle' }} capabilities={{ canAdd: false, canIncrease: false, canDecrease: false }} copy={createCollectionCardDetailProductCopy(ownership)} readOnly onClose={() => setSelectedCardId(null)} navigation={{ currentIndex: selectedIndex, total: summary.recentCards.length, previousCard: previousCard ? toCardDetailCard(previousCard) : null, nextCard: nextCard ? toCardDetailCard(nextCard) : null, onPrevious: () => setSelectedCardId(previousCard?.id ?? selectedCard.id), onNext: () => setSelectedCardId(nextCard?.id ?? selectedCard.id) }} /> : null}</div>;
 }
 
 export function AdminDashboard() {
