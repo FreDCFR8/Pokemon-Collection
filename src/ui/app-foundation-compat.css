@@ -37,6 +37,66 @@
   color: var(--app-text);
 }
 
+/* Shared legacy surfaces. These selectors only bridge old markup to the
+   central surface/stat primitives; they must disappear as each page is
+   migrated to ui-surface, ui-stat-tile and ui-page components. */
+.app-shell--child:not(.app-shell--dashboard) :where(
+  .sets-page-hero,
+  .sets-page-card,
+  .sets-page-summary > div,
+  .sets-page-set-card,
+  .collection-page-summary > div,
+  .collection-page-legacy-note,
+  .collection-page-empty,
+  .wishlist-page-empty
+) {
+  border-color: var(--app-border) !important;
+  background: linear-gradient(145deg, rgb(11 25 51 / 0.96), rgb(7 20 42 / 0.98)) !important;
+  color: var(--app-text) !important;
+  box-shadow: var(--app-shadow-sm), inset 0 1px 0 rgb(255 255 255 / 0.04) !important;
+}
+
+.app-shell--child:not(.app-shell--dashboard) :where(
+  .sets-page-hero,
+  .sets-page-card,
+  .sets-page-summary > div,
+  .sets-page-set-card,
+  .collection-page-summary > div,
+  .collection-page-legacy-note,
+  .collection-page-empty,
+  .wishlist-page-empty
+) :where(h1, h2, h3, strong, dd) {
+  color: var(--app-text) !important;
+}
+
+.app-shell--child:not(.app-shell--dashboard) :where(
+  .sets-page-hero,
+  .sets-page-card,
+  .sets-page-summary > div,
+  .sets-page-set-card,
+  .collection-page-summary > div,
+  .collection-page-legacy-note,
+  .collection-page-empty,
+  .wishlist-page-empty
+) :where(p, dt, span, small) {
+  color: var(--app-text-muted) !important;
+}
+
+.app-shell--child:not(.app-shell--dashboard) .collection-page-summary dd {
+  background: var(--app-accent-soft) !important;
+  color: var(--app-accent) !important;
+}
+
+.app-shell--child:not(.app-shell--dashboard) .sets-page-series-heading {
+  border-left-color: var(--app-accent) !important;
+  color: var(--app-text) !important;
+}
+
+.app-shell--child:not(.app-shell--dashboard) .sets-page-set-card.is-open {
+  border-color: var(--app-accent) !important;
+  background: linear-gradient(145deg, #0d2147, #0b1933) !important;
+}
+
 /* Search wrappers and filter controls contain their own old white surfaces. */
 .app-shell--child:not(.app-shell--dashboard) .collection-page-search-control,
 .app-shell--child:not(.app-shell--dashboard) .sets-page-search-control,
