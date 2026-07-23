@@ -74,22 +74,13 @@ function PlaceholderCard({ title, description }: { title: string; description: s
 }
 
 function CollectionExperience({ displayName }: { displayName: string }) {
-  const experienceRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    const toggle = experienceRef.current?.querySelector<HTMLButtonElement>('.collection-page-filter-toggle');
-    if (toggle?.getAttribute('aria-expanded') === 'false') {
-      toggle.click();
-    }
-  }, []);
-
   return (
-    <div className="collection-experience" ref={experienceRef}>
-      <div className="collection-experience__title" aria-hidden="true">
-        <span className="collection-experience__spark">✦</span>
+    <div className="collection-experience">
+      <div className="collection-experience__title" aria-label={`Collectie van ${displayName}`}>
+        <span className="collection-experience__spark" aria-hidden="true">✦</span>
         <strong>Collectie</strong>
         <em>van {displayName}</em>
-        <span className="collection-experience__spark collection-experience__spark--end">✦</span>
+        <span className="collection-experience__spark collection-experience__spark--end" aria-hidden="true">✦</span>
       </div>
       <CollectionPage />
     </div>
