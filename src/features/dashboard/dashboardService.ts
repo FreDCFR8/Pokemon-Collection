@@ -29,6 +29,8 @@ type CollectionCardRow = {
     number: string | null;
     rarity: string | null;
     image_small: string | null;
+    image_large: string | null;
+    card_details: Record<string, unknown> | null;
   } | null;
 };
 
@@ -36,26 +38,35 @@ function safeErrorState(): DashboardState {
   return { status: 'error', message: 'Het dashboard kon niet veilig worden geladen. Probeer het opnieuw.', summaries: [], comparison: null };
 }
 
-
 function toSummary(profile: ProfileRow, collection: CollectionRow, rows: CollectionCardRow[], sets: SetsCatalogRow[], recentSets: SetsCatalogRow[] = [], recentSetsStatus: 'ready' | 'unavailable' = 'ready'): DashboardSummary {
   const collectionRows = rows.filter((row) => row.collection_id === collection.id);
   const ownedRows = collectionRows.filter((row) => row.status === 'owned');
   const wishlistRows = collectionRows.filter((row) => row.status === 'wishlist');
   const ownedCardIds = [...new Set(ownedRows.map((row) => row.cards_catalog?.id).filter((id): id is string => Boolean(id)))];
+  const setByCode = new Map(sets.map((set) => [set.set_code, set]));
   const recentCards: DashboardRecentCard[] = ownedRows
     .filter((row) => row.cards_catalog)
     .sort((first, second) => `${second.added_at}-${second.created_at}`.localeCompare(`${first.added_at}-${first.created_at}`))
     .slice(0, 8)
-    .map((row) => ({
-      id: row.cards_catalog!.id,
-      pokemon: row.cards_catalog!.pokemon,
-      setName: row.cards_catalog!.set_name,
-      setCode: row.cards_catalog!.set_code,
-      number: row.cards_catalog!.number,
-      imageSmall: row.cards_catalog!.image_small,
-      quantity: row.quantity,
-      addedAt: row.added_at,
-    }));
+    .map((row) => {
+      const catalogCard = row.cards_catalog!;
+      const set = catalogCard.set_code ? setByCode.get(catalogCard.set_code) : undefined;
+      return {
+        id: catalogCard.id,
+        pokemon: catalogCard.pokemon,
+        setName: catalogCard.set_name,
+        setCode: catalogCard.set_code,
+        series: set?.series ?? null,
+        releaseDate: set?.release_date ?? null,
+        number: catalogCard.number,
+        rarity: catalogCard.rarity,
+        imageSmall: catalogCard.image_small,
+        imageLarge: catalogCard.image_large,
+        cardDetails: catalogCard.card_details,
+        quantity: row.quantity,
+        addedAt: row.added_at,
+      };
+    });
   const allSetInsights = buildSetInsights(ownedRows, sets);
   const setInsights = selectVisibleSetInsights(allSetInsights);
   const duplicateQuantity = ownedRows.reduce((total, row) => total + Math.max(0, row.quantity - 1), 0);
@@ -101,7 +112,7 @@ async function loadRows(collectionIds: string[]): Promise<CollectionCardRow[] | 
 
   const { data, error } = await supabase
     .from('collection_cards')
-    .select('id, collection_id, quantity, status, added_at, created_at, cards_catalog(id, pokemon, set_name, set_code, number, rarity, image_small)')
+    .select('id, collection_id, quantity, status, added_at, created_at, cards_catalog(id, pokemon, set_name, set_code, number, rarity, image_small, image_large, card_details)')
     .in('collection_id', collectionIds);
 
   return error ? null : ((data ?? []) as unknown as CollectionCardRow[]);
