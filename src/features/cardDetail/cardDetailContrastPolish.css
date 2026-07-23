@@ -1,0 +1,13 @@
+.card-detail-attribute-icon[class*="is-rarity-"] {
+  min-width: 34px;
+  min-height: 28px;
+  padding: 4px 7px;
+  border: 1px solid rgb(255 255 255 / 0.7);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.92);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.16);
+}
+
+.card-detail-attribute-icon[class*="is-rarity-"] .card-detail-attribute-image {
+  filter: drop-shadow(0 1px 1px rgb(255 255 255 / 0.35));
+}

@@ -89,6 +89,15 @@ Review explicitly:
 
 The standard card-navigation model is Sets → Binder → Card Detail. Binder grids stay visually clean; metadata and management controls belong in card detail unless a later decision explicitly changes this.
 
+### Shared overlay lifecycle rule
+
+- Modals, dialogs, drawers and other blocking overlays must use one shared lifecycle for scroll-lock, cleanup, focus handling and mobile navigation visibility.
+- Page-specific implementations may not independently set `body` or `html` overflow, fixed positioning, touch listeners, overlay classes or navigation visibility when a shared overlay primitive exists.
+- Opening and closing behavior must be identical from Collection, Sets, Wishlist, Search and Dashboard.
+- Closing, route changes and component unmount must always restore the original document styles, scroll position, focus target and navigation state.
+- A user must not be able to navigate through the mobile floating menu while a blocking detail overlay is open.
+- Overlay regressions require cross-screen iPhone verification, not only a test on the page where the problem was first observed.
+
 ## 7. Codex workflow v2
 
 `docs/00_CODEX_ENTRYPOINT.md` is the only fixed startdocument for Codex assignments.

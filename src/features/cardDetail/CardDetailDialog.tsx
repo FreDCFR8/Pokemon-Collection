@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, type TouchEvent } from 'react';
 
 import type {
   ConfirmedOwnership,
@@ -78,6 +78,8 @@ const FOCUSABLE_SELECTOR = [
   '[tabindex]:not([tabindex="-1"])',
 ].join(',');
 
+const SWIPE_THRESHOLD_PX = 55;
+
 function getFocusableElements(container: HTMLElement): HTMLElement[] {
   return Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
     (element) => !element.hasAttribute('disabled') && element.getAttribute('aria-hidden') !== 'true',
@@ -131,6 +133,7 @@ export function CardDetailDialog({
 }: CardDetailDialogProps) {
   const dialogRef = useRef<HTMLElement | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const detailImageUrl = card.images.large ?? card.images.small;
   const metadata = useMemo(() => getCardDetailMetadata(card), [card]);
   const navigationState = navigation
@@ -151,6 +154,7 @@ export function CardDetailDialog({
   const feedbackMessage = mutation.status === 'success' || mutation.status === 'error' || mutation.status === 'conflict'
     ? mutation.message
     : undefined;
+
   useEffect(() => {
     window.setTimeout(() => closeButtonRef.current?.focus(), 0);
   }, []);
@@ -211,6 +215,25 @@ export function CardDetailDialog({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
+  function handleTouchStart(event: TouchEvent<HTMLElement>) {
+    const touch = event.touches[0];
+    touchStartRef.current = touch ? { x: touch.clientX, y: touch.clientY } : null;
+  }
+
+  function handleTouchEnd(event: TouchEvent<HTMLElement>) {
+    const start = touchStartRef.current;
+    const touch = event.changedTouches[0];
+    touchStartRef.current = null;
+    if (!start || !touch || !navigation || !navigationState) return;
+
+    const deltaX = touch.clientX - start.x;
+    const deltaY = touch.clientY - start.y;
+    if (Math.abs(deltaX) < SWIPE_THRESHOLD_PX || Math.abs(deltaX) <= Math.abs(deltaY) * 1.25) return;
+
+    if (deltaX < 0 && navigationState.canNext) navigation.onNext();
+    if (deltaX > 0 && navigationState.canPrevious) navigation.onPrevious();
+  }
+
   return (
     <div
       className="card-detail-backdrop"
@@ -225,14 +248,10 @@ export function CardDetailDialog({
         aria-modal="true"
         aria-labelledby="card-detail-title"
         aria-describedby="card-detail-status"
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
       >
         <header className="card-detail-header">
-          {navigation && navigationState && navigation.total > 1 ? (
-            <nav className="card-detail-navigation" aria-label="Kaartnavigatie">
-              <button type="button" aria-label="Vorige kaart" onClick={navigation.onPrevious} disabled={!navigationState.canPrevious}>‹</button>
-              <button type="button" aria-label="Volgende kaart" onClick={navigation.onNext} disabled={!navigationState.canNext}>›</button>
-            </nav>
-          ) : <span aria-hidden="true" />}
           <button ref={closeButtonRef} type="button" aria-label="Kaartdetails sluiten" onClick={onClose}>×</button>
         </header>
         <div className="card-detail-content">

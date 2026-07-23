@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import type { DashboardRecentSet, DashboardSetInsight, DashboardSummary } from './dashboardTypes';
+import type { DashboardRecentCard, DashboardRecentSet, DashboardSetInsight, DashboardSummary } from './dashboardTypes';
 import { dashboardSetHref } from './dashboardNavigation';
 
 const number = new Intl.NumberFormat('nl-BE');
@@ -16,8 +16,8 @@ export function DashboardStatsBand({ summary }: { summary: DashboardSummary }) {
   return <section className="dashboard-v2-stats" aria-label="Collectiestatistieken">{metrics(summary).map(([label, value, tone, href]) => <a className={`dashboard-v2-stat dashboard-v2-stat--${tone}`} href={href} key={label} aria-label={`${label}: ${number.format(value)}. Open ${href === '#wishlist' ? 'wishlist' : 'collectie'}.`}><span aria-hidden="true">✦</span><strong>{number.format(value)}</strong><small>{label}</small></a>)}</section>;
 }
 
-export function DashboardRecentCards({ summary }: { summary: DashboardSummary }) {
-  return <section className="dashboard-v2-section" aria-labelledby="recent-cards"><div className="dashboard-v2-section__heading"><h2 id="recent-cards">Recent toegevoegd</h2><a href="#collection">Bekijk collectie <span aria-hidden="true">→</span></a></div>{summary.recentCards.length ? <div className="dashboard-v2-recent-cards">{summary.recentCards.map((card, index) => <a key={`${summary.collectionId}-${card.id}`} className="dashboard-v2-card" href={card.setCode ? dashboardSetHref(card.setCode, card.id) : '#collection'} aria-label={`Open kaartdetail van ${card.pokemon}`}><div className="dashboard-v2-card__image">{card.imageSmall ? <img src={card.imageSmall} alt={`Kaart van ${card.pokemon}`} loading={index === 0 ? 'eager' : 'lazy'} /> : <span aria-hidden="true">?</span>}</div></a>)}</div> : <p className="dashboard-v2-empty">Nog geen kaarten toegevoegd.</p>}</section>;
+export function DashboardRecentCards({ summary, onOpenCard }: { summary: DashboardSummary; onOpenCard(card: DashboardRecentCard): void }) {
+  return <section className="dashboard-v2-section" aria-labelledby="recent-cards"><div className="dashboard-v2-section__heading"><h2 id="recent-cards">Recent toegevoegd</h2><a href="#collection">Bekijk collectie <span aria-hidden="true">→</span></a></div>{summary.recentCards.length ? <div className="dashboard-v2-recent-cards">{summary.recentCards.map((card, index) => <button key={`${summary.collectionId}-${card.id}`} type="button" className="dashboard-v2-card" onClick={() => onOpenCard(card)} aria-label={`Open kaartdetail van ${card.pokemon}`}><div className="dashboard-v2-card__image">{card.imageSmall ? <img src={card.imageSmall} alt={`Kaart van ${card.pokemon}`} loading={index === 0 ? 'eager' : 'lazy'} /> : <span aria-hidden="true">?</span>}</div></button>)}</div> : <p className="dashboard-v2-empty">Nog geen kaarten toegevoegd.</p>}</section>;
 }
 
 function DashboardProgress({ insight }: { insight: DashboardSetInsight }) {
