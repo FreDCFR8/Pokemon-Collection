@@ -88,6 +88,7 @@ function MainContent({ activeNavigationItem, profileId, username, displayName, c
 
 export function App() {
   const [activeNavigationItem, setActiveNavigationItem] = useState(getActiveNavigationItem);
+  const [isCardDetailOpen, setIsCardDetailOpen] = useState(false);
   const identity = useIdentity();
 
   useEffect(() => {
@@ -101,6 +102,14 @@ export function App() {
     document.body.classList.toggle('dashboard-active', activeNavigationItem.slug === 'dashboard');
     return () => document.body.classList.remove('dashboard-active');
   }, [activeNavigationItem.slug]);
+
+  useEffect(() => {
+    const syncCardDetailState = () => setIsCardDetailOpen(Boolean(document.querySelector('.card-detail-backdrop')));
+    const observer = new MutationObserver(syncCardDetailState);
+    observer.observe(document.body, { childList: true, subtree: true });
+    syncCardDetailState();
+    return () => observer.disconnect();
+  }, []);
 
   if (identity.status === 'initializing' || identity.status === 'authenticated_profile_loading') return <main className="app-shell"><section className="identity-state" aria-live="polite"><h1>Pokémon Collection</h1><p>{identity.message}</p></section></main>;
   if (identity.status === 'signed_out') return <main className="app-shell"><header className="app-header"><div><p className="eyebrow">Pokémon Collection</p><h1>Jouw kaarten, jouw avontuur</h1></div></header><LoginPanel /></main>;
@@ -119,7 +128,7 @@ export function App() {
       <header className="app-header"><div><p className="eyebrow">Verzameling van {profile.displayName}</p><h1>Pokémon Collection</h1></div><button className="account-button" type="button" onClick={() => void identity.signOut()} disabled={identity.isSigningOut}>{identity.isSigningOut ? 'Uitloggen…' : 'Uitloggen'}</button></header>
       <nav className="top-nav" aria-label="Hoofdnavigatie">{navigationItems.map((item) => <a href={`#${item.slug}`} key={item.slug} aria-current={activeNavigationItem.slug === item.slug ? 'page' : undefined}>{item.label}</a>)}</nav>
       <MainContent activeNavigationItem={activeNavigationItem.label} profileId={profile.id} username={profile.username} displayName={profile.displayName} collectionId={collection.id} requestedSetCode={getRouteParameter('set')} requestedCardId={getRouteParameter('card')} onProfileSaved={() => void identity.retry()} />
-      <MobileBottomNavigation activeSlug={activeNavigationItem.slug} isSigningOut={identity.isSigningOut} onSignOut={() => void identity.signOut()} />
+      {!isCardDetailOpen ? <MobileBottomNavigation activeSlug={activeNavigationItem.slug} isSigningOut={identity.isSigningOut} onSignOut={() => void identity.signOut()} /> : null}
     </main>
   );
 }
