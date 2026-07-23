@@ -1,10 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { CardDetailDialog, type CardDetailCard, type CardDetailMutationState } from '../cardDetail';
 import { getCollectionCardOwnershipForCatalogCards, promoteWishlistToOwned, removeCardFromWishlist, WishlistMutationError, WishlistPromotionError, type CollectionOwnershipState } from '../collectionCards';
 import { createWishlistCardDetailProductCopy, toWishlistCardDetailCard } from './wishlistCardDetailAdapter';
-import { loadWishlistPage } from './wishlistPageService';
+import { getWishlistFilterOptions, loadWishlistPage } from './wishlistPageService';
 import { BinderCardGrid } from '../../components/BinderCardGrid';
-import { createWishlistPageErrorState, createWishlistPageLoadingState, getWishlistVisibleRange, resolveWishlistRemovalRecovery, shouldApplyWishlistDetailResponse, WISHLIST_PAGE_SIZE, type WishlistPageCard, type WishlistPageState } from './wishlistPageTypes';
+import type { CollectionFilterOptions, CollectionPageFilters } from '../collectionPage/collectionPageTypes';
+import { createWishlistPageErrorState, createWishlistPageLoadingState, resolveWishlistRemovalRecovery, shouldApplyWishlistDetailResponse, WISHLIST_PAGE_SIZE, type WishlistPageCard, type WishlistPageState } from './wishlistPageTypes';
+
+const emptyFilters: CollectionPageFilters = { rarity: '', setCode: '' };
+const emptyFilterOptions: CollectionFilterOptions = { sets: [], rarities: [] };
 
 const initialState: WishlistPageState = {
   status: 'loading',
@@ -35,10 +39,102 @@ function WishlistPagination({ currentPage, isLoading, label, onNextPage, onPrevi
   );
 }
 
-export function WishlistPage() {
+type WishlistToolbarProps = {
+  filterOptions: CollectionFilterOptions;
+  filters: CollectionPageFilters;
+  hasActiveCriteria: boolean;
+  isLoadingOptions: boolean;
+  onClearAll: () => void;
+  onClearSearch: () => void;
+  onSearchChange: (value: string) => void;
+  onSearchSubmit: () => void;
+  onUpdateFilter: (name: keyof CollectionPageFilters, value: string) => void;
+  searchTerm: string;
+};
+
+function WishlistToolbar({
+  filterOptions,
+  filters,
+  hasActiveCriteria,
+  isLoadingOptions,
+  onClearAll,
+  onClearSearch,
+  onSearchChange,
+  onSearchSubmit,
+  onUpdateFilter,
+  searchTerm,
+}: WishlistToolbarProps) {
+  return (
+    <div className="collection-page-toolbar">
+      <div className="collection-page-search-control">
+        <span className="collection-page-search-icon" aria-hidden="true">⌕</span>
+        <input
+          id="wishlist-page-search-input"
+          type="search"
+          aria-label="Wishlist zoeken"
+          value={searchTerm}
+          placeholder="Zoek op Pokémon, set of nummer"
+          onChange={(event) => onSearchChange(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              onSearchSubmit();
+            }
+          }}
+        />
+        {searchTerm.length > 0 ? (
+          <button type="button" className="collection-page-search-clear" aria-label="Zoekterm wissen" onClick={onClearSearch}>×</button>
+        ) : null}
+      </div>
+
+      <div className="collection-page-filter-row" aria-label="Wishlistfilters">
+        <button
+          type="button"
+          className="collection-page-clear-filters"
+          aria-label="Zoekopdracht en filters wissen"
+          onClick={onClearAll}
+          disabled={!hasActiveCriteria}
+        >
+          ×
+        </button>
+        <label>
+          <span className="sr-only">Rarity</span>
+          <select
+            value={filters.rarity ?? ''}
+            aria-label="Filter op rarity"
+            onChange={(event) => onUpdateFilter('rarity', event.target.value)}
+            disabled={isLoadingOptions && filterOptions.rarities.length === 0}
+          >
+            <option value="">Rarity</option>
+            {filterOptions.rarities.map((rarity) => <option key={rarity} value={rarity}>{rarity}</option>)}
+          </select>
+        </label>
+        <label>
+          <span className="sr-only">Set</span>
+          <select
+            value={filters.setCode ?? ''}
+            aria-label="Filter op set"
+            onChange={(event) => onUpdateFilter('setCode', event.target.value)}
+            disabled={isLoadingOptions && filterOptions.sets.length === 0}
+          >
+            <option value="">Set</option>
+            {filterOptions.sets.map((set) => <option key={set.setCode} value={set.setCode}>{set.name}</option>)}
+          </select>
+        </label>
+      </div>
+    </div>
+  );
+}
+
+export function WishlistPage({ displayName }: { displayName: string }) {
   const [pageState, setPageState] = useState(initialState);
   const [page, setPage] = useState(1);
   const [retryNonce, setRetryNonce] = useState(0);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [activeSearchTerm, setActiveSearchTerm] = useState('');
+  const [filters, setFilters] = useState<CollectionPageFilters>(emptyFilters);
+  const [filterOptions, setFilterOptions] = useState<CollectionFilterOptions>(emptyFilterOptions);
+  const [isLoadingOptions, setIsLoadingOptions] = useState(false);
   const [selectedCard, setSelectedCard] = useState<CardDetailCard | null>(null);
   const [ownership, setOwnership] = useState<CollectionOwnershipState>({ status: 'idle' });
   const [detailMutation, setDetailMutation] = useState<CardDetailMutationState>({ status: 'idle' });
@@ -50,13 +146,26 @@ export function WishlistPage() {
   const selectedCollectionIdRef = useRef<string | null>(null);
   const cardButtonRefs = useRef(new Map<string, HTMLButtonElement>());
 
+  const totalPages = Math.max(1, Math.ceil(pageState.totalCount / pageState.pageSize));
+  const isLoading = pageState.status === 'loading';
+  const trimmedSearchTerm = searchTerm.trim();
+  const hasActiveCriteria = activeSearchTerm.trim().length > 0 || Boolean(filters.rarity?.trim() || filters.setCode?.trim());
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setPage(1);
+      setActiveSearchTerm(trimmedSearchTerm);
+    }, 400);
+    return () => window.clearTimeout(timeoutId);
+  }, [trimmedSearchTerm]);
+
   useEffect(() => {
     let isMounted = true;
     activePageRef.current = page;
     const pageLoadRequestId = pageLoadRequestIdRef.current + 1;
     pageLoadRequestIdRef.current = pageLoadRequestId;
     setPageState(createWishlistPageLoadingState(page));
-    loadWishlistPage(page)
+    loadWishlistPage(page, { searchQuery: activeSearchTerm, filters })
       .then((nextState) => {
         if (isMounted && pageLoadRequestIdRef.current === pageLoadRequestId) {
           setPageState(nextState);
@@ -69,15 +178,52 @@ export function WishlistPage() {
         }
       });
     return () => { isMounted = false; };
-  }, [page, retryNonce]);
+  }, [activeSearchTerm, filters, page, retryNonce]);
 
-  const totalPages = Math.max(1, Math.ceil(pageState.totalCount / pageState.pageSize));
-  const isLoading = pageState.status === 'loading';
-  const visibleRange = getWishlistVisibleRange(pageState.totalCount, pageState.page, pageState.pageSize);
+  useEffect(() => {
+    let isMounted = true;
+    if (!pageState.collectionId) {
+      setFilterOptions(emptyFilterOptions);
+      return () => { isMounted = false; };
+    }
+
+    setIsLoadingOptions(true);
+    getWishlistFilterOptions(pageState.collectionId, filters)
+      .then((options) => {
+        if (isMounted) setFilterOptions(options);
+      })
+      .catch(() => {
+        if (isMounted) setFilterOptions(emptyFilterOptions);
+      })
+      .finally(() => {
+        if (isMounted) setIsLoadingOptions(false);
+      });
+
+    return () => { isMounted = false; };
+  }, [filters, pageState.collectionId]);
 
   const retryWishlist = () => setRetryNonce((current) => current + 1);
   const goToPreviousPage = () => setPage((current) => Math.max(1, current - 1));
   const goToNextPage = () => setPage((current) => Math.min(totalPages, current + 1));
+  const applySearchImmediately = () => {
+    setPage(1);
+    setActiveSearchTerm(trimmedSearchTerm);
+  };
+  const clearSearch = () => {
+    setSearchTerm('');
+    setActiveSearchTerm('');
+    setPage(1);
+  };
+  const clearAllCriteria = () => {
+    setSearchTerm('');
+    setActiveSearchTerm('');
+    setFilters(emptyFilters);
+    setPage(1);
+  };
+  const updateFilter = (name: keyof CollectionPageFilters, value: string) => {
+    setFilters((current) => ({ ...current, [name]: value }));
+    setPage(1);
+  };
 
   const loadSelectedOwnership = async (card: CardDetailCard, collectionId: string) => {
     const requestId = requestIdRef.current + 1;
@@ -226,77 +372,65 @@ export function WishlistPage() {
 
   return (
     <>
-      <section className="collection-page wishlist-page" aria-labelledby="wishlist-page-title" inert={selectedCard ? true : undefined} aria-hidden={selectedCard ? true : undefined}>
-        <div className="collection-page-header">
-          <div>
-            <p className="eyebrow">Wishlist</p>
-            <h2 id="wishlist-page-title">Wishlist</h2>
-            <p>{pageState.status === 'ready' ? 'Bewaar kaarten die je later wilt verzamelen.' : pageState.message}</p>
-            {pageState.errorMessage ? <p className="status-note">Foutmelding: {pageState.errorMessage}</p> : null}
-            {pageState.status === 'error' ? <button type="button" onClick={retryWishlist}>Wishlist opnieuw laden</button> : null}
-          </div>
-        </div>
+      <section className="collection-page collection-page--v2 wishlist-page" aria-labelledby="wishlist-page-title" inert={selectedCard ? true : undefined} aria-hidden={selectedCard ? true : undefined}>
+        <header className="collection-page-header">
+          <h2 id="wishlist-page-title">
+            <span aria-hidden="true">✦</span>
+            <strong>Wishlist</strong>
+            <em>van {displayName}</em>
+            <span aria-hidden="true">✦</span>
+          </h2>
+          {pageState.status !== 'ready' ? <p className="collection-page-status">{pageState.message}</p> : null}
+          {pageState.errorMessage ? <p className="status-note">Foutmelding: {pageState.errorMessage}</p> : null}
+          {pageState.status === 'error' ? <button type="button" onClick={retryWishlist}>Wishlist opnieuw laden</button> : null}
+        </header>
 
-        {pageState.status === 'ready' ? (
-          <>
-            <dl className="collection-page-summary wishlist-page-summary" aria-label="Wishlist samenvatting">
-              <div>
-                <dt>Totaal kaarten</dt>
-                <dd>{pageState.totalCount}</dd>
-              </div>
-              <div>
-                <dt>Zichtbaar</dt>
-                <dd>{visibleRange.first}–{visibleRange.last}</dd>
-              </div>
-              <div>
-                <dt>Pagina</dt>
-                <dd>{pageState.page} / {totalPages}</dd>
-              </div>
-            </dl>
-            <WishlistPagination
-              currentPage={pageState.page}
-              isLoading={isLoading}
-              label="Wishlistpaginatie boven"
-              onNextPage={goToNextPage}
-              onPreviousPage={goToPreviousPage}
-              totalPages={totalPages}
-            />
-          </>
-        ) : null}
+        <WishlistToolbar
+          filterOptions={filterOptions}
+          filters={filters}
+          hasActiveCriteria={hasActiveCriteria}
+          isLoadingOptions={isLoadingOptions}
+          onClearAll={clearAllCriteria}
+          onClearSearch={clearSearch}
+          onSearchChange={setSearchTerm}
+          onSearchSubmit={applySearchImmediately}
+          onUpdateFilter={updateFilter}
+          searchTerm={searchTerm}
+        />
 
         {pageState.status === 'ready' && pageState.cards.length === 0 ? (
           <div className="collection-page-empty wishlist-page-empty">
-            <h3>Je wishlist is nog leeg</h3>
-            <p>Open een kaart in Sets en kies ‘Aan wishlist toevoegen’.</p>
+            <p>{hasActiveCriteria ? 'Geen wishlistkaarten gevonden voor deze zoekopdracht en filters.' : 'Je wishlist is nog leeg.'}</p>
+            {hasActiveCriteria ? <button type="button" onClick={clearAllCriteria}>Zoekopdracht en filters wissen</button> : null}
           </div>
         ) : null}
 
         {pageState.cards.length > 0 ? (
           <>
-          <BinderCardGrid
-            ariaLabel="Wishlistkaarten"
-            items={pageState.cards.map((card) => ({
-              id: card.cardCatalogId,
-              imageSmall: card.imageSmall,
-              label: `Open ${card.pokemon ?? 'wishlistkaart'}${card.number ? `, kaart ${card.number}` : ''}`,
-            }))}
-            getButtonRef={(id, element) => {
-              if (element) cardButtonRefs.current.set(id, element);
-              else cardButtonRefs.current.delete(id);
-            }}
-            onSelect={(id) => {
-              const card = pageState.cards.find((pageCard) => pageCard.cardCatalogId === id);
-              if (card) openDetail(card);
-            }}
-          />
-          <WishlistPagination
-            currentPage={pageState.page}
-            isLoading={isLoading}
-            label="Wishlistpaginatie onder"
-            onNextPage={goToNextPage}
-            onPreviousPage={goToPreviousPage}
-            totalPages={totalPages}
-          />
+            <BinderCardGrid
+              ariaLabel="Wishlistkaarten"
+              items={pageState.cards.map((card) => ({
+                id: card.cardCatalogId,
+                imageSmall: card.imageSmall,
+                label: `Open ${card.pokemon ?? 'wishlistkaart'}${card.number ? `, kaart ${card.number}` : ''}`,
+              }))}
+              getButtonRef={(id, element) => {
+                if (element) cardButtonRefs.current.set(id, element);
+                else cardButtonRefs.current.delete(id);
+              }}
+              onSelect={(id) => {
+                const card = pageState.cards.find((pageCard) => pageCard.cardCatalogId === id);
+                if (card) openDetail(card);
+              }}
+            />
+            <WishlistPagination
+              currentPage={pageState.page}
+              isLoading={isLoading}
+              label="Wishlistpaginatie onder"
+              onNextPage={goToNextPage}
+              onPreviousPage={goToPreviousPage}
+              totalPages={totalPages}
+            />
           </>
         ) : null}
       </section>

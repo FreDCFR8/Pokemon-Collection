@@ -1,0 +1,34 @@
+/* Wishlist V2
+ *
+ * Collection V2 supplies the shared page structure, toolbar, grid and
+ * pagination. This file contains only the wishlist-specific visual accent.
+ */
+
+.app-shell--child .wishlist-page .collection-page-header h2 strong {
+  background: linear-gradient(100deg, #ff77c8 0%, #d88cff 48%, #8aa8ff 100%);
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 12px 34px rgb(217 124 255 / 0.15);
+}
+
+.app-shell--child .wishlist-page .collection-page-header h2 em::after {
+  background: linear-gradient(90deg, transparent, #d88cff, transparent);
+}
+
+.app-shell--child .wishlist-page .collection-page-header h2 > span:first-child {
+  color: #ff77c8;
+}
+
+.app-shell--child .wishlist-page .collection-page-header h2 > span:last-child {
+  color: #8aa8ff;
+}
+
+.app-shell--child .wishlist-page .collection-page-pagination button {
+  color: #d88cff;
+}
+
+.app-shell--child .wishlist-page .collection-page-pagination button:not(:disabled):hover,
+.app-shell--child .wishlist-page .collection-page-pagination button:not(:disabled):focus-visible {
+  border-color: #d88cff;
+  background: rgb(216 140 255 / 0.12);
+}
