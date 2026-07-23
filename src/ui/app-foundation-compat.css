@@ -1,0 +1,42 @@
+/* Temporary compatibility selectors for legacy page styles.
+   These remain in the visual foundation until each page adopts the shared UI classes. */
+
+.app-shell:not(.app-shell--dashboard) input:not([type='checkbox']):not([type='radio']),
+.app-shell:not(.app-shell--dashboard) select,
+.app-shell:not(.app-shell--dashboard) textarea,
+.app-shell:not(.app-shell--dashboard) [role='searchbox'] {
+  border-color: var(--app-border-strong) !important;
+  background-color: var(--app-surface-strong) !important;
+  color: var(--app-text) !important;
+  caret-color: var(--app-accent);
+  color-scheme: dark;
+}
+
+.app-shell:not(.app-shell--dashboard) input:not([type='checkbox']):not([type='radio'])::placeholder,
+.app-shell:not(.app-shell--dashboard) textarea::placeholder {
+  color: var(--app-text-soft) !important;
+  opacity: 1;
+}
+
+.app-shell:not(.app-shell--dashboard) input:not([type='checkbox']):not([type='radio']):focus,
+.app-shell:not(.app-shell--dashboard) select:focus,
+.app-shell:not(.app-shell--dashboard) textarea:focus,
+.app-shell:not(.app-shell--dashboard) [role='searchbox']:focus {
+  border-color: var(--app-accent) !important;
+  outline: 3px solid rgb(0 200 255 / 0.16) !important;
+  outline-offset: 0;
+}
+
+.app-shell:not(.app-shell--dashboard) select option {
+  background: var(--app-surface-strong);
+  color: var(--app-text);
+}
+
+/* Safari can retain its native white autofill surface unless explicitly overridden. */
+.app-shell:not(.app-shell--dashboard) input:-webkit-autofill,
+.app-shell:not(.app-shell--dashboard) input:-webkit-autofill:hover,
+.app-shell:not(.app-shell--dashboard) input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--app-text);
+  box-shadow: 0 0 0 1000px var(--app-surface-strong) inset;
+  transition: background-color 9999s ease-out 0s;
+}
