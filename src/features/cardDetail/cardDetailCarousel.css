@@ -1,0 +1,36 @@
+.card-detail-dialog {
+  touch-action: pan-y;
+}
+
+.card-detail-carousel {
+  overflow: hidden;
+}
+
+.card-detail-carousel-track {
+  display: flex;
+  width: 300%;
+  transform: translate3d(calc(-33.333333% + var(--card-detail-carousel-drag, 0px)), 0, 0);
+  will-change: transform;
+}
+
+.card-detail-carousel-track.is-animating {
+  transition: transform 220ms cubic-bezier(0.22, 0.8, 0.32, 1);
+}
+
+.card-detail-carousel-slide {
+  display: grid;
+  flex: 0 0 33.333333%;
+  min-width: 0;
+  place-items: center;
+}
+
+.card-detail-carousel-slide > img,
+.card-detail-carousel-slide > span {
+  display: block;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-detail-carousel-track.is-animating {
+    transition-duration: 1ms;
+  }
+}
