@@ -88,12 +88,135 @@ function CollectionPagination({
   );
 }
 
-export function CollectionPage() {
+type CollectionHeaderProps = {
+  displayName: string;
+  status: CollectionPageState['status'];
+  message: string;
+  errorMessage?: string;
+};
+
+function CollectionHeader({ displayName, status, message, errorMessage }: CollectionHeaderProps) {
+  return (
+    <header className="collection-page-header">
+      <h2 id="collection-page-title">
+        <span aria-hidden="true">✦</span>
+        <strong>Collectie</strong>
+        <em>van {displayName}</em>
+        <span aria-hidden="true">✦</span>
+      </h2>
+      {status !== 'ready' ? <p className="collection-page-status">{message}</p> : null}
+      {errorMessage ? <p className="status-note">Foutmelding: {errorMessage}</p> : null}
+    </header>
+  );
+}
+
+type CollectionToolbarProps = {
+  activeSearchTerm: string;
+  areFilterOptionsLoading: boolean;
+  filterOptions: CollectionFilterOptions;
+  filterOptionsError: string | null;
+  filters: CollectionPageFilters;
+  hasActiveCriteria: boolean;
+  onClearAll: () => void;
+  onClearSearch: () => void;
+  onSearchChange: (value: string) => void;
+  onSearchSubmit: () => void;
+  onUpdateFilter: (filterName: keyof CollectionPageFilters, value: string) => void;
+  searchSummary: string;
+  searchTerm: string;
+};
+
+function CollectionToolbar({
+  activeSearchTerm,
+  areFilterOptionsLoading,
+  filterOptions,
+  filterOptionsError,
+  filters,
+  hasActiveCriteria,
+  onClearAll,
+  onClearSearch,
+  onSearchChange,
+  onSearchSubmit,
+  onUpdateFilter,
+  searchSummary,
+  searchTerm,
+}: CollectionToolbarProps) {
+  return (
+    <div className="collection-page-toolbar">
+      <div className="collection-page-search-control">
+        <span className="collection-page-search-icon" aria-hidden="true">⌕</span>
+        <input
+          id="collection-page-search-input"
+          type="search"
+          aria-label="Collectie zoeken"
+          value={searchTerm}
+          placeholder="Zoek op Pokémon, set of nummer"
+          onChange={(event) => onSearchChange(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              onSearchSubmit();
+            }
+          }}
+        />
+        {searchTerm.length > 0 ? (
+          <button type="button" className="collection-page-search-clear" aria-label="Zoekterm wissen" onClick={onClearSearch}>
+            ×
+          </button>
+        ) : null}
+      </div>
+
+      <div className="collection-page-filter-row" aria-label="Collectiefilters">
+        <button
+          type="button"
+          className="collection-page-clear-filters"
+          aria-label="Zoekopdracht en filters wissen"
+          onClick={onClearAll}
+          disabled={!hasActiveCriteria}
+        >
+          ×
+        </button>
+        <label>
+          <span className="sr-only">Rarity</span>
+          <select
+            value={filters.rarity ?? ''}
+            aria-label="Filter op rarity"
+            onChange={(event) => onUpdateFilter('rarity', event.target.value)}
+            disabled={areFilterOptionsLoading && filterOptions.rarities.length === 0}
+          >
+            <option value="">Rarity</option>
+            {filterOptions.rarities.map((option) => (
+              <option key={option} value={option}>{option}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span className="sr-only">Set</span>
+          <select
+            value={filters.setCode ?? ''}
+            aria-label="Filter op set"
+            onChange={(event) => onUpdateFilter('setCode', event.target.value)}
+            disabled={areFilterOptionsLoading && filterOptions.sets.length === 0}
+          >
+            <option value="">Set</option>
+            {filterOptions.sets.map((set) => (
+              <option key={set.setCode} value={set.setCode}>{set.name}</option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      {filterOptionsError ? <p className="status-note">Slimme filters laden is mislukt: {filterOptionsError}</p> : null}
+      {hasActiveCriteria ? <p className="collection-page-search-summary">Actief: {searchSummary || activeSearchTerm}</p> : null}
+    </div>
+  );
+}
+
+export function CollectionPage({ displayName }: { displayName: string }) {
   const [page, setPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeSearchTerm, setActiveSearchTerm] = useState('');
   const [filters, setFilters] = useState<CollectionPageFilters>(emptyCollectionPageFilters);
-  const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [filterOptions, setFilterOptions] = useState<CollectionFilterOptions>(emptyCollectionFilterOptions);
   const [filterOptionsError, setFilterOptionsError] = useState<string | null>(null);
   const [areFilterOptionsLoading, setAreFilterOptionsLoading] = useState(true);
@@ -125,6 +248,11 @@ export function CollectionPage() {
   const activeFilterEntries = Object.entries(filters).filter((entry): entry is [keyof CollectionPageFilters, string] => entry[1] !== undefined && entry[1].trim().length > 0);
   const hasActiveFilters = activeFilterEntries.length > 0;
   const hasActiveCriteria = hasActiveSearch || hasActiveFilters;
+  const searchSummary = [
+    hasActiveSearch ? `zoekterm “${activeSearchTerm}”` : null,
+    ...activeFilterEntries.map(([name, value]) => `${filterLabels[name]} “${name === 'setCode' ? setNameByCode.get(value) ?? 'Onbekende set' : value}”`),
+  ].filter(Boolean).join(' · ');
+
   collectionContextRef.current = {
     collectionId: collectionPageState.collectionId,
     page,
@@ -155,9 +283,7 @@ export function CollectionPage() {
         return getCollectionFilterOptions(collectionId, filters);
       })
       .then((nextFilterOptions) => {
-        if (!isMounted) {
-          return;
-        }
+        if (!isMounted) return;
 
         setFilterOptions(nextFilterOptions);
         setFilterOptionsError(null);
@@ -175,12 +301,9 @@ export function CollectionPage() {
             const shouldClearSetCode = currentSetCode.length > 0 && !nextFilterOptions.sets.some((set) => set.setCode === currentSetCode);
             const shouldClearRarity = currentRarity.length > 0 && !nextFilterOptions.rarities.includes(currentRarity);
 
-            if (!shouldClearSetCode && !shouldClearRarity) {
-              return currentFilters;
-            }
+            if (!shouldClearSetCode && !shouldClearRarity) return currentFilters;
 
             setPage(1);
-
             return {
               ...currentFilters,
               setCode: shouldClearSetCode ? '' : currentFilters.setCode,
@@ -197,9 +320,7 @@ export function CollectionPage() {
         }
       });
 
-    return () => {
-      isMounted = false;
-    };
+    return () => { isMounted = false; };
   }, [filters]);
 
   useEffect(() => {
@@ -207,13 +328,11 @@ export function CollectionPage() {
       setPage(1);
       setActiveSearchTerm(trimmedSearchTerm);
     }, 400);
-
     return () => window.clearTimeout(timeoutId);
   }, [trimmedSearchTerm]);
 
   useEffect(() => {
     let isMounted = true;
-
     setCollectionPageState(initialCollectionPageState);
     loadCollectionPage(page, { searchQuery: activeSearchTerm, filters }).then((nextState) => {
       if (isMounted) {
@@ -221,10 +340,7 @@ export function CollectionPage() {
         setPage(nextState.page);
       }
     });
-
-    return () => {
-      isMounted = false;
-    };
+    return () => { isMounted = false; };
   }, [activeSearchTerm, filters, page]);
 
   const applySearchImmediately = () => {
@@ -239,15 +355,7 @@ export function CollectionPage() {
   };
 
   const updateFilter = (filterName: keyof CollectionPageFilters, value: string) => {
-    setFilters((currentFilters) => ({
-      ...currentFilters,
-      [filterName]: value,
-    }));
-    setPage(1);
-  };
-
-  const clearFilters = () => {
-    setFilters(emptyCollectionPageFilters);
+    setFilters((currentFilters) => ({ ...currentFilters, [filterName]: value }));
     setPage(1);
   };
 
@@ -279,10 +387,7 @@ export function CollectionPage() {
 
     getCollectionCardOwnershipForCatalogCards({ collectionId, cardCatalogIds: [card.cardCatalogId] })
       .then((ownershipByCardCatalogId) => {
-        const appliesToRequest = shouldApplyCollectionCardDetailResponse(activeDetailRequestRef.current, request);
-        if (!appliesToRequest) {
-          return;
-        }
+        if (!shouldApplyCollectionCardDetailResponse(activeDetailRequestRef.current, request)) return;
 
         const ownership = ownershipByCardCatalogId.get(card.cardCatalogId);
         const isValidOwnership = Boolean(ownership && ownership.kind !== 'conflict');
@@ -296,9 +401,7 @@ export function CollectionPage() {
         if (mutationRequestIdRef.current === refreshMutationRequestId) {
           setDetailMutation((currentMutation) => resolveCollectionCardDetailOwnershipRefresh(
             currentMutation,
-            isValidOwnership && ownership
-              ? { status: 'ready', ownership }
-              : { status: 'error' },
+            isValidOwnership && ownership ? { status: 'ready', ownership } : { status: 'error' },
           ));
         }
       })
@@ -338,9 +441,7 @@ export function CollectionPage() {
       : undefined;
     const capabilities = createCollectionCardDetailCapabilities(detailOwnership, detailMutation.status);
 
-    if (!card || !collectionId || !manageable || !(operation === 'increase' ? capabilities.canIncrease : capabilities.canDecrease)) {
-      return;
-    }
+    if (!card || !collectionId || !manageable || !(operation === 'increase' ? capabilities.canIncrease : capabilities.canDecrease)) return;
 
     const request = activeDetailRequestRef.current;
     if (!request) return;
@@ -391,10 +492,7 @@ export function CollectionPage() {
   const openCollectionCardDetail = (card: CollectionPageState['cards'][number]) => {
     const detailCard = toCollectionCardDetailCard(card);
     const collectionId = collectionPageState.collectionId;
-
-    if (!detailCard || !collectionId) {
-      return;
-    }
+    if (!detailCard || !collectionId) return;
 
     setSelectedDetailCard(detailCard);
     setDetailOwnership({ status: 'idle' });
@@ -404,7 +502,6 @@ export function CollectionPage() {
 
   const navigateCollectionCard = (direction: -1 | 1) => {
     if (!selectedDetailCard) return;
-
     const currentIndex = collectionPageState.cards.findIndex((card) => card.cardCatalogId === selectedDetailCard.cardCatalogId);
     const nextCard = collectionPageState.cards[currentIndex + direction];
     if (nextCard) openCollectionCardDetail(nextCard);
@@ -419,9 +516,7 @@ export function CollectionPage() {
     setDetailMutation({ status: 'idle' });
 
     window.setTimeout(() => {
-      if (closingCardCatalogId) {
-        cardButtonRefs.current.get(closingCardCatalogId)?.focus();
-      }
+      if (closingCardCatalogId) cardButtonRefs.current.get(closingCardCatalogId)?.focus();
     }, 0);
   };
 
@@ -431,154 +526,94 @@ export function CollectionPage() {
 
   return (
     <>
-    <section
-      className="collection-page"
-      aria-labelledby="collection-page-title"
-      inert={selectedDetailCard ? true : undefined}
-      aria-hidden={selectedDetailCard ? true : undefined}
-    >
-      <div className="collection-page-header">
-        <div>
-          <h2 id="collection-page-title">Collection</h2>
-          {collectionPageState.status !== 'ready' ? <p className="collection-page-status">{collectionPageState.message}</p> : null}
-          {collectionPageState.errorMessage ? <p className="status-note">Foutmelding: {collectionPageState.errorMessage}</p> : null}
-        </div>
-      </div>
+      <section
+        className="collection-page collection-page--v2"
+        aria-labelledby="collection-page-title"
+        inert={selectedDetailCard ? true : undefined}
+        aria-hidden={selectedDetailCard ? true : undefined}
+      >
+        <CollectionHeader
+          displayName={displayName}
+          status={collectionPageState.status}
+          message={collectionPageState.message}
+          errorMessage={collectionPageState.errorMessage}
+        />
 
-      <div className="collection-page-search">
-        <div className="collection-page-search-control">
-          <input
-            id="collection-page-search-input"
-            type="search"
-            aria-label="Collectie zoeken"
-            value={searchTerm}
-            placeholder="Zoek op Pokémon, set of nummer"
-            onChange={(event) => setSearchTerm(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') {
-                event.preventDefault();
-                applySearchImmediately();
-              }
-            }}
-          />
-          {searchTerm.length > 0 ? (
-            <button type="button" aria-label="Zoekterm wissen" onClick={clearSearch}>
-              ×
-            </button>
-          ) : null}
-        </div>
-        <button
-          type="button"
-          className="collection-page-filter-toggle"
-          aria-expanded={isFilterPanelOpen}
-          aria-controls="collection-page-filter-panel"
-          onClick={() => setIsFilterPanelOpen((isOpen) => !isOpen)}
-        >
-          Filters
-        </button>
-        {isFilterPanelOpen ? (
-          <div id="collection-page-filter-panel" className="collection-page-filter-panel" aria-label="Collectiefilters">
-            <div className="collection-page-filters">
-              <label>
-                Rarity
-                <select value={filters.rarity ?? ''} onChange={(event) => updateFilter('rarity', event.target.value)} disabled={areFilterOptionsLoading && filterOptions.rarities.length === 0}>
-                  <option value="">Alle rarities</option>
-                  {filterOptions.rarities.map((option) => (
-                    <option key={option} value={option}>{option}</option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Set
-                <select value={filters.setCode ?? ''} onChange={(event) => updateFilter('setCode', event.target.value)} disabled={areFilterOptionsLoading && filterOptions.sets.length === 0}>
-                  <option value="">Alle sets</option>
-                  {filterOptions.sets.map((set) => (
-                    <option key={set.setCode} value={set.setCode}>{set.name}</option>
-                  ))}
-                </select>
-              </label>
-            </div>
-            {filterOptionsError ? <p className="status-note">Slimme filters laden is mislukt: {filterOptionsError}</p> : null}
+        <CollectionToolbar
+          activeSearchTerm={activeSearchTerm}
+          areFilterOptionsLoading={areFilterOptionsLoading}
+          filterOptions={filterOptions}
+          filterOptionsError={filterOptionsError}
+          filters={filters}
+          hasActiveCriteria={hasActiveCriteria}
+          onClearAll={clearAllCriteria}
+          onClearSearch={clearSearch}
+          onSearchChange={setSearchTerm}
+          onSearchSubmit={applySearchImmediately}
+          onUpdateFilter={updateFilter}
+          searchSummary={searchSummary}
+          searchTerm={searchTerm}
+        />
+
+        {collectionPageState.status === 'ready' && collectionPageState.cards.length === 0 ? (
+          <div className="collection-page-empty">
+            <p>{hasActiveCriteria ? 'Geen kaarten gevonden voor deze zoekopdracht en filters.' : 'Nog geen kaarten in deze collectie.'}</p>
+            {hasActiveCriteria ? <button type="button" onClick={clearAllCriteria}>Zoekopdracht en filters wissen</button> : null}
           </div>
         ) : null}
-        <div className="collection-page-filter-actions">
-          {hasActiveFilters ? <button type="button" onClick={clearFilters}>Reset filters</button> : null}
-          {hasActiveCriteria ? <button type="button" onClick={clearAllCriteria}>Alles wissen</button> : null}
-        </div>
-        {hasActiveCriteria ? (
-          <p className="collection-page-search-summary">
-            Actief: {[hasActiveSearch ? `zoekterm “${activeSearchTerm}”` : null, ...activeFilterEntries.map(([name, value]) => `${filterLabels[name]} “${name === 'setCode' ? setNameByCode.get(value) ?? 'Onbekende set' : value}”`)]
-              .filter(Boolean)
-              .join(' · ')}
-          </p>
+
+        {collectionPageState.cards.length > 0 ? (
+          <>
+            <BinderCardGrid
+              ariaLabel="Collectiekaarten"
+              items={collectionPageState.cards.map((card) => ({
+                id: card.cardCatalogId,
+                imageSmall: card.imageSmall,
+                label: `Open ${card.pokemon ?? 'collectiekaart'}${card.number ? `, kaart ${card.number}` : ''}, in collectie`,
+              }))}
+              getButtonRef={(id, element) => {
+                if (element) cardButtonRefs.current.set(id, element);
+                else cardButtonRefs.current.delete(id);
+              }}
+              onSelect={(id) => {
+                const card = collectionPageState.cards.find((pageCard) => pageCard.cardCatalogId === id);
+                if (card) openCollectionCardDetail(card);
+              }}
+            />
+
+            <CollectionPagination
+              currentPage={collectionPageState.page}
+              isLoading={isLoading}
+              label="Collectiepaginatie onder"
+              onNextPage={goToNextPage}
+              onPreviousPage={goToPreviousPage}
+              totalPages={totalPages}
+            />
+          </>
         ) : null}
-      </div>
+      </section>
 
-      {collectionPageState.status === 'ready' && collectionPageState.cards.length === 0 ? (
-        <div className="collection-page-empty">
-          <p>{hasActiveCriteria ? 'Geen kaarten gevonden voor deze zoekopdracht en filters.' : 'Nog geen kaarten in deze collectie.'}</p>
-          {hasActiveCriteria ? (
-            <button type="button" onClick={clearAllCriteria}>
-              Zoekopdracht en filters wissen
-            </button>
-          ) : null}
-        </div>
+      {selectedDetailCard ? (
+        <CardDetailDialog
+          card={selectedDetailCard}
+          ownership={detailOwnership}
+          mutation={detailMutation}
+          capabilities={createCollectionCardDetailCapabilities(detailOwnership, detailMutation.status)}
+          copy={createCollectionCardDetailProductCopy(detailOwnership)}
+          navigation={selectedCollectionCardIndex >= 0 ? {
+            currentIndex: selectedCollectionCardIndex,
+            total: collectionPageState.cards.length,
+            onPrevious: () => navigateCollectionCard(-1),
+            onNext: () => navigateCollectionCard(1),
+          } : undefined}
+          onClose={closeCollectionCardDetail}
+          onRetryOwnership={() => {
+            if (collectionPageState.collectionId) loadSelectedCardOwnership(selectedDetailCard, collectionPageState.collectionId);
+          }}
+          onIncrease={() => void handleCollectionCardQuantityChange('increase')}
+          onDecrease={() => void handleCollectionCardQuantityChange('decrease')}
+        />
       ) : null}
-
-      {collectionPageState.cards.length > 0 ? (
-        <>
-          <BinderCardGrid
-            ariaLabel="Collectiekaarten"
-            items={collectionPageState.cards.map((card) => ({
-              id: card.cardCatalogId,
-              imageSmall: card.imageSmall,
-              label: `Open ${card.pokemon ?? 'collectiekaart'}${card.number ? `, kaart ${card.number}` : ''}, in collectie`,
-              isPresent: true,
-            }))}
-            getButtonRef={(id, element) => {
-              if (element) cardButtonRefs.current.set(id, element);
-              else cardButtonRefs.current.delete(id);
-            }}
-            onSelect={(id) => {
-              const card = collectionPageState.cards.find((pageCard) => pageCard.cardCatalogId === id);
-              if (card) openCollectionCardDetail(card);
-            }}
-          />
-
-          <CollectionPagination
-            currentPage={collectionPageState.page}
-            isLoading={isLoading}
-            label="Collectiepaginatie onder"
-            onNextPage={goToNextPage}
-            onPreviousPage={goToPreviousPage}
-            totalPages={totalPages}
-          />
-        </>
-      ) : null}
-    </section>
-    {selectedDetailCard ? (
-      <CardDetailDialog
-        card={selectedDetailCard}
-        ownership={detailOwnership}
-        mutation={detailMutation}
-        capabilities={createCollectionCardDetailCapabilities(detailOwnership, detailMutation.status)}
-        copy={createCollectionCardDetailProductCopy(detailOwnership)}
-        navigation={selectedCollectionCardIndex >= 0 ? {
-          currentIndex: selectedCollectionCardIndex,
-          total: collectionPageState.cards.length,
-          onPrevious: () => navigateCollectionCard(-1),
-          onNext: () => navigateCollectionCard(1),
-        } : undefined}
-        onClose={closeCollectionCardDetail}
-        onRetryOwnership={() => {
-          if (collectionPageState.collectionId) {
-            loadSelectedCardOwnership(selectedDetailCard, collectionPageState.collectionId);
-          }
-        }}
-        onIncrease={() => void handleCollectionCardQuantityChange('increase')}
-        onDecrease={() => void handleCollectionCardQuantityChange('decrease')}
-      />
-    ) : null}
     </>
   );
 }
