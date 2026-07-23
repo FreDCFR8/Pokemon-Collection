@@ -18,12 +18,10 @@ export type CardsCatalogPageRow = {
   collection_cards: CollectionPageOwnershipRow | CollectionPageOwnershipRow[] | null;
 };
 
-function firstOwnershipRow(row: CardsCatalogPageRow['collection_cards']) {
-  if (Array.isArray(row)) {
-    return row[0] ?? null;
-  }
+function firstOwnedRow(row: CardsCatalogPageRow['collection_cards']) {
+  const rows = Array.isArray(row) ? row : row ? [row] : [];
 
-  return row;
+  return rows.find((ownership) => ownership.status === 'owned' && (ownership.quantity ?? 0) > 0) ?? null;
 }
 
 function optionalText(value: unknown): string | null {
@@ -37,7 +35,11 @@ export function toCollectionPageCard(row: CardsCatalogPageRow): CollectionPageCa
     return null;
   }
 
-  const ownership = firstOwnershipRow(row.collection_cards);
+  const ownership = firstOwnedRow(row.collection_cards);
+
+  if (!ownership) {
+    return null;
+  }
 
   return {
     cardCatalogId,
@@ -48,8 +50,8 @@ export function toCollectionPageCard(row: CardsCatalogPageRow): CollectionPageCa
     rarity: optionalText(row.rarity),
     imageSmall: optionalText(row.image_small),
     imageLarge: optionalText(row.image_large),
-    quantity: ownership?.quantity ?? null,
-    condition: ownership?.condition ?? null,
-    status: ownership?.status ?? null,
+    quantity: ownership.quantity,
+    condition: ownership.condition,
+    status: ownership.status,
   };
 }
