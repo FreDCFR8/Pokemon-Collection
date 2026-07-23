@@ -78,7 +78,7 @@ function MainContent({ activeNavigationItem, profileId, username, displayName, c
     case 'Dashboard': return <ChildDashboard profileId={profileId} displayName={displayName} collectionId={collectionId} />;
     case 'Collection': return <CollectionPage displayName={displayName} />;
     case 'Sets': return <SetsPage requestedSetCode={requestedSetCode} requestedCardId={requestedCardId} />;
-    case 'Wishlist': return <WishlistPage />;
+    case 'Wishlist': return <WishlistPage displayName={displayName} />;
     case 'Zoeken': return <CatalogSearchPage />;
     case 'Pokédex': return <section className="placeholder-grid" aria-label="Pokédex scherm"><PlaceholderCard title="Pokédex" description="Placeholder voor toekomstige Pokédex-functionaliteit." /></section>;
     case 'Profiel': return <div className="profile-settings-grid"><ProfileSettingsForm profileId={profileId} username={username} initialDisplayName={displayName} onSaved={onProfileSaved} /></div>;
