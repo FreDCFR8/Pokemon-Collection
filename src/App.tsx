@@ -73,10 +73,14 @@ function PlaceholderCard({ title, description }: { title: string; description: s
   return <section className="placeholder-card" aria-labelledby={`${title}-title`}><h2 id={`${title}-title`}>{title}</h2><p>{description}</p></section>;
 }
 
+function CollectionExperience({ displayName }: { displayName: string }) {
+  return <div className="collection-experience" data-owner={displayName}><CollectionPage /></div>;
+}
+
 function MainContent({ activeNavigationItem, profileId, username, displayName, collectionId, requestedSetCode, requestedCardId, onProfileSaved }: { activeNavigationItem: NavigationLabel; profileId: string; username: string; displayName: string; collectionId: string; requestedSetCode: string | null; requestedCardId: string | null; onProfileSaved: () => void }) {
   switch (activeNavigationItem) {
     case 'Dashboard': return <ChildDashboard profileId={profileId} displayName={displayName} collectionId={collectionId} />;
-    case 'Collection': return <CollectionPage />;
+    case 'Collection': return <CollectionExperience displayName={displayName} />;
     case 'Sets': return <SetsPage requestedSetCode={requestedSetCode} requestedCardId={requestedCardId} />;
     case 'Wishlist': return <WishlistPage />;
     case 'Zoeken': return <CatalogSearchPage />;
