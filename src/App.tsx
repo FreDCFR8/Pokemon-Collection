@@ -74,6 +74,13 @@ function PlaceholderCard({ title, description }: { title: string; description: s
 }
 
 function CollectionExperience({ displayName }: { displayName: string }) {
+  useEffect(() => {
+    const toggle = document.querySelector<HTMLButtonElement>('.collection-page-filter-toggle');
+    if (toggle?.getAttribute('aria-expanded') === 'false') {
+      toggle.click();
+    }
+  }, []);
+
   return (
     <div className="collection-experience">
       <div className="collection-experience__title" aria-label={`Collectie van ${displayName}`}>
