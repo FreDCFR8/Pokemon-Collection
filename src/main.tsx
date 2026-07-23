@@ -3,6 +3,7 @@ import { App } from './App';
 import { IdentityProvider } from './features/auth/IdentityProvider';
 import './ui/design-system.css';
 import './styles.css';
+import './ui/app-foundation.css';
 import './features/cardDetail/cardDetailPolish.css';
 import './features/cardDetail/cardDetailContrastPolish.css';
 import './features/cardDetail/cardDetailSwipeLock';
