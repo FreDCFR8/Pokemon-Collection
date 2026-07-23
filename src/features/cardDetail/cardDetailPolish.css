@@ -1,0 +1,166 @@
+/* Shared Card Detail polish.
+   This file intentionally scopes all visual changes to the shared dialog so
+   Collection, Sets, Wishlist, Search and Dashboard retain one presentation. */
+
+.card-detail-backdrop {
+  background: rgb(10 22 38 / 0.62);
+  backdrop-filter: blur(10px);
+}
+
+.card-detail-dialog {
+  border-color: rgb(148 163 184 / 0.34);
+  background:
+    radial-gradient(circle at 16% 18%, rgb(255 255 255 / 0.68), transparent 34%),
+    linear-gradient(135deg, #dce8ee 0%, #edf4f5 48%, #d6e2e8 100%);
+  box-shadow: 0 28px 90px rgb(15 23 42 / 0.34);
+}
+
+.card-detail-header {
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid rgb(148 163 184 / 0.3);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.76);
+  box-shadow: 0 8px 24px rgb(15 23 42 / 0.12);
+  backdrop-filter: blur(12px);
+}
+
+.card-detail-navigation button,
+.card-detail-header > button {
+  width: 42px;
+  min-width: 42px;
+  min-height: 42px;
+  border-radius: 999px;
+  color: #334155;
+}
+
+.card-detail-navigation button:not(:disabled):active,
+.card-detail-header > button:active {
+  background: rgb(226 232 240 / 0.86);
+}
+
+.card-detail-content {
+  gap: clamp(28px, 4vw, 56px);
+}
+
+.card-detail-image img {
+  border-radius: 18px;
+  filter: drop-shadow(0 22px 30px rgb(15 23 42 / 0.22));
+}
+
+.card-detail-set {
+  margin-bottom: 12px;
+  color: #64748b;
+  font-size: 0.8rem;
+  font-weight: 650;
+}
+
+.card-detail-body h1 {
+  margin-bottom: 18px;
+  color: #0f172a;
+  font-size: clamp(2rem, 3.3vw, 3.25rem);
+  letter-spacing: -0.035em;
+}
+
+.card-detail-action-row {
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.card-detail-action-row > .card-detail-primary-action,
+.card-detail-action-row > .card-detail-wishlist-button {
+  min-height: 52px;
+  border-radius: 14px;
+  box-shadow: 0 8px 18px rgb(37 99 235 / 0.12);
+}
+
+.card-detail-primary-action {
+  background: linear-gradient(135deg, #2563eb, #3b82f6);
+}
+
+.card-detail-wishlist-button {
+  border-color: #3b82f6;
+  background: rgb(255 255 255 / 0.46);
+}
+
+.card-detail-attributes-title {
+  margin-bottom: 12px;
+  color: #64748b;
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.card-detail-attributes {
+  gap: 9px;
+}
+
+.card-detail-attribute {
+  min-height: 64px;
+  border: 1px solid rgb(255 255 255 / 0.78);
+  border-radius: 15px;
+  background: rgb(255 255 255 / 0.82);
+  box-shadow: 0 5px 16px rgb(100 116 139 / 0.07);
+}
+
+.card-detail-attribute dt {
+  color: #7c8791;
+  font-size: 0.67rem;
+  letter-spacing: 0.025em;
+  text-transform: uppercase;
+}
+
+.card-detail-attribute dd {
+  color: #172033;
+  font-size: 0.88rem;
+}
+
+@media (max-width: 819px) {
+  .card-detail-content {
+    gap: 24px;
+    padding-top: 72px;
+  }
+
+  .card-detail-image img,
+  .card-detail-image > span {
+    width: min(calc(100vw - 64px), 320px);
+  }
+
+  .card-detail-body {
+    align-content: start;
+  }
+}
+
+@media (max-width: 519px) {
+  .card-detail-dialog {
+    background:
+      radial-gradient(circle at 50% 8%, rgb(255 255 255 / 0.78), transparent 26%),
+      linear-gradient(180deg, #dce8ee 0%, #edf4f5 44%, #d8e4e8 100%);
+  }
+
+  .card-detail-header {
+    top: max(10px, env(safe-area-inset-top));
+    right: max(10px, env(safe-area-inset-right));
+  }
+
+  .card-detail-content {
+    padding: 70px 16px calc(30px + env(safe-area-inset-bottom));
+  }
+
+  .card-detail-image img,
+  .card-detail-image > span {
+    width: min(calc(100vw - 58px), 310px);
+  }
+
+  .card-detail-set {
+    margin-bottom: 8px;
+  }
+
+  .card-detail-body h1 {
+    margin-bottom: 16px;
+  }
+
+  .card-detail-action-row {
+    margin-bottom: 22px;
+  }
+}
