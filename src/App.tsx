@@ -74,7 +74,26 @@ function PlaceholderCard({ title, description }: { title: string; description: s
 }
 
 function CollectionExperience({ displayName }: { displayName: string }) {
-  return <div className="collection-experience" data-owner={displayName}><CollectionPage /></div>;
+  const experienceRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const toggle = experienceRef.current?.querySelector<HTMLButtonElement>('.collection-page-filter-toggle');
+    if (toggle?.getAttribute('aria-expanded') === 'false') {
+      toggle.click();
+    }
+  }, []);
+
+  return (
+    <div className="collection-experience" ref={experienceRef}>
+      <div className="collection-experience__title" aria-hidden="true">
+        <span className="collection-experience__spark">✦</span>
+        <strong>Collectie</strong>
+        <em>van {displayName}</em>
+        <span className="collection-experience__spark collection-experience__spark--end">✦</span>
+      </div>
+      <CollectionPage />
+    </div>
+  );
 }
 
 function MainContent({ activeNavigationItem, profileId, username, displayName, collectionId, requestedSetCode, requestedCardId, onProfileSaved }: { activeNavigationItem: NavigationLabel; profileId: string; username: string; displayName: string; collectionId: string; requestedSetCode: string | null; requestedCardId: string | null; onProfileSaved: () => void }) {
