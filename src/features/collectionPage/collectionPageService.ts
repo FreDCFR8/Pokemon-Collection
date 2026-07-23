@@ -235,7 +235,9 @@ export async function loadCollectionPage(
       `,
       { count: 'exact', head: true },
     )
-    .eq('collection_cards.collection_id', mainCollectionId);
+    .eq('collection_cards.collection_id', mainCollectionId)
+    .eq('collection_cards.status', 'owned')
+    .gt('collection_cards.quantity', 0);
 
   const { count, error: countError } = await applyCollectionSearchFilter(applyCollectionFilters(countQuery, filters), searchQuery);
 
@@ -278,6 +280,8 @@ export async function loadCollectionPage(
       `,
     )
     .eq('collection_cards.collection_id', mainCollectionId)
+    .eq('collection_cards.status', 'owned')
+    .gt('collection_cards.quantity', 0)
     .order('pokemon', { ascending: true })
     .order('set_name', { ascending: true })
     .order('number', { ascending: true })
