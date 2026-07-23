@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, type TouchEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type TouchEvent } from 'react';
 
 import type {
   ConfirmedOwnership,
@@ -8,6 +8,7 @@ import type {
 import { CardDetailAttributeIcon } from './CardDetailAttributeIcon';
 import { areCardDetailActionsBlocked, getCardDetailActionMode, getCardDetailWishlistAction } from './cardDetailMutationState';
 import { getCardDetailMetadata, getCardDetailNavigationState } from './cardDetailGallery';
+import './cardDetailCarousel.css';
 
 export type CardDetailMutationOperation = 'add' | 'add-wishlist' | 'remove-wishlist' | 'promote-wishlist' | 'increase' | 'decrease' | 'delete';
 
@@ -64,6 +65,8 @@ export type CardDetailDialogProps = {
   navigation?: {
     currentIndex: number;
     total: number;
+    previousCard?: CardDetailCard | null;
+    nextCard?: CardDetailCard | null;
     onPrevious(): void;
     onNext(): void;
   };
@@ -79,11 +82,17 @@ const FOCUSABLE_SELECTOR = [
 ].join(',');
 
 const SWIPE_THRESHOLD_PX = 55;
+const SWIPE_AXIS_LOCK_PX = 8;
+const CAROUSEL_TRANSITION_MS = 220;
 
 function getFocusableElements(container: HTMLElement): HTMLElement[] {
   return Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
     (element) => !element.hasAttribute('disabled') && element.getAttribute('aria-hidden') !== 'true',
   );
+}
+
+function getCardImageUrl(card: CardDetailCard | null | undefined): string | null {
+  return card?.images.large ?? card?.images.small ?? null;
 }
 
 function getOwnershipLabel(ownership: CollectionOwnershipState, copy: CardDetailProductCopy): { label: string; className: string } {
@@ -133,8 +142,16 @@ export function CardDetailDialog({
 }: CardDetailDialogProps) {
   const dialogRef = useRef<HTMLElement | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const imageViewportRef = useRef<HTMLDivElement | null>(null);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
-  const detailImageUrl = card.images.large ?? card.images.small;
+  const touchAxisRef = useRef<'horizontal' | 'vertical' | null>(null);
+  const transitionTimerRef = useRef<number | null>(null);
+  const [dragX, setDragX] = useState(0);
+  const [isTrackAnimating, setIsTrackAnimating] = useState(false);
+  const detailImageUrl = getCardImageUrl(card);
+  const previousImageUrl = getCardImageUrl(navigation?.previousCard);
+  const nextImageUrl = getCardImageUrl(navigation?.nextCard);
+  const hasCarouselSlides = Boolean(navigation?.previousCard || navigation?.nextCard);
   const metadata = useMemo(() => getCardDetailMetadata(card), [card]);
   const navigationState = navigation
     ? getCardDetailNavigationState(navigation.currentIndex, navigation.total)
@@ -154,9 +171,19 @@ export function CardDetailDialog({
   const feedbackMessage = mutation.status === 'success' || mutation.status === 'error' || mutation.status === 'conflict'
     ? mutation.message
     : undefined;
+  const carouselStyle = { '--card-detail-carousel-drag': `${dragX}px` } as CSSProperties;
 
   useEffect(() => {
     window.setTimeout(() => closeButtonRef.current?.focus(), 0);
+  }, []);
+
+  useEffect(() => {
+    setIsTrackAnimating(false);
+    setDragX(0);
+  }, [card.cardCatalogId]);
+
+  useEffect(() => () => {
+    if (transitionTimerRef.current !== null) window.clearTimeout(transitionTimerRef.current);
   }, []);
 
   useEffect(() => {
@@ -215,23 +242,80 @@ export function CardDetailDialog({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
+  function animateTrackTo(targetX: number, onComplete?: () => void) {
+    if (transitionTimerRef.current !== null) window.clearTimeout(transitionTimerRef.current);
+    setIsTrackAnimating(true);
+    setDragX(targetX);
+    transitionTimerRef.current = window.setTimeout(() => {
+      onComplete?.();
+      setIsTrackAnimating(false);
+      setDragX(0);
+      transitionTimerRef.current = null;
+    }, CAROUSEL_TRANSITION_MS);
+  }
+
   function handleTouchStart(event: TouchEvent<HTMLElement>) {
+    if (isTrackAnimating) return;
     const touch = event.touches[0];
     touchStartRef.current = touch ? { x: touch.clientX, y: touch.clientY } : null;
+    touchAxisRef.current = null;
+  }
+
+  function handleTouchMove(event: TouchEvent<HTMLElement>) {
+    const start = touchStartRef.current;
+    const touch = event.touches[0];
+    if (!start || !touch || !navigation || !navigationState || isTrackAnimating) return;
+
+    const deltaX = touch.clientX - start.x;
+    const deltaY = touch.clientY - start.y;
+    if (!touchAxisRef.current && Math.max(Math.abs(deltaX), Math.abs(deltaY)) >= SWIPE_AXIS_LOCK_PX) {
+      touchAxisRef.current = Math.abs(deltaX) > Math.abs(deltaY) ? 'horizontal' : 'vertical';
+    }
+    if (touchAxisRef.current !== 'horizontal') return;
+
+    event.preventDefault();
+    if (!hasCarouselSlides) return;
+    const canMove = deltaX < 0 ? navigationState.canNext && Boolean(navigation.nextCard) : navigationState.canPrevious && Boolean(navigation.previousCard);
+    setDragX(canMove ? deltaX : deltaX * 0.22);
   }
 
   function handleTouchEnd(event: TouchEvent<HTMLElement>) {
     const start = touchStartRef.current;
     const touch = event.changedTouches[0];
+    const axis = touchAxisRef.current;
     touchStartRef.current = null;
-    if (!start || !touch || !navigation || !navigationState) return;
+    touchAxisRef.current = null;
+    if (!start || !touch || !navigation || !navigationState || axis !== 'horizontal' || isTrackAnimating) return;
 
     const deltaX = touch.clientX - start.x;
     const deltaY = touch.clientY - start.y;
-    if (Math.abs(deltaX) < SWIPE_THRESHOLD_PX || Math.abs(deltaX) <= Math.abs(deltaY) * 1.25) return;
+    if (Math.abs(deltaX) < SWIPE_THRESHOLD_PX || Math.abs(deltaX) <= Math.abs(deltaY) * 1.25) {
+      if (hasCarouselSlides) animateTrackTo(0);
+      return;
+    }
 
-    if (deltaX < 0 && navigationState.canNext) navigation.onNext();
-    if (deltaX > 0 && navigationState.canPrevious) navigation.onPrevious();
+    if (!hasCarouselSlides) {
+      if (deltaX < 0 && navigationState.canNext) navigation.onNext();
+      if (deltaX > 0 && navigationState.canPrevious) navigation.onPrevious();
+      return;
+    }
+
+    const viewportWidth = imageViewportRef.current?.clientWidth ?? window.innerWidth;
+    if (deltaX < 0 && navigationState.canNext && navigation.nextCard) {
+      animateTrackTo(-viewportWidth, navigation.onNext);
+      return;
+    }
+    if (deltaX > 0 && navigationState.canPrevious && navigation.previousCard) {
+      animateTrackTo(viewportWidth, navigation.onPrevious);
+      return;
+    }
+    animateTrackTo(0);
+  }
+
+  function handleTouchCancel() {
+    touchStartRef.current = null;
+    touchAxisRef.current = null;
+    if (hasCarouselSlides) animateTrackTo(0);
   }
 
   return (
@@ -249,14 +333,30 @@ export function CardDetailDialog({
         aria-labelledby="card-detail-title"
         aria-describedby="card-detail-status"
         onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchCancel}
       >
         <header className="card-detail-header">
           <button ref={closeButtonRef} type="button" aria-label="Kaartdetails sluiten" onClick={onClose}>×</button>
         </header>
         <div className="card-detail-content">
-          <div className="card-detail-image">
-            {detailImageUrl ? <img src={detailImageUrl} alt={`${card.name} kaart ${card.number ?? ''}`.trim()} width="600" height="840" decoding="async" /> : <span aria-label="Geen afbeelding beschikbaar" />}
+          <div ref={imageViewportRef} className={`card-detail-image${hasCarouselSlides ? ' card-detail-carousel' : ''}`}>
+            {hasCarouselSlides ? (
+              <div className={`card-detail-carousel-track${isTrackAnimating ? ' is-animating' : ''}`} style={carouselStyle}>
+                <div className="card-detail-carousel-slide" aria-hidden="true">
+                  {previousImageUrl && navigation?.previousCard ? <img src={previousImageUrl} alt="" width="600" height="840" decoding="async" /> : null}
+                </div>
+                <div className="card-detail-carousel-slide">
+                  {detailImageUrl ? <img src={detailImageUrl} alt={`${card.name} kaart ${card.number ?? ''}`.trim()} width="600" height="840" decoding="async" /> : <span aria-label="Geen afbeelding beschikbaar" />}
+                </div>
+                <div className="card-detail-carousel-slide" aria-hidden="true">
+                  {nextImageUrl && navigation?.nextCard ? <img src={nextImageUrl} alt="" width="600" height="840" decoding="async" /> : null}
+                </div>
+              </div>
+            ) : detailImageUrl ? (
+              <img src={detailImageUrl} alt={`${card.name} kaart ${card.number ?? ''}`.trim()} width="600" height="840" decoding="async" />
+            ) : <span aria-label="Geen afbeelding beschikbaar" />}
           </div>
           <div className="card-detail-body">
             <p className="card-detail-set">
