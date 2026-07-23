@@ -3,8 +3,13 @@ export type DashboardRecentCard = {
   pokemon: string;
   setName: string | null;
   setCode: string | null;
+  series: string | null;
+  releaseDate: string | null;
   number: string | null;
+  rarity: string | null;
   imageSmall: string | null;
+  imageLarge: string | null;
+  cardDetails: Record<string, unknown> | null;
   quantity: number;
   addedAt: string;
 };
