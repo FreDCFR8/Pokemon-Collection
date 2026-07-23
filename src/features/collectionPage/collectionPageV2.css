@@ -180,12 +180,13 @@
   display: block !important;
   min-width: 0;
   width: 100%;
+  box-sizing: border-box;
   overflow: visible;
   border: 0;
   border-radius: 0;
   background: transparent;
   box-shadow: none;
-  padding: 0;
+  padding: 0 0 0 48px;
 }
 
 .app-shell--child .collection-page:not(.wishlist-page) .collection-page-filters {
@@ -215,59 +216,67 @@
 }
 
 .app-shell--child .collection-page:not(.wishlist-page) .collection-page-filters label:first-child select {
-  width: 145px;
+  width: 150px;
 }
 
 .app-shell--child .collection-page:not(.wishlist-page) .collection-page-filters label:nth-child(2) select {
-  width: 118px;
+  width: 124px;
 }
 
 .app-shell--child .collection-page:not(.wishlist-page) .collection-page-filters select {
-  min-height: 37px;
-  max-width: 170px;
+  min-height: 42px;
+  max-width: 176px;
   box-sizing: border-box;
   border-radius: 999px;
-  padding: 0 32px 0 13px;
-  font-size: 0.82rem;
+  padding: 0 34px 0 14px;
+  font-size: 0.84rem;
   font-weight: 780;
   white-space: nowrap;
 }
 
 .app-shell--child .collection-page:not(.wishlist-page) .collection-page-filter-actions {
+  position: absolute;
+  z-index: 1;
+  left: 12px;
+  bottom: 6px;
   display: flex;
-  flex-wrap: nowrap;
-  gap: 8px;
-  min-width: 0;
-  overflow-x: auto;
-  margin: -1px 0 0;
-  scrollbar-width: none;
+  align-items: center;
+  width: 42px;
+  height: 42px;
+  margin: 0;
+  overflow: visible;
 }
 
 .app-shell--child .collection-page:not(.wishlist-page) .collection-page-filter-actions button {
-  flex: 0 0 auto;
-  min-height: 36px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 42px;
+  width: 42px;
+  min-width: 42px;
+  height: 42px;
+  min-height: 42px;
   border: 1px solid var(--app-border-strong);
   border-radius: 999px;
   background: var(--app-surface-soft);
   color: var(--app-text);
-  padding: 0 12px;
+  padding: 0;
   font-size: 0;
   font-weight: 800;
 }
 
+.app-shell--child .collection-page:not(.wishlist-page) .collection-page-filter-actions button + button {
+  display: none;
+}
+
 .app-shell--child .collection-page:not(.wishlist-page) .collection-page-filter-actions button::before {
   content: '×';
-  display: inline-block;
   color: var(--app-text);
-  font-size: 1.2rem;
+  font-size: 1.4rem;
   line-height: 1;
 }
 
 .app-shell--child .collection-page:not(.wishlist-page) .collection-page-filter-actions button::after {
-  content: ' Wissen';
-  color: var(--app-text-muted);
-  font-size: 0.78rem;
-  vertical-align: 0.1em;
+  content: none;
 }
 
 .app-shell--child .collection-page:not(.wishlist-page) .collection-page-search-summary {
@@ -291,6 +300,11 @@
 
 .app-shell--child .collection-page:not(.wishlist-page) .binder-card-grid-button {
   border-radius: 9px;
+}
+
+/* All cards on this screen are already owned, so a presence check adds no information. */
+.app-shell--child .collection-page:not(.wishlist-page) .binder-card-grid-present-marker {
+  display: none;
 }
 
 .app-shell--child .collection-page:not(.wishlist-page) .collection-page-pagination {
@@ -365,6 +379,14 @@
     padding-inline: 10px;
   }
 
+  .app-shell--child .collection-page:not(.wishlist-page) .collection-page-filter-actions {
+    left: 10px;
+  }
+
+  .app-shell--child .collection-page:not(.wishlist-page) .collection-page-filter-panel {
+    padding-left: 48px;
+  }
+
   .app-shell--child .collection-page:not(.wishlist-page) .collection-page-pagination {
     width: calc(100% - 18px);
   }
@@ -391,6 +413,10 @@
 
   .app-shell--child .collection-page:not(.wishlist-page) .collection-page-search {
     padding-inline: 20px;
+  }
+
+  .app-shell--child .collection-page:not(.wishlist-page) .collection-page-filter-actions {
+    left: 20px;
   }
 
   .app-shell--child .collection-page:not(.wishlist-page) .binder-card-grid {
