@@ -22,6 +22,7 @@ type NavigationItem = (typeof navigationItems)[number];
 type NavigationLabel = NavigationItem['label'];
 const defaultNavigationItem = navigationItems[0];
 const legacyPokedexSlugs = new Set(['pokédex', 'pok%C3%A9dex']);
+const CARD_DETAIL_SCROLL_LOCK_ATTRIBUTE = 'data-card-detail-scroll-lock';
 
 function safelyDecodeHash(hash: string): string {
   try { return decodeURIComponent(hash); } catch { return hash; }
@@ -39,6 +40,24 @@ function getActiveNavigationItem(): NavigationItem {
 function getRouteParameter(name: string): string | null {
   const query = window.location.hash.split('?')[1];
   return query ? new URLSearchParams(query).get(name) : null;
+}
+
+function releaseStaleCardDetailScrollLock() {
+  window.requestAnimationFrame(() => {
+    if (document.querySelector('.card-detail-backdrop')) return;
+    if (!document.body.hasAttribute(CARD_DETAIL_SCROLL_LOCK_ATTRIBUTE)) return;
+
+    const lockedTop = Number.parseInt(document.body.style.top || '0', 10);
+    const scrollY = Number.isFinite(lockedTop) ? Math.max(0, -lockedTop) : window.scrollY;
+
+    document.body.style.overflow = '';
+    document.body.style.position = '';
+    document.body.style.top = '';
+    document.body.style.width = '';
+    document.documentElement.style.overflow = '';
+    document.body.removeAttribute(CARD_DETAIL_SCROLL_LOCK_ATTRIBUTE);
+    window.scrollTo(0, scrollY);
+  });
 }
 
 const mobileNavigationItems = [
@@ -96,6 +115,15 @@ export function App() {
     window.addEventListener('hashchange', sync);
     sync();
     return () => window.removeEventListener('hashchange', sync);
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener('hashchange', releaseStaleCardDetailScrollLock);
+    window.addEventListener('popstate', releaseStaleCardDetailScrollLock);
+    return () => {
+      window.removeEventListener('hashchange', releaseStaleCardDetailScrollLock);
+      window.removeEventListener('popstate', releaseStaleCardDetailScrollLock);
+    };
   }, []);
 
   useEffect(() => {
