@@ -3,5 +3,6 @@ import { App } from './App';
 import { IdentityProvider } from './features/auth/IdentityProvider';
 import './ui/design-system.css';
 import './styles.css';
+import './features/cardDetail/cardDetailPolish.css';
 
 createRoot(document.querySelector('#root') as Element).render(<IdentityProvider><App /></IdentityProvider>);
