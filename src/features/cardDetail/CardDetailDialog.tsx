@@ -156,11 +156,29 @@ export function CardDetailDialog({
   }, []);
 
   useEffect(() => {
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    const scrollY = window.scrollY;
+    const bodyStyle = document.body.style;
+    const previousBodyStyles = {
+      overflow: bodyStyle.overflow,
+      position: bodyStyle.position,
+      top: bodyStyle.top,
+      width: bodyStyle.width,
+    };
+    const previousDocumentOverflow = document.documentElement.style.overflow;
+
+    bodyStyle.overflow = 'hidden';
+    bodyStyle.position = 'fixed';
+    bodyStyle.top = `-${scrollY}px`;
+    bodyStyle.width = '100%';
+    document.documentElement.style.overflow = 'hidden';
 
     return () => {
-      document.body.style.overflow = previousOverflow;
+      bodyStyle.overflow = previousBodyStyles.overflow;
+      bodyStyle.position = previousBodyStyles.position;
+      bodyStyle.top = previousBodyStyles.top;
+      bodyStyle.width = previousBodyStyles.width;
+      document.documentElement.style.overflow = previousDocumentOverflow;
+      window.scrollTo(0, scrollY);
     };
   }, []);
 
