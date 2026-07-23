@@ -9,40 +9,18 @@ import type { DashboardComparison, DashboardRecentCard, DashboardSetInsight, Das
 import { DashboardHero, DashboardInsights, DashboardRecentCards, DashboardRecentSets, DashboardStatsBand } from './DashboardComponents';
 import './dashboard.css';
 
-const loadingState: DashboardState = {
-  status: 'loading',
-  message: 'Dashboard wordt geladen…',
-  summaries: [],
-  comparison: null,
-};
+const loadingState: DashboardState = { status: 'loading', message: 'Dashboard wordt geladen…', summaries: [], comparison: null };
 
 function StatCard({ label, value }: { label: string; value: number }) {
   return <StatTile className="dashboard-stat" label={label} value={value.toLocaleString('nl-BE')} />;
 }
 
 function ProfileMark({ name, compact = false }: { name: string; compact?: boolean }) {
-  return (
-    <div className={`dashboard-profile-mark${compact ? ' dashboard-profile-mark--compact' : ''}`} aria-hidden="true">
-      {name.trim().charAt(0).toUpperCase()}
-    </div>
-  );
+  return <div className={`dashboard-profile-mark${compact ? ' dashboard-profile-mark--compact' : ''}`} aria-hidden="true">{name.trim().charAt(0).toUpperCase()}</div>;
 }
 
 function ProgressItem({ insight }: { insight: DashboardSetInsight }) {
-  return (
-    <article className="dashboard-progress-item">
-      <div className="dashboard-progress-copy">
-        <div className="dashboard-progress-heading">
-          <strong>{insight.setName}</strong>
-          <span>{insight.progressPercent}%</span>
-        </div>
-        <div className="dashboard-progress-track" role="progressbar" aria-label={`${insight.setName}: ${insight.progressPercent}% verzameld`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={insight.progressPercent}>
-          <span style={{ width: `${insight.progressPercent}%` }} />
-        </div>
-        <small>{insight.ownedCount} van {insight.total} kaarten · nog {insight.missingCount}</small>
-      </div>
-    </article>
-  );
+  return <article className="dashboard-progress-item"><div className="dashboard-progress-copy"><div className="dashboard-progress-heading"><strong>{insight.setName}</strong><span>{insight.progressPercent}%</span></div><div className="dashboard-progress-track" role="progressbar" aria-label={`${insight.setName}: ${insight.progressPercent}% verzameld`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={insight.progressPercent}><span style={{ width: `${insight.progressPercent}%` }} /></div><small>{insight.ownedCount} van {insight.total} kaarten · nog {insight.missingCount}</small></div></article>;
 }
 
 function RecentCards({ summary }: { summary: DashboardSummary }) {
@@ -68,15 +46,11 @@ function Comparison({ comparison }: { comparison: DashboardComparison }) {
 }
 
 function toCardDetailCard(card: DashboardRecentCard): CardDetailCard {
-  return {
-    cardCatalogId: card.id,
-    name: card.pokemon,
-    number: card.number,
-    set: { setCode: card.setCode, name: card.setName, series: card.series, releaseDate: card.releaseDate },
-    rarity: card.rarity,
-    details: card.cardDetails as import('../cardDetail/cardDetails').CardDetailDetails | null,
-    images: { small: card.imageSmall, large: card.imageLarge },
-  };
+  return { cardCatalogId: card.id, name: card.pokemon, number: card.number, set: { setCode: card.setCode, name: card.setName, series: card.series, releaseDate: card.releaseDate }, rarity: card.rarity, details: card.cardDetails as import('../cardDetail/cardDetails').CardDetailDetails | null, images: { small: card.imageSmall, large: card.imageLarge } };
+}
+
+function getDetailImage(card: DashboardRecentCard | undefined): string | null {
+  return card?.imageLarge ?? card?.imageSmall ?? null;
 }
 
 export function ChildDashboard({ profileId, displayName, collectionId }: { profileId: string; displayName: string; collectionId: string }) {
@@ -84,30 +58,17 @@ export function ChildDashboard({ profileId, displayName, collectionId }: { profi
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [ownership, setOwnership] = useState<CollectionOwnershipState>({ status: 'idle' });
 
-  useEffect(() => {
-    let active = true;
-    void loadChildDashboard(profileId, displayName, collectionId).then((next) => { if (active) setState(next); });
-    return () => { active = false; };
-  }, [profileId, displayName, collectionId]);
+  useEffect(() => { let active = true; void loadChildDashboard(profileId, displayName, collectionId).then((next) => { if (active) setState(next); }); return () => { active = false; }; }, [profileId, displayName, collectionId]);
 
   const summary = state.summaries[0];
   const selectedIndex = useMemo(() => summary?.recentCards.findIndex((card) => card.id === selectedCardId) ?? -1, [selectedCardId, summary]);
   const selectedCard = selectedIndex >= 0 && summary ? summary.recentCards[selectedIndex] : null;
 
   useEffect(() => {
-    if (!selectedCard) {
-      setOwnership({ status: 'idle' });
-      return;
-    }
+    if (!selectedCard) { setOwnership({ status: 'idle' }); return; }
     let active = true;
     setOwnership((previous) => ({ status: 'loading', previous: previous.status === 'ready' ? previous.value : undefined }));
-    void getCollectionCardOwnershipForCatalogCards({ collectionId, cardCatalogIds: [selectedCard.id] })
-      .then((result) => {
-        if (!active) return;
-        const value = result.get(selectedCard.id);
-        setOwnership(value ? { status: 'ready', value } : { status: 'error', retryable: true });
-      })
-      .catch(() => { if (active) setOwnership({ status: 'error', retryable: true }); });
+    void getCollectionCardOwnershipForCatalogCards({ collectionId, cardCatalogIds: [selectedCard.id] }).then((result) => { if (!active) return; const value = result.get(selectedCard.id); setOwnership(value ? { status: 'ready', value } : { status: 'error', retryable: true }); }).catch(() => { if (active) setOwnership({ status: 'error', retryable: true }); });
     return () => { active = false; };
   }, [collectionId, selectedCard]);
 
@@ -115,7 +76,10 @@ export function ChildDashboard({ profileId, displayName, collectionId }: { profi
   if (state.status === 'error') return <section className="dashboard-state" role="alert"><strong>Dat ging niet goed</strong><span>{state.message}</span></section>;
   if (!summary) return <section className="dashboard-state">Je verzameling is nog leeg.</section>;
 
-  return <div className="dashboard-v2-page"><DashboardHero displayName={displayName} /><DashboardStatsBand summary={summary} /><DashboardRecentCards summary={summary} onOpenCard={(card) => setSelectedCardId(card.id)} /><DashboardInsights summary={summary} /><DashboardRecentSets summary={summary} />{selectedCard ? <CardDetailDialog card={toCardDetailCard(selectedCard)} ownership={ownership} mutation={{ status: 'idle' }} capabilities={{ canAdd: false, canIncrease: false, canDecrease: false }} copy={createCollectionCardDetailProductCopy(ownership)} readOnly onClose={() => setSelectedCardId(null)} navigation={{ currentIndex: selectedIndex, total: summary.recentCards.length, onPrevious: () => setSelectedCardId(summary.recentCards[selectedIndex - 1]?.id ?? selectedCard.id), onNext: () => setSelectedCardId(summary.recentCards[selectedIndex + 1]?.id ?? selectedCard.id) }} /> : null}</div>;
+  const previousCard = summary.recentCards[selectedIndex - 1];
+  const nextCard = summary.recentCards[selectedIndex + 1];
+
+  return <div className="dashboard-v2-page"><DashboardHero displayName={displayName} /><DashboardStatsBand summary={summary} /><DashboardRecentCards summary={summary} onOpenCard={(card) => setSelectedCardId(card.id)} /><DashboardInsights summary={summary} /><DashboardRecentSets summary={summary} />{selectedCard ? <CardDetailDialog card={toCardDetailCard(selectedCard)} ownership={ownership} mutation={{ status: 'idle' }} capabilities={{ canAdd: false, canIncrease: false, canDecrease: false }} copy={createCollectionCardDetailProductCopy(ownership)} readOnly onClose={() => setSelectedCardId(null)} navigation={{ currentIndex: selectedIndex, total: summary.recentCards.length, previousImageUrl: getDetailImage(previousCard), nextImageUrl: getDetailImage(nextCard), onPrevious: () => setSelectedCardId(previousCard?.id ?? selectedCard.id), onNext: () => setSelectedCardId(nextCard?.id ?? selectedCard.id) }} /> : null}</div>;
 }
 
 export function AdminDashboard() {
