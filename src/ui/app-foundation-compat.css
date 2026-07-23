@@ -1,0 +1,198 @@
+/* Temporary compatibility layer for legacy page CSS.
+ *
+ * The shared visual foundation is the source of truth. Older page selectors in
+ * styles.css still contain light-theme values and sometimes have higher
+ * specificity. Keep their neutralization centralized here until each page is
+ * redesigned and those legacy rules can be removed.
+ */
+
+.app-shell:not(.app-shell--dashboard) input:not([type='checkbox']):not([type='radio']),
+.app-shell:not(.app-shell--dashboard) select,
+.app-shell:not(.app-shell--dashboard) textarea,
+.app-shell:not(.app-shell--dashboard) [role='searchbox'] {
+  border-color: var(--app-border-strong) !important;
+  background-color: var(--app-surface-strong) !important;
+  color: var(--app-text) !important;
+  caret-color: var(--app-accent);
+  color-scheme: dark;
+}
+
+.app-shell:not(.app-shell--dashboard) input:not([type='checkbox']):not([type='radio'])::placeholder,
+.app-shell:not(.app-shell--dashboard) textarea::placeholder {
+  color: var(--app-text-soft) !important;
+  opacity: 1;
+}
+
+.app-shell:not(.app-shell--dashboard) input:not([type='checkbox']):not([type='radio']):focus,
+.app-shell:not(.app-shell--dashboard) select:focus,
+.app-shell:not(.app-shell--dashboard) textarea:focus,
+.app-shell:not(.app-shell--dashboard) [role='searchbox']:focus {
+  border-color: var(--app-accent) !important;
+  outline: 3px solid rgb(0 200 255 / 0.16) !important;
+  outline-offset: 0;
+}
+
+.app-shell:not(.app-shell--dashboard) select option {
+  background: var(--app-surface-strong);
+  color: var(--app-text);
+}
+
+/* Shared legacy surfaces. These selectors only bridge old markup to the
+   central surface/stat primitives; they must disappear as each page is
+   migrated to ui-surface, ui-stat-tile and ui-page components. */
+.app-shell--child:not(.app-shell--dashboard) :where(
+  .sets-page-hero,
+  .sets-page-card,
+  .sets-page-summary > div,
+  .sets-page-set-card,
+  .collection-page-summary > div,
+  .collection-page-legacy-note,
+  .collection-page-empty,
+  .wishlist-page-empty
+) {
+  border-color: var(--app-border) !important;
+  background: linear-gradient(145deg, rgb(11 25 51 / 0.96), rgb(7 20 42 / 0.98)) !important;
+  color: var(--app-text) !important;
+  box-shadow: var(--app-shadow-sm), inset 0 1px 0 rgb(255 255 255 / 0.04) !important;
+}
+
+.app-shell--child:not(.app-shell--dashboard) :where(
+  .sets-page-hero,
+  .sets-page-card,
+  .sets-page-summary > div,
+  .sets-page-set-card,
+  .collection-page-summary > div,
+  .collection-page-legacy-note,
+  .collection-page-empty,
+  .wishlist-page-empty
+) :where(h1, h2, h3, strong, dd) {
+  color: var(--app-text) !important;
+}
+
+.app-shell--child:not(.app-shell--dashboard) :where(
+  .sets-page-hero,
+  .sets-page-card,
+  .sets-page-summary > div,
+  .sets-page-set-card,
+  .collection-page-summary > div,
+  .collection-page-legacy-note,
+  .collection-page-empty,
+  .wishlist-page-empty
+) :where(p, dt, span, small) {
+  color: var(--app-text-muted) !important;
+}
+
+.app-shell--child:not(.app-shell--dashboard) .collection-page-summary dd {
+  background: var(--app-accent-soft) !important;
+  color: var(--app-accent) !important;
+}
+
+.app-shell--child:not(.app-shell--dashboard) .sets-page-series-heading {
+  border-left-color: var(--app-accent) !important;
+  color: var(--app-text) !important;
+}
+
+.app-shell--child:not(.app-shell--dashboard) .sets-page-set-card.is-open {
+  border-color: var(--app-accent) !important;
+  background: linear-gradient(145deg, #0d2147, #0b1933) !important;
+}
+
+/* Search wrappers and filter controls contain their own old white surfaces. */
+.app-shell--child:not(.app-shell--dashboard) .collection-page-search-control,
+.app-shell--child:not(.app-shell--dashboard) .sets-page-search-control,
+.app-shell--child:not(.app-shell--dashboard) .sets-page-set-card-search-control {
+  border-color: var(--app-border-strong);
+  background: var(--app-surface-strong);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.04);
+}
+
+.app-shell--child:not(.app-shell--dashboard) .collection-page-search-control:focus-within,
+.app-shell--child:not(.app-shell--dashboard) .sets-page-search-control:focus-within,
+.app-shell--child:not(.app-shell--dashboard) .sets-page-set-card-search-control:focus-within {
+  border-color: var(--app-accent);
+  box-shadow: 0 0 0 3px rgb(0 200 255 / 0.16);
+}
+
+.app-shell--child:not(.app-shell--dashboard) .collection-page-search-control input,
+.app-shell--child:not(.app-shell--dashboard) .sets-page-search-control input,
+.app-shell--child:not(.app-shell--dashboard) .sets-page-set-card-search-control input {
+  border-color: transparent !important;
+  background: transparent !important;
+  outline: 0 !important;
+}
+
+.app-shell--child:not(.app-shell--dashboard) .collection-page-filter-toggle,
+.app-shell--child:not(.app-shell--dashboard) .collection-page-search-control button,
+.app-shell--child:not(.app-shell--dashboard) .collection-page-filter-actions button,
+.app-shell--child:not(.app-shell--dashboard) .collection-page-empty button,
+.app-shell--child:not(.app-shell--dashboard) .sets-page-search-control button,
+.app-shell--child:not(.app-shell--dashboard) .sets-page-set-card-search-control button,
+.app-shell--child:not(.app-shell--dashboard) .sets-page-set-overlay-back {
+  border-color: var(--app-border-strong);
+  background: var(--app-surface-soft);
+  color: var(--app-text);
+}
+
+.app-shell--child:not(.app-shell--dashboard) .collection-page-filter-toggle[aria-expanded='true'] {
+  border-color: var(--app-accent);
+  background: var(--app-accent-soft);
+  color: var(--app-accent);
+}
+
+.app-shell--child:not(.app-shell--dashboard) .collection-page-filter-panel,
+.app-shell--child:not(.app-shell--dashboard) .collection-page-empty,
+.app-shell--child:not(.app-shell--dashboard) .sets-page-set-overlay-summary,
+.app-shell--child:not(.app-shell--dashboard) .sets-page-set-overlay-controls {
+  border-color: var(--app-border);
+  background: var(--app-surface-strong);
+  color: var(--app-text);
+}
+
+.app-shell--child:not(.app-shell--dashboard) .collection-page-search label,
+.app-shell--child:not(.app-shell--dashboard) .collection-page-filters label,
+.app-shell--child:not(.app-shell--dashboard) .sets-page-search label,
+.app-shell--child:not(.app-shell--dashboard) .sets-page-set-overlay-summary span,
+.app-shell--child:not(.app-shell--dashboard) .sets-page-set-overlay-controls label,
+.app-shell--child:not(.app-shell--dashboard) .collection-page-pagination span {
+  color: var(--app-text-muted);
+}
+
+.app-shell--child:not(.app-shell--dashboard) .sets-page-set-overlay-summary strong {
+  color: var(--app-text);
+}
+
+/* Dark loading surfaces prevent white flashes while card images decode. */
+.app-shell--child:not(.app-shell--dashboard) .binder-card-grid-button,
+.app-shell--child:not(.app-shell--dashboard) .binder-card-grid-button img,
+.app-shell--child:not(.app-shell--dashboard) .binder-card-grid-placeholder,
+.app-shell--child:not(.app-shell--dashboard) .card-image-placeholder,
+.app-shell--child:not(.app-shell--dashboard) .sets-page-set-media,
+.app-shell--child:not(.app-shell--dashboard) .sets-page-set-card-skeleton {
+  background-color: var(--app-surface-soft);
+}
+
+.app-shell--child:not(.app-shell--dashboard) .binder-card-grid-button img,
+.app-shell--child:not(.app-shell--dashboard) .binder-card-grid-placeholder,
+.app-shell--child:not(.app-shell--dashboard) .card-image-placeholder {
+  background-image: linear-gradient(135deg, #0d2147 0%, #07142a 100%);
+}
+
+.app-shell--child:not(.app-shell--dashboard) .sets-page-set-card-skeleton {
+  background-image: linear-gradient(100deg, #0b1933 20%, #132b54 40%, #0b1933 60%);
+  background-size: 200% 100%;
+}
+
+.app-shell--child:not(.app-shell--dashboard) .binder-card-grid-placeholder,
+.app-shell--child:not(.app-shell--dashboard) .card-image-placeholder,
+.app-shell--child:not(.app-shell--dashboard) .sets-page-set-media-placeholder {
+  color: var(--app-text-soft);
+}
+
+/* Safari can retain its native white autofill surface unless explicitly overridden. */
+.app-shell:not(.app-shell--dashboard) input:-webkit-autofill,
+.app-shell:not(.app-shell--dashboard) input:-webkit-autofill:hover,
+.app-shell:not(.app-shell--dashboard) input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--app-text);
+  box-shadow: 0 0 0 1000px var(--app-surface-strong) inset;
+  transition: background-color 9999s ease-out 0s;
+}
