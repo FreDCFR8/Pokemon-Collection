@@ -5,6 +5,7 @@ import './ui/design-system.css';
 import './styles.css';
 import './ui/app-foundation.css';
 import './ui/app-foundation-compat.css';
+import './features/collectionPage/collectionPageV2.css';
 import './features/cardDetail/cardDetailPolish.css';
 import './features/cardDetail/cardDetailContrastPolish.css';
 import './features/cardDetail/cardDetailSwipeLock';
