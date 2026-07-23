@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, type TouchEvent } from 'react';
 
 import type {
   ConfirmedOwnership,
@@ -215,12 +215,12 @@ export function CardDetailDialog({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
-  function handleTouchStart(event: React.TouchEvent<HTMLElement>) {
+  function handleTouchStart(event: TouchEvent<HTMLElement>) {
     const touch = event.touches[0];
     touchStartRef.current = touch ? { x: touch.clientX, y: touch.clientY } : null;
   }
 
-  function handleTouchEnd(event: React.TouchEvent<HTMLElement>) {
+  function handleTouchEnd(event: TouchEvent<HTMLElement>) {
     const start = touchStartRef.current;
     const touch = event.changedTouches[0];
     touchStartRef.current = null;
