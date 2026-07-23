@@ -79,6 +79,7 @@ const FOCUSABLE_SELECTOR = [
 ].join(',');
 
 const SWIPE_THRESHOLD_PX = 55;
+const CARD_DETAIL_SCROLL_LOCK_ATTRIBUTE = 'data-card-detail-scroll-lock';
 
 function getFocusableElements(container: HTMLElement): HTMLElement[] {
   return Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
@@ -162,27 +163,54 @@ export function CardDetailDialog({
   useEffect(() => {
     const scrollY = window.scrollY;
     const bodyStyle = document.body.style;
+    const documentStyle = document.documentElement.style;
     const previousBodyStyles = {
       overflow: bodyStyle.overflow,
       position: bodyStyle.position,
       top: bodyStyle.top,
       width: bodyStyle.width,
     };
-    const previousDocumentOverflow = document.documentElement.style.overflow;
+    const previousDocumentOverflow = documentStyle.overflow;
+    let restored = false;
+
+    function restoreScrollLock({ restorePosition = true }: { restorePosition?: boolean } = {}) {
+      if (restored) return;
+      restored = true;
+
+      bodyStyle.overflow = previousBodyStyles.overflow;
+      bodyStyle.position = previousBodyStyles.position;
+      bodyStyle.top = previousBodyStyles.top;
+      bodyStyle.width = previousBodyStyles.width;
+      documentStyle.overflow = previousDocumentOverflow;
+      document.body.removeAttribute(CARD_DETAIL_SCROLL_LOCK_ATTRIBUTE);
+
+      if (restorePosition) window.scrollTo(0, scrollY);
+    }
+
+    function handlePageHide() {
+      restoreScrollLock({ restorePosition: false });
+    }
+
+    function handlePageShow() {
+      if (!document.querySelector('.card-detail-dialog')) {
+        restoreScrollLock();
+      }
+    }
 
     bodyStyle.overflow = 'hidden';
     bodyStyle.position = 'fixed';
     bodyStyle.top = `-${scrollY}px`;
     bodyStyle.width = '100%';
-    document.documentElement.style.overflow = 'hidden';
+    documentStyle.overflow = 'hidden';
+    document.body.setAttribute(CARD_DETAIL_SCROLL_LOCK_ATTRIBUTE, 'true');
+
+    window.addEventListener('pagehide', handlePageHide);
+    window.addEventListener('pageshow', handlePageShow);
 
     return () => {
-      bodyStyle.overflow = previousBodyStyles.overflow;
-      bodyStyle.position = previousBodyStyles.position;
-      bodyStyle.top = previousBodyStyles.top;
-      bodyStyle.width = previousBodyStyles.width;
-      document.documentElement.style.overflow = previousDocumentOverflow;
-      window.scrollTo(0, scrollY);
+      window.removeEventListener('pagehide', handlePageHide);
+      window.removeEventListener('pageshow', handlePageShow);
+      restoreScrollLock();
     };
   }, []);
 
@@ -306,19 +334,18 @@ export function CardDetailDialog({
                         </span>
                       ))}
                     </span>
-                    <dt>{item.label}</dt>
-                    <dd>{item.value}</dd>
+                    <div>
+                      <dt>{item.label}</dt>
+                      <dd>{item.value}</dd>
+                    </div>
                   </div>
                 ))}
               </dl>
             ) : null}
-            {ownership.status === 'error' && onRetryOwnership ? <button className="card-detail-retry-button" type="button" onClick={onRetryOwnership}>Collectiestatus opnieuw laden</button> : null}
-            {mutation.status === 'error' && mutation.retryable && onRetryMutation ? (
-              <button className="card-detail-retry-button" type="button" onClick={onRetryMutation} disabled={isMutating}>
-                Opnieuw proberen
-              </button>
-            ) : null}
-            {feedbackMessage ? <span className={`card-detail-feedback-message${feedbackRole === 'alert' ? ' is-error' : ' is-success'}`} role={feedbackRole}>{feedbackMessage}</span> : null}
+            {copy.managementMessage ? <p className="card-detail-management-message">{copy.managementMessage}</p> : null}
+            {ownership.status === 'error' && onRetryOwnership ? <button type="button" onClick={onRetryOwnership}>Status opnieuw laden</button> : null}
+            {feedbackMessage ? <p role={feedbackRole}>{feedbackMessage}</p> : null}
+            {(mutation.status === 'error' || mutation.status === 'conflict') && onRetryMutation ? <button type="button" onClick={onRetryMutation}>Opnieuw proberen</button> : null}
           </div>
         </div>
       </section>
