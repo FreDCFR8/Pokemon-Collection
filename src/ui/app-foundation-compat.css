@@ -1,5 +1,10 @@
-/* Temporary compatibility selectors for legacy page styles.
-   These remain in the visual foundation until each page adopts the shared UI classes. */
+/* Temporary compatibility layer for legacy page CSS.
+ *
+ * The shared visual foundation is the source of truth. Older page selectors in
+ * styles.css still contain light-theme values and sometimes have higher
+ * specificity. Keep their neutralization centralized here until each page is
+ * redesigned and those legacy rules can be removed.
+ */
 
 .app-shell:not(.app-shell--dashboard) input:not([type='checkbox']):not([type='radio']),
 .app-shell:not(.app-shell--dashboard) select,
@@ -30,6 +35,97 @@
 .app-shell:not(.app-shell--dashboard) select option {
   background: var(--app-surface-strong);
   color: var(--app-text);
+}
+
+/* Search wrappers and filter controls contain their own old white surfaces. */
+.app-shell--child:not(.app-shell--dashboard) .collection-page-search-control,
+.app-shell--child:not(.app-shell--dashboard) .sets-page-search-control,
+.app-shell--child:not(.app-shell--dashboard) .sets-page-set-card-search-control {
+  border-color: var(--app-border-strong);
+  background: var(--app-surface-strong);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.04);
+}
+
+.app-shell--child:not(.app-shell--dashboard) .collection-page-search-control:focus-within,
+.app-shell--child:not(.app-shell--dashboard) .sets-page-search-control:focus-within,
+.app-shell--child:not(.app-shell--dashboard) .sets-page-set-card-search-control:focus-within {
+  border-color: var(--app-accent);
+  box-shadow: 0 0 0 3px rgb(0 200 255 / 0.16);
+}
+
+.app-shell--child:not(.app-shell--dashboard) .collection-page-search-control input,
+.app-shell--child:not(.app-shell--dashboard) .sets-page-search-control input,
+.app-shell--child:not(.app-shell--dashboard) .sets-page-set-card-search-control input {
+  border-color: transparent !important;
+  background: transparent !important;
+  outline: 0 !important;
+}
+
+.app-shell--child:not(.app-shell--dashboard) .collection-page-filter-toggle,
+.app-shell--child:not(.app-shell--dashboard) .collection-page-search-control button,
+.app-shell--child:not(.app-shell--dashboard) .collection-page-filter-actions button,
+.app-shell--child:not(.app-shell--dashboard) .collection-page-empty button,
+.app-shell--child:not(.app-shell--dashboard) .sets-page-search-control button,
+.app-shell--child:not(.app-shell--dashboard) .sets-page-set-card-search-control button,
+.app-shell--child:not(.app-shell--dashboard) .sets-page-set-overlay-back {
+  border-color: var(--app-border-strong);
+  background: var(--app-surface-soft);
+  color: var(--app-text);
+}
+
+.app-shell--child:not(.app-shell--dashboard) .collection-page-filter-toggle[aria-expanded='true'] {
+  border-color: var(--app-accent);
+  background: var(--app-accent-soft);
+  color: var(--app-accent);
+}
+
+.app-shell--child:not(.app-shell--dashboard) .collection-page-filter-panel,
+.app-shell--child:not(.app-shell--dashboard) .collection-page-empty,
+.app-shell--child:not(.app-shell--dashboard) .sets-page-set-overlay-summary,
+.app-shell--child:not(.app-shell--dashboard) .sets-page-set-overlay-controls {
+  border-color: var(--app-border);
+  background: var(--app-surface-strong);
+  color: var(--app-text);
+}
+
+.app-shell--child:not(.app-shell--dashboard) .collection-page-search label,
+.app-shell--child:not(.app-shell--dashboard) .collection-page-filters label,
+.app-shell--child:not(.app-shell--dashboard) .sets-page-search label,
+.app-shell--child:not(.app-shell--dashboard) .sets-page-set-overlay-summary span,
+.app-shell--child:not(.app-shell--dashboard) .sets-page-set-overlay-controls label,
+.app-shell--child:not(.app-shell--dashboard) .collection-page-pagination span {
+  color: var(--app-text-muted);
+}
+
+.app-shell--child:not(.app-shell--dashboard) .sets-page-set-overlay-summary strong {
+  color: var(--app-text);
+}
+
+/* Dark loading surfaces prevent white flashes while card images decode. */
+.app-shell--child:not(.app-shell--dashboard) .binder-card-grid-button,
+.app-shell--child:not(.app-shell--dashboard) .binder-card-grid-button img,
+.app-shell--child:not(.app-shell--dashboard) .binder-card-grid-placeholder,
+.app-shell--child:not(.app-shell--dashboard) .card-image-placeholder,
+.app-shell--child:not(.app-shell--dashboard) .sets-page-set-media,
+.app-shell--child:not(.app-shell--dashboard) .sets-page-set-card-skeleton {
+  background-color: var(--app-surface-soft);
+}
+
+.app-shell--child:not(.app-shell--dashboard) .binder-card-grid-button img,
+.app-shell--child:not(.app-shell--dashboard) .binder-card-grid-placeholder,
+.app-shell--child:not(.app-shell--dashboard) .card-image-placeholder {
+  background-image: linear-gradient(135deg, #0d2147 0%, #07142a 100%);
+}
+
+.app-shell--child:not(.app-shell--dashboard) .sets-page-set-card-skeleton {
+  background-image: linear-gradient(100deg, #0b1933 20%, #132b54 40%, #0b1933 60%);
+  background-size: 200% 100%;
+}
+
+.app-shell--child:not(.app-shell--dashboard) .binder-card-grid-placeholder,
+.app-shell--child:not(.app-shell--dashboard) .card-image-placeholder,
+.app-shell--child:not(.app-shell--dashboard) .sets-page-set-media-placeholder {
+  color: var(--app-text-soft);
 }
 
 /* Safari can retain its native white autofill surface unless explicitly overridden. */
