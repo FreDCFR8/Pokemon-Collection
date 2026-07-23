@@ -1,6 +1,6 @@
 /* Collection V2 polish
  *
- * Personal header -> compact search -> filter controls -> card content.
+ * Personal header -> compact search -> horizontal filter controls -> card content.
  * Visual values come from the shared app foundation.
  */
 
@@ -9,39 +9,71 @@
   width: 100%;
   max-width: var(--app-content-width);
   margin: 0 auto;
-  padding-top: 2px;
+  padding-top: 0;
 }
 
-.collection-experience::before {
-  content: 'Collectie van ' attr(data-owner);
-  display: block;
-  margin: 0 auto 10px;
-  padding: 2px 18px 0;
-  background: linear-gradient(100deg, #9f7cff 0%, var(--app-accent) 48%, #65a7ff 100%);
+.collection-experience__title {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  margin: 0 auto 2px;
+  padding: 0 18px;
+  line-height: 1;
+  text-align: center;
+}
+
+.collection-experience__title strong {
+  background: linear-gradient(100deg, #a98cff 0%, var(--app-accent) 55%, #75abff 100%);
   background-clip: text;
   color: transparent;
-  font-size: clamp(1.72rem, 7vw, 2.55rem);
-  font-weight: 900;
-  letter-spacing: -0.035em;
-  line-height: 1.05;
-  text-align: center;
-  text-shadow: 0 12px 34px rgb(0 200 255 / 0.12);
+  font-size: clamp(1.78rem, 7.6vw, 2.65rem);
+  font-weight: 950;
+  letter-spacing: -0.055em;
+  text-shadow: 0 12px 36px rgb(0 200 255 / 0.16);
 }
 
-.collection-experience::after {
+.collection-experience__title em {
+  position: relative;
+  color: var(--app-text);
+  font-family: ui-rounded, 'SF Pro Rounded', 'Segoe Print', cursive;
+  font-size: clamp(1.15rem, 5vw, 1.75rem);
+  font-style: italic;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  white-space: nowrap;
+  transform: rotate(-2deg);
+}
+
+.collection-experience__title em::after {
   content: '';
-  display: block;
-  width: 70px;
-  height: 3px;
-  margin: -3px auto 8px;
+  position: absolute;
+  right: -3px;
+  bottom: -7px;
+  width: 76%;
+  height: 2px;
   border-radius: 999px;
-  background: linear-gradient(90deg, transparent, var(--app-accent), transparent);
-  opacity: 0.8;
+  background: linear-gradient(90deg, var(--app-accent), #7f72ff, transparent);
+  transform: rotate(-3deg);
+}
+
+.collection-experience__spark {
+  color: #a98cff;
+  font-size: 0.75rem;
+  opacity: 0.95;
+  transform: translateY(-12px);
+}
+
+.collection-experience__spark--end {
+  color: var(--app-accent);
+  transform: translateY(8px) scale(0.78);
 }
 
 .app-shell--child .collection-page:not(.wishlist-page) {
   display: grid;
-  gap: 9px;
+  gap: 4px;
   width: 100%;
   max-width: var(--app-content-width);
   margin: 0 auto;
@@ -52,7 +84,6 @@
   padding: 0 0 calc(116px + env(safe-area-inset-bottom));
 }
 
-/* The personalized wrapper replaces the old generic document-style title. */
 .app-shell--child .collection-page:not(.wishlist-page) .collection-page-header {
   display: contents;
 }
@@ -72,7 +103,7 @@
   width: calc(100% - 28px);
   margin: 0 auto;
   color: var(--app-text-muted);
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   text-align: center;
 }
 
@@ -81,52 +112,58 @@
   z-index: 12;
   top: max(0px, env(safe-area-inset-top));
   display: grid;
-  gap: 8px;
+  gap: 5px;
   min-width: 0;
   margin: 0;
-  padding: 5px 12px 8px;
-  background: linear-gradient(180deg, rgb(3 8 22 / 0.98) 0%, rgb(3 8 22 / 0.92) 72%, transparent 100%);
+  padding: 2px 12px 5px;
+  background: linear-gradient(180deg, rgb(3 8 22 / 0.98) 0%, rgb(3 8 22 / 0.93) 80%, transparent 100%);
   backdrop-filter: blur(14px);
 }
 
 .app-shell--child .collection-page:not(.wishlist-page) .collection-page-search-control {
+  display: flex;
+  align-items: center;
   width: 100%;
-  min-height: 42px;
+  min-height: 38px;
   box-sizing: border-box;
   border-radius: 999px;
-  padding: 2px 5px 2px 14px;
+  padding: 1px 6px 1px 13px;
 }
 
 .app-shell--child .collection-page:not(.wishlist-page) .collection-page-search-control::before {
   content: '⌕';
   flex: 0 0 auto;
-  margin-right: 7px;
+  margin-right: 8px;
   color: var(--app-text-muted);
-  font-size: 1rem;
+  font-size: 0.95rem;
 }
 
 .app-shell--child .collection-page:not(.wishlist-page) .collection-page-search-control input {
-  min-height: 36px;
-  font-size: 16px;
+  min-width: 0;
+  min-height: 34px;
+  padding-inline: 0 8px;
+  font-size: 15px;
+  line-height: 1.2;
+  text-align: left;
 }
 
-.app-shell--child .collection-page:not(.wishlist-page) .collection-page-filter-toggle {
-  justify-self: start;
-  min-height: 38px;
-  width: auto;
-  border-radius: 999px;
-  padding: 0 14px;
+.app-shell--child .collection-page:not(.wishlist-page) .collection-page-search-control input::placeholder {
+  overflow: visible;
+  color: var(--app-text-muted) !important;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
-.app-shell--child .collection-page:not(.wishlist-page) .collection-page-filter-toggle::before {
-  content: '☷';
-  margin-right: 7px;
-  color: var(--app-accent);
-}
-
-.app-shell--child .collection-page:not(.wishlist-page) .collection-page-filter-toggle[aria-expanded='true'] {
-  box-shadow: 0 0 0 1px var(--app-accent), 0 9px 24px rgb(0 200 255 / 0.12);
+/* The former disclosure button is only retained as an accessibility/state hook.
+   The functional filter controls are always visible as a horizontal toolbar. */
+.app-shell--child .collection-page:not(.wishlist-page) .collection-page-filter-toggle {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .app-shell--child .collection-page:not(.wishlist-page) .collection-page-filter-panel {
@@ -141,15 +178,31 @@
 
 .app-shell--child .collection-page:not(.wishlist-page) .collection-page-filters {
   display: flex;
-  gap: 8px;
+  gap: 7px;
   min-width: 0;
   width: 100%;
   overflow-x: auto;
   overscroll-behavior-inline: contain;
   scrollbar-width: none;
-  padding: 1px 1px 5px;
+  padding: 1px 1px 3px;
   scroll-snap-type: inline proximity;
   -webkit-overflow-scrolling: touch;
+}
+
+.app-shell--child .collection-page:not(.wishlist-page) .collection-page-filters::before {
+  content: 'Filters';
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  min-height: 36px;
+  border: 1px solid var(--app-border-strong);
+  border-radius: 999px;
+  background: var(--app-accent-soft);
+  color: var(--app-accent);
+  padding: 0 13px;
+  font-size: 0.79rem;
+  font-weight: 850;
+  scroll-snap-align: start;
 }
 
 .app-shell--child .collection-page:not(.wishlist-page) .collection-page-filters::-webkit-scrollbar,
@@ -167,39 +220,44 @@
 }
 
 .app-shell--child .collection-page:not(.wishlist-page) .collection-page-filters select {
-  min-height: 39px;
+  min-height: 36px;
   width: auto;
-  max-width: 190px;
+  max-width: 184px;
   border-radius: 999px;
-  padding: 0 34px 0 14px;
-  font-size: 0.82rem;
+  padding: 0 32px 0 13px;
+  font-size: 0.79rem;
   font-weight: 780;
 }
 
 .app-shell--child .collection-page:not(.wishlist-page) .collection-page-filter-actions {
   display: flex;
   flex-wrap: nowrap;
-  gap: 8px;
+  gap: 7px;
   min-width: 0;
   overflow-x: auto;
   margin: 0;
   scrollbar-width: none;
 }
 
+.app-shell--child .collection-page:not(.wishlist-page) .collection-page-filter-actions:empty {
+  display: none;
+}
+
 .app-shell--child .collection-page:not(.wishlist-page) .collection-page-filter-actions button {
   flex: 0 0 auto;
-  min-height: 34px;
+  min-height: 32px;
   border: 1px solid var(--app-border);
   background: transparent;
   color: var(--app-text-muted);
-  font-size: 0.76rem;
+  padding-inline: 12px;
+  font-size: 0.73rem;
 }
 
 .app-shell--child .collection-page:not(.wishlist-page) .collection-page-search-summary {
   margin: 0;
   color: var(--app-text-muted);
-  font-size: 0.74rem;
-  line-height: 1.35;
+  font-size: 0.72rem;
+  line-height: 1.3;
 }
 
 .app-shell--child .collection-page:not(.wishlist-page) > .binder-card-grid,
@@ -273,9 +331,21 @@
 }
 
 @media (max-width: 420px) {
-  .collection-experience::before {
-    margin-bottom: 8px;
-    font-size: clamp(1.6rem, 7.2vw, 1.95rem);
+  .collection-experience__title {
+    gap: 6px;
+    min-height: 39px;
+  }
+
+  .collection-experience__title strong {
+    font-size: clamp(1.72rem, 7.7vw, 2.05rem);
+  }
+
+  .collection-experience__title em {
+    font-size: clamp(1.08rem, 4.9vw, 1.34rem);
+  }
+
+  .collection-experience__spark {
+    display: none;
   }
 
   .app-shell--child .collection-page:not(.wishlist-page) .collection-page-pagination {
@@ -294,11 +364,11 @@
 
 @media (min-width: 720px) {
   .collection-experience {
-    padding-top: 8px;
+    padding-top: 5px;
   }
 
   .app-shell--child .collection-page:not(.wishlist-page) {
-    gap: 14px;
+    gap: 10px;
     padding-inline: 12px;
   }
 
