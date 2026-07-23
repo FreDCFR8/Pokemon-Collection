@@ -186,7 +186,7 @@
 @media (max-width: 819px) {
   .card-detail-content {
     gap: 20px;
-    padding-top: 48px;
+    padding-top: 40px;
   }
 
   .card-detail-image img,
@@ -213,7 +213,7 @@
   }
 
   .card-detail-content {
-    padding: 42px 16px calc(30px + env(safe-area-inset-bottom));
+    padding: 34px 16px calc(30px + env(safe-area-inset-bottom));
   }
 
   .card-detail-image img,
