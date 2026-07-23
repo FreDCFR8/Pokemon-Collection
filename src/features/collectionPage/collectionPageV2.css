@@ -1,13 +1,47 @@
-/* Collection V2
+/* Collection V2 polish
  *
- * First consumer of the shared page architecture:
- * page header -> search -> horizontally scrollable controls -> content.
- * Visual values come exclusively from the shared app foundation.
+ * Personal header -> compact search -> filter controls -> card content.
+ * Visual values come from the shared app foundation.
  */
+
+.collection-experience {
+  position: relative;
+  width: 100%;
+  max-width: var(--app-content-width);
+  margin: 0 auto;
+  padding-top: 2px;
+}
+
+.collection-experience::before {
+  content: 'Collectie van ' attr(data-owner);
+  display: block;
+  margin: 0 auto 10px;
+  padding: 2px 18px 0;
+  background: linear-gradient(100deg, #9f7cff 0%, var(--app-accent) 48%, #65a7ff 100%);
+  background-clip: text;
+  color: transparent;
+  font-size: clamp(1.72rem, 7vw, 2.55rem);
+  font-weight: 900;
+  letter-spacing: -0.035em;
+  line-height: 1.05;
+  text-align: center;
+  text-shadow: 0 12px 34px rgb(0 200 255 / 0.12);
+}
+
+.collection-experience::after {
+  content: '';
+  display: block;
+  width: 70px;
+  height: 3px;
+  margin: -3px auto 8px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, var(--app-accent), transparent);
+  opacity: 0.8;
+}
 
 .app-shell--child .collection-page:not(.wishlist-page) {
   display: grid;
-  gap: 12px;
+  gap: 9px;
   width: 100%;
   max-width: var(--app-content-width);
   margin: 0 auto;
@@ -15,78 +49,73 @@
   border-radius: 0;
   background: transparent;
   box-shadow: none;
-  padding: 8px 0 calc(108px + env(safe-area-inset-bottom));
+  padding: 0 0 calc(116px + env(safe-area-inset-bottom));
 }
 
+/* The personalized wrapper replaces the old generic document-style title. */
 .app-shell--child .collection-page:not(.wishlist-page) .collection-page-header {
-  display: grid;
-  justify-items: center;
-  min-height: 44px;
-  padding: 4px 16px 0;
-  text-align: center;
-}
-
-.app-shell--child .collection-page:not(.wishlist-page) .collection-page-header > div {
-  display: grid;
-  justify-items: center;
-  width: 100%;
+  display: contents;
 }
 
 .app-shell--child .collection-page:not(.wishlist-page) .collection-page-header h2 {
-  position: relative;
-  width: 100%;
-  min-height: 36px;
-  margin: 0;
-  color: transparent;
-  font-size: 0;
-}
-
-.app-shell--child .collection-page:not(.wishlist-page) .collection-page-header h2::after {
-  content: 'Mijn collectie';
   position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  color: var(--app-text);
-  font-size: clamp(1.45rem, 6vw, 2rem);
-  font-weight: 850;
-  line-height: 1.1;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .app-shell--child .collection-page:not(.wishlist-page) .collection-page-status,
 .app-shell--child .collection-page:not(.wishlist-page) .collection-page-header .status-note {
-  margin: 6px 0 0;
+  width: calc(100% - 28px);
+  margin: 0 auto;
   color: var(--app-text-muted);
-  font-size: 0.82rem;
+  font-size: 0.78rem;
+  text-align: center;
 }
 
 .app-shell--child .collection-page:not(.wishlist-page) .collection-page-search {
+  position: sticky;
+  z-index: 12;
+  top: max(0px, env(safe-area-inset-top));
   display: grid;
-  gap: 10px;
+  gap: 8px;
   min-width: 0;
   margin: 0;
-  padding: 0 12px;
+  padding: 5px 12px 8px;
+  background: linear-gradient(180deg, rgb(3 8 22 / 0.98) 0%, rgb(3 8 22 / 0.92) 72%, transparent 100%);
+  backdrop-filter: blur(14px);
 }
 
 .app-shell--child .collection-page:not(.wishlist-page) .collection-page-search-control {
   width: 100%;
-  min-height: 48px;
+  min-height: 42px;
   box-sizing: border-box;
   border-radius: 999px;
-  padding: 3px 5px 3px 16px;
+  padding: 2px 5px 2px 14px;
+}
+
+.app-shell--child .collection-page:not(.wishlist-page) .collection-page-search-control::before {
+  content: '⌕';
+  flex: 0 0 auto;
+  margin-right: 7px;
+  color: var(--app-text-muted);
+  font-size: 1rem;
 }
 
 .app-shell--child .collection-page:not(.wishlist-page) .collection-page-search-control input {
-  min-height: 42px;
+  min-height: 36px;
   font-size: 16px;
 }
 
 .app-shell--child .collection-page:not(.wishlist-page) .collection-page-filter-toggle {
   justify-self: start;
-  min-height: 42px;
+  min-height: 38px;
   width: auto;
   border-radius: 999px;
-  padding: 0 16px;
+  padding: 0 14px;
   white-space: nowrap;
 }
 
@@ -96,9 +125,13 @@
   color: var(--app-accent);
 }
 
+.app-shell--child .collection-page:not(.wishlist-page) .collection-page-filter-toggle[aria-expanded='true'] {
+  box-shadow: 0 0 0 1px var(--app-accent), 0 9px 24px rgb(0 200 255 / 0.12);
+}
+
 .app-shell--child .collection-page:not(.wishlist-page) .collection-page-filter-panel {
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -119,28 +152,28 @@
   -webkit-overflow-scrolling: touch;
 }
 
-.app-shell--child .collection-page:not(.wishlist-page) .collection-page-filters::-webkit-scrollbar {
+.app-shell--child .collection-page:not(.wishlist-page) .collection-page-filters::-webkit-scrollbar,
+.app-shell--child .collection-page:not(.wishlist-page) .collection-page-filter-actions::-webkit-scrollbar {
   display: none;
 }
 
 .app-shell--child .collection-page:not(.wishlist-page) .collection-page-filters label {
-  display: grid;
+  display: block;
   flex: 0 0 auto;
-  gap: 4px;
-  min-width: 152px;
-  color: var(--app-text-soft);
-  font-size: 0.68rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  min-width: 0;
+  color: transparent;
+  font-size: 0;
   scroll-snap-align: start;
 }
 
 .app-shell--child .collection-page:not(.wishlist-page) .collection-page-filters select {
-  min-height: 42px;
+  min-height: 39px;
+  width: auto;
+  max-width: 190px;
   border-radius: 999px;
   padding: 0 34px 0 14px;
-  font-size: 0.84rem;
-  font-weight: 750;
+  font-size: 0.82rem;
+  font-weight: 780;
 }
 
 .app-shell--child .collection-page:not(.wishlist-page) .collection-page-filter-actions {
@@ -153,30 +186,27 @@
   scrollbar-width: none;
 }
 
-.app-shell--child .collection-page:not(.wishlist-page) .collection-page-filter-actions::-webkit-scrollbar {
-  display: none;
-}
-
 .app-shell--child .collection-page:not(.wishlist-page) .collection-page-filter-actions button {
   flex: 0 0 auto;
-  min-height: 38px;
+  min-height: 34px;
   border: 1px solid var(--app-border);
   background: transparent;
   color: var(--app-text-muted);
+  font-size: 0.76rem;
 }
 
 .app-shell--child .collection-page:not(.wishlist-page) .collection-page-search-summary {
   margin: 0;
   color: var(--app-text-muted);
-  font-size: 0.78rem;
-  line-height: 1.4;
+  font-size: 0.74rem;
+  line-height: 1.35;
 }
 
 .app-shell--child .collection-page:not(.wishlist-page) > .binder-card-grid,
 .app-shell--child .collection-page:not(.wishlist-page) > :not(.collection-page-header):not(.collection-page-search):not(.collection-page-empty):not(.collection-page-pagination) .binder-card-grid {
   width: calc(100% - 16px);
   max-width: 1280px;
-  margin: 2px auto 0;
+  margin: 0 auto;
 }
 
 .app-shell--child .collection-page:not(.wishlist-page) .binder-card-grid {
@@ -189,9 +219,51 @@
 }
 
 .app-shell--child .collection-page:not(.wishlist-page) .collection-page-pagination {
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   width: calc(100% - 24px);
-  max-width: 560px;
-  margin: 6px auto 0;
+  max-width: 540px;
+  min-height: 56px;
+  box-sizing: border-box;
+  margin: 10px auto 0;
+  border: 1px solid var(--app-border);
+  border-radius: 999px;
+  background: rgb(7 20 42 / 0.94);
+  box-shadow: var(--app-shadow-sm), inset 0 1px 0 rgb(255 255 255 / 0.04);
+  padding: 5px;
+}
+
+.app-shell--child .collection-page:not(.wishlist-page) .collection-page-pagination button {
+  min-height: 44px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--app-accent);
+  padding: 0 14px;
+  font-size: 0.85rem;
+  font-weight: 820;
+}
+
+.app-shell--child .collection-page:not(.wishlist-page) .collection-page-pagination button:first-child::before {
+  content: '←';
+  margin-right: 7px;
+}
+
+.app-shell--child .collection-page:not(.wishlist-page) .collection-page-pagination button:last-child::after {
+  content: '→';
+  margin-left: 7px;
+}
+
+.app-shell--child .collection-page:not(.wishlist-page) .collection-page-pagination button:not(:disabled):hover,
+.app-shell--child .collection-page:not(.wishlist-page) .collection-page-pagination button:not(:disabled):focus-visible {
+  border-color: var(--app-accent);
+  background: var(--app-accent-soft);
+}
+
+.app-shell--child .collection-page:not(.wishlist-page) .collection-page-pagination span {
+  color: var(--app-text);
+  font-size: 0.8rem;
+  font-weight: 760;
+  white-space: nowrap;
 }
 
 .app-shell--child .collection-page:not(.wishlist-page) .collection-page-empty {
@@ -200,9 +272,33 @@
   margin: 8px auto 0;
 }
 
+@media (max-width: 420px) {
+  .collection-experience::before {
+    margin-bottom: 8px;
+    font-size: clamp(1.6rem, 7.2vw, 1.95rem);
+  }
+
+  .app-shell--child .collection-page:not(.wishlist-page) .collection-page-pagination {
+    width: calc(100% - 18px);
+  }
+
+  .app-shell--child .collection-page:not(.wishlist-page) .collection-page-pagination button {
+    padding-inline: 9px;
+    font-size: 0.78rem;
+  }
+
+  .app-shell--child .collection-page:not(.wishlist-page) .collection-page-pagination span {
+    font-size: 0.74rem;
+  }
+}
+
 @media (min-width: 720px) {
+  .collection-experience {
+    padding-top: 8px;
+  }
+
   .app-shell--child .collection-page:not(.wishlist-page) {
-    gap: 16px;
+    gap: 14px;
     padding-inline: 12px;
   }
 
