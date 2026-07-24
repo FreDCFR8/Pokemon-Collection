@@ -24,6 +24,7 @@ import {
 } from './collectionCardDetailAdapter';
 import { getCollectionFilterOptions, loadCollectionPage } from './collectionPageService';
 import { BinderCardGrid } from '../../components/BinderCardGrid';
+import { CatalogFilterSelect, CatalogPageHeader } from '../../components/catalogPage';
 import {
   COLLECTION_PAGE_SIZE,
   type CollectionFilterOptions,
@@ -532,28 +533,11 @@ export function CollectionPage({ displayName }: { displayName: string }) {
         inert={selectedDetailCard ? true : undefined}
         aria-hidden={selectedDetailCard ? true : undefined}
       >
-        <CollectionHeader
-          displayName={displayName}
-          status={collectionPageState.status}
-          message={collectionPageState.message}
-          errorMessage={collectionPageState.errorMessage}
-        />
-
-        <CollectionToolbar
-          activeSearchTerm={activeSearchTerm}
-          areFilterOptionsLoading={areFilterOptionsLoading}
-          filterOptions={filterOptions}
-          filterOptionsError={filterOptionsError}
-          filters={filters}
-          hasActiveCriteria={hasActiveCriteria}
-          onClearAll={clearAllCriteria}
-          onClearSearch={clearSearch}
-          onSearchChange={setSearchTerm}
-          onSearchSubmit={applySearchImmediately}
-          onUpdateFilter={updateFilter}
-          searchSummary={searchSummary}
-          searchTerm={searchTerm}
-        />
+        <CatalogPageHeader ariaLabel="Collectiefilters" errorMessage={collectionPageState.errorMessage} hasActiveCriteria={hasActiveCriteria} id="collection-page-title" message={collectionPageState.message} onClearAll={clearAllCriteria} onClearSearch={clearSearch} onSearchChange={setSearchTerm} onSearchSubmit={applySearchImmediately} searchAriaLabel="Collectie zoeken" searchPlaceholder="Zoek op Pokémon, set of nummer" searchSummary={hasActiveCriteria ? `Actief: ${searchSummary || activeSearchTerm}` : undefined} searchTerm={searchTerm} status={collectionPageState.status} subtitle={`van ${displayName}`} title="Collectie">
+          <CatalogFilterSelect ariaLabel="Filter op rarity" disabled={areFilterOptionsLoading && filterOptions.rarities.length === 0} label="Rarity" value={filters.rarity ?? ''} onChange={(value) => updateFilter('rarity', value)} options={filterOptions.rarities.map((value) => ({ value, label: value }))} />
+          <CatalogFilterSelect ariaLabel="Filter op set" disabled={areFilterOptionsLoading && filterOptions.sets.length === 0} label="Set" value={filters.setCode ?? ''} onChange={(value) => updateFilter('setCode', value)} options={filterOptions.sets.map((set) => ({ value: set.setCode, label: set.name }))} />
+        </CatalogPageHeader>
+        {filterOptionsError ? <p className="status-note">Slimme filters laden is mislukt: {filterOptionsError}</p> : null}
 
         {collectionPageState.status === 'ready' && collectionPageState.cards.length === 0 ? (
           <div className="collection-page-empty">

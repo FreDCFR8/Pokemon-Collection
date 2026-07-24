@@ -1719,6 +1719,15 @@ button {
   background: linear-gradient(90deg, #2563eb 0%, #38bdf8 100%);
 }
 
+/* Expansions overview: deliberately calm, single-column rows. */
+.sets-page-catalog-grid { gap: 8px; }
+.sets-page-set-card, .sets-page-set-card.is-open { border: 0; border-radius: 0; background: transparent; box-shadow: none; overflow: visible; }
+.sets-page-set-summary-button { grid-template-columns: 72px minmax(0, 1fr) auto; padding: 8px 0; }
+.sets-page-set-media { height: 44px; border-radius: 0; background: transparent; }
+.sets-page-set-code { color: #64748b; font-size: .75rem; font-weight: 750; white-space: nowrap; }
+.sets-page-set-chevron { color: #64748b; font-size: 1.8rem; line-height: 1; }
+@media (min-width: 820px) { .sets-page-catalog-grid { grid-template-columns: minmax(0, 1fr); } }
+
 
 
 .binder-card-grid {

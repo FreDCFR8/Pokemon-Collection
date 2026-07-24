@@ -4,6 +4,7 @@ import { getCollectionCardOwnershipForCatalogCards, promoteWishlistToOwned, remo
 import { createWishlistCardDetailProductCopy, toWishlistCardDetailCard } from './wishlistCardDetailAdapter';
 import { getWishlistFilterOptions, loadWishlistPage } from './wishlistPageService';
 import { BinderCardGrid } from '../../components/BinderCardGrid';
+import { CatalogFilterSelect, CatalogPageHeader } from '../../components/catalogPage';
 import type { CollectionFilterOptions, CollectionPageFilters } from '../collectionPage/collectionPageTypes';
 import { createWishlistPageErrorState, createWishlistPageLoadingState, resolveWishlistRemovalRecovery, shouldApplyWishlistDetailResponse, WISHLIST_PAGE_SIZE, type WishlistPageCard, type WishlistPageState } from './wishlistPageTypes';
 
@@ -373,6 +374,11 @@ export function WishlistPage({ displayName }: { displayName: string }) {
   return (
     <>
       <section className="collection-page collection-page--v2 wishlist-page" aria-labelledby="wishlist-page-title" inert={selectedCard ? true : undefined} aria-hidden={selectedCard ? true : undefined}>
+        <CatalogPageHeader ariaLabel="Wishlistfilters" errorMessage={pageState.errorMessage} hasActiveCriteria={hasActiveCriteria} headerAction={pageState.status === 'error' ? <button type="button" onClick={retryWishlist}>Wishlist opnieuw laden</button> : undefined} id="wishlist-page-title" message={pageState.message} onClearAll={clearAllCriteria} onClearSearch={clearSearch} onSearchChange={setSearchTerm} onSearchSubmit={applySearchImmediately} searchAriaLabel="Wishlist zoeken" searchPlaceholder="Zoek op Pokémon, set of nummer" searchTerm={searchTerm} status={pageState.status} subtitle={`van ${displayName}`} title="Wishlist">
+          <CatalogFilterSelect ariaLabel="Filter op rarity" disabled={isLoadingOptions && filterOptions.rarities.length === 0} label="Rarity" value={filters.rarity ?? ''} onChange={(value) => updateFilter('rarity', value)} options={filterOptions.rarities.map((value) => ({ value, label: value }))} />
+          <CatalogFilterSelect ariaLabel="Filter op set" disabled={isLoadingOptions && filterOptions.sets.length === 0} label="Set" value={filters.setCode ?? ''} onChange={(value) => updateFilter('setCode', value)} options={filterOptions.sets.map((set) => ({ value: set.setCode, label: set.name }))} />
+        </CatalogPageHeader>
+        {/*
         <header className="collection-page-header">
           <h2 id="wishlist-page-title">
             <span aria-hidden="true">✦</span>
@@ -396,7 +402,7 @@ export function WishlistPage({ displayName }: { displayName: string }) {
           onSearchSubmit={applySearchImmediately}
           onUpdateFilter={updateFilter}
           searchTerm={searchTerm}
-        />
+        /> */}
 
         {pageState.status === 'ready' && pageState.cards.length === 0 ? (
           <div className="collection-page-empty wishlist-page-empty">
