@@ -37,6 +37,7 @@ import {
   type SetCardMutationOperation,
 } from './setCardDetailAdapter';
 import { calculateSetProgressPercent, getEffectiveSetTotal, hasKnownSetTotal } from './services/setTotals';
+import { CatalogFilterSelect, CatalogPageHeader, filterExpansions, type ExpansionProgressFilter } from '../../components/catalogPage';
 
 type SetsPageState =
   | { status: 'loading'; sets: SetsCatalogRow[]; errorMessage?: undefined }
@@ -116,6 +117,8 @@ export function SetsPage({ requestedSetCode = null, requestedCardId = null }: { 
     progressBySetCode: new Map(),
   });
   const [searchTerm, setSearchTerm] = useState('');
+  const [seriesFilter, setSeriesFilter] = useState('');
+  const [progressFilter, setProgressFilter] = useState<ExpansionProgressFilter>('');
   const [openSetId, setOpenSetId] = useState<string | null>(null);
   const [selectedSetCardId, setSelectedSetCardId] = useState<string | null>(null);
   const [setCardSearchTerm, setSetCardSearchTerm] = useState('');
@@ -970,27 +973,25 @@ export function SetsPage({ requestedSetCode = null, requestedCardId = null }: { 
     };
   }, []);
 
-  const catalogSummary = useMemo(
-    () => ({
-      loadedSetsCount: setsPageState.sets.length,
-      setsWithMetadataCount: setsPageState.sets.filter((set) => set.release_date || hasKnownSetTotal(getEffectiveSetTotal(set))).length,
+  const normalizedSearchTerm = searchTerm.trim().toLowerCase();
+  const filteredSets = useMemo(
+    () => filterExpansions(setsPageState.sets, setsProgressState.progressBySetCode, {
+      searchTerm: normalizedSearchTerm,
+      series: seriesFilter,
+      progress: progressFilter,
     }),
+    [normalizedSearchTerm, progressFilter, seriesFilter, setsPageState.sets, setsProgressState.progressBySetCode],
+  );
+  const seriesOptions = useMemo(
+    () => [...new Set(
+      setsPageState.sets
+        .map((set) => set.series)
+        .filter((series): series is string => Boolean(series)),
+    )]
+      .sort((first, second) => first.localeCompare(second))
+      .map((value) => ({ value, label: value })),
     [setsPageState.sets],
   );
-
-  const normalizedSearchTerm = searchTerm.trim().toLowerCase();
-  const filteredSets = useMemo(() => {
-    if (!normalizedSearchTerm) {
-      return setsPageState.sets;
-    }
-
-    return setsPageState.sets.filter((set) => {
-      const setName = set.name.toLowerCase();
-      const seriesName = set.series?.toLowerCase() ?? '';
-
-      return setName.includes(normalizedSearchTerm) || seriesName.includes(normalizedSearchTerm);
-    });
-  }, [normalizedSearchTerm, setsPageState.sets]);
 
   const groupedSets = useMemo(() => {
     return filteredSets.reduce<GroupedSets[]>((groups, set) => {
@@ -1011,54 +1012,48 @@ export function SetsPage({ requestedSetCode = null, requestedCardId = null }: { 
   const isError = setsPageState.status === 'error';
   const isEmpty = setsPageState.status === 'success' && setsPageState.sets.length === 0;
   const hasNoSearchResults = setsPageState.status === 'success' && setsPageState.sets.length > 0 && filteredSets.length === 0;
+  const hasActiveCriteria = Boolean(searchTerm.trim() || seriesFilter || progressFilter);
+  const clearAllCriteria = () => {
+    setSearchTerm('');
+    setSeriesFilter('');
+    setProgressFilter('');
+  };
 
   return (
-    <section className="sets-page" aria-labelledby="sets-page-title">
-      <div className="sets-page-hero">
-        <p className="eyebrow">Set-catalogus</p>
-        <h2 id="sets-page-title">Sets</h2>
-        <p>Volledige set-catalogus met collectievoortgang wanneer die beschikbaar is.</p>
-      </div>
-
-      <dl className="sets-page-summary" aria-label="Samenvatting van de set-catalogus">
-        <div>
-          <dt>Sets geladen</dt>
-          <dd>{catalogSummary.loadedSetsCount}</dd>
-        </div>
-        <div>
-          <dt>Sets met metadata</dt>
-          <dd>{catalogSummary.setsWithMetadataCount}</dd>
-        </div>
-      </dl>
-
-      {setsProgressState.status === 'loading' ? (
-        <p className="sets-page-progress-note" role="status">
-          Collectievoortgang wordt geladen...
-        </p>
-      ) : null}
-
-      <section className="sets-page-card" aria-labelledby="sets-page-catalog-title">
-        <h3 id="sets-page-catalog-title">Set-catalog</h3>
-
-        <div className="sets-page-search">
-          <label htmlFor="sets-page-search-input">Zoeken</label>
-          <div className="sets-page-search-control">
-            <input
-              id="sets-page-search-input"
-              type="search"
-              placeholder="Zoek set..."
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-            />
-            {searchTerm ? (
-              <button type="button" aria-label="Zoekterm wissen" onClick={() => setSearchTerm('')}>
-                ×
-              </button>
-            ) : null}
-          </div>
-        </div>
-
-        {isLoading ? <p role="status">Sets worden geladen...</p> : null}
+    <section className="catalog-page-layout sets-page" aria-labelledby="sets-page-title">
+      <CatalogPageHeader
+        ariaLabel="Expansionsfilters"
+        hasActiveCriteria={hasActiveCriteria}
+        id="sets-page-title"
+        onClearAll={clearAllCriteria}
+        onClearSearch={() => setSearchTerm('')}
+        onSearchChange={setSearchTerm}
+        searchAriaLabel="Expansions zoeken"
+        searchPlaceholder="Zoek op naam, code of serie"
+        searchTerm={searchTerm}
+        title="Expansions"
+      >
+        <CatalogFilterSelect
+          ariaLabel="Filter op uitbreiding of serie"
+          label="Uitbreiding / serie"
+          value={seriesFilter}
+          onChange={setSeriesFilter}
+          options={seriesOptions}
+        />
+        <CatalogFilterSelect
+          ariaLabel="Filter op voortgang"
+          label="Voortgang"
+          value={progressFilter}
+          onChange={(value) => setProgressFilter(value as ExpansionProgressFilter)}
+          options={[
+            { value: 'not-started', label: 'Niet gestart' },
+            { value: 'started', label: 'Gestart' },
+            { value: 'complete', label: 'Compleet' },
+          ]}
+        />
+      </CatalogPageHeader>
+      <section className="sets-page-expansions" aria-label="Expansions-overzicht">
+        {isLoading ? <p role="status">Expansions worden geladen...</p> : null}
 
         {isError ? (
           <p role="alert">Fout bij het laden van de sets: {setsPageState.errorMessage}</p>
@@ -1113,7 +1108,7 @@ export function SetsPage({ requestedSetCode = null, requestedCardId = null }: { 
 
                             <span className="sets-page-set-content">
                               <span className="sets-page-set-heading">
-                                <strong className="sets-page-set-name">{set.name}</strong>
+                                <strong className="sets-page-set-name">{set.name} <small className="sets-page-set-code">{set.set_code}</small></strong>
                               </span>
 
                               <span className="sets-page-set-progress" aria-label={`Collectievoortgang voor ${set.name}`}>
@@ -1132,6 +1127,7 @@ export function SetsPage({ requestedSetCode = null, requestedCardId = null }: { 
                                 ) : null}
                               </span>
                             </span>
+                            <span className="sets-page-set-chevron" aria-hidden="true">›</span>
                           </button>
                         </li>
                       );

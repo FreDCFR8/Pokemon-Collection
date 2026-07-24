@@ -24,6 +24,7 @@ import {
 } from './collectionCardDetailAdapter';
 import { getCollectionFilterOptions, loadCollectionPage } from './collectionPageService';
 import { BinderCardGrid } from '../../components/BinderCardGrid';
+import { CatalogFilterSelect, CatalogPageHeader } from '../../components/catalogPage';
 import {
   COLLECTION_PAGE_SIZE,
   type CollectionFilterOptions,
@@ -39,11 +40,6 @@ const emptyCollectionPageFilters: CollectionPageFilters = {
 const emptyCollectionFilterOptions: CollectionFilterOptions = {
   sets: [],
   rarities: [],
-};
-
-const filterLabels: Record<keyof CollectionPageFilters, string> = {
-  rarity: 'rarity',
-  setCode: 'set',
 };
 
 const initialCollectionPageState: CollectionPageState = {
@@ -88,130 +84,6 @@ function CollectionPagination({
   );
 }
 
-type CollectionHeaderProps = {
-  displayName: string;
-  status: CollectionPageState['status'];
-  message: string;
-  errorMessage?: string;
-};
-
-function CollectionHeader({ displayName, status, message, errorMessage }: CollectionHeaderProps) {
-  return (
-    <header className="collection-page-header">
-      <h2 id="collection-page-title">
-        <span aria-hidden="true">✦</span>
-        <strong>Collectie</strong>
-        <em>van {displayName}</em>
-        <span aria-hidden="true">✦</span>
-      </h2>
-      {status !== 'ready' ? <p className="collection-page-status">{message}</p> : null}
-      {errorMessage ? <p className="status-note">Foutmelding: {errorMessage}</p> : null}
-    </header>
-  );
-}
-
-type CollectionToolbarProps = {
-  activeSearchTerm: string;
-  areFilterOptionsLoading: boolean;
-  filterOptions: CollectionFilterOptions;
-  filterOptionsError: string | null;
-  filters: CollectionPageFilters;
-  hasActiveCriteria: boolean;
-  onClearAll: () => void;
-  onClearSearch: () => void;
-  onSearchChange: (value: string) => void;
-  onSearchSubmit: () => void;
-  onUpdateFilter: (filterName: keyof CollectionPageFilters, value: string) => void;
-  searchSummary: string;
-  searchTerm: string;
-};
-
-function CollectionToolbar({
-  activeSearchTerm,
-  areFilterOptionsLoading,
-  filterOptions,
-  filterOptionsError,
-  filters,
-  hasActiveCriteria,
-  onClearAll,
-  onClearSearch,
-  onSearchChange,
-  onSearchSubmit,
-  onUpdateFilter,
-  searchSummary,
-  searchTerm,
-}: CollectionToolbarProps) {
-  return (
-    <div className="collection-page-toolbar">
-      <div className="collection-page-search-control">
-        <span className="collection-page-search-icon" aria-hidden="true">⌕</span>
-        <input
-          id="collection-page-search-input"
-          type="search"
-          aria-label="Collectie zoeken"
-          value={searchTerm}
-          placeholder="Zoek op Pokémon, set of nummer"
-          onChange={(event) => onSearchChange(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') {
-              event.preventDefault();
-              onSearchSubmit();
-            }
-          }}
-        />
-        {searchTerm.length > 0 ? (
-          <button type="button" className="collection-page-search-clear" aria-label="Zoekterm wissen" onClick={onClearSearch}>
-            ×
-          </button>
-        ) : null}
-      </div>
-
-      <div className="collection-page-filter-row" aria-label="Collectiefilters">
-        <button
-          type="button"
-          className="collection-page-clear-filters"
-          aria-label="Zoekopdracht en filters wissen"
-          onClick={onClearAll}
-          disabled={!hasActiveCriteria}
-        >
-          ×
-        </button>
-        <label>
-          <span className="sr-only">Rarity</span>
-          <select
-            value={filters.rarity ?? ''}
-            aria-label="Filter op rarity"
-            onChange={(event) => onUpdateFilter('rarity', event.target.value)}
-            disabled={areFilterOptionsLoading && filterOptions.rarities.length === 0}
-          >
-            <option value="">Rarity</option>
-            {filterOptions.rarities.map((option) => (
-              <option key={option} value={option}>{option}</option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span className="sr-only">Set</span>
-          <select
-            value={filters.setCode ?? ''}
-            aria-label="Filter op set"
-            onChange={(event) => onUpdateFilter('setCode', event.target.value)}
-            disabled={areFilterOptionsLoading && filterOptions.sets.length === 0}
-          >
-            <option value="">Set</option>
-            {filterOptions.sets.map((set) => (
-              <option key={set.setCode} value={set.setCode}>{set.name}</option>
-            ))}
-          </select>
-        </label>
-      </div>
-
-      {filterOptionsError ? <p className="status-note">Slimme filters laden is mislukt: {filterOptionsError}</p> : null}
-      {hasActiveCriteria ? <p className="collection-page-search-summary">Actief: {searchSummary || activeSearchTerm}</p> : null}
-    </div>
-  );
-}
-
 export function CollectionPage({ displayName }: { displayName: string }) {
   const [page, setPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
@@ -238,20 +110,11 @@ export function CollectionPage({ displayName }: { displayName: string }) {
     () => Math.max(1, Math.ceil(collectionPageState.totalCount / collectionPageState.pageSize)),
     [collectionPageState.pageSize, collectionPageState.totalCount],
   );
-  const setNameByCode = useMemo(
-    () => new Map(filterOptions.sets.map((set) => [set.setCode, set.name])),
-    [filterOptions.sets],
-  );
   const isLoading = collectionPageState.status === 'loading';
   const trimmedSearchTerm = searchTerm.trim();
   const hasActiveSearch = activeSearchTerm.trim().length > 0;
-  const activeFilterEntries = Object.entries(filters).filter((entry): entry is [keyof CollectionPageFilters, string] => entry[1] !== undefined && entry[1].trim().length > 0);
-  const hasActiveFilters = activeFilterEntries.length > 0;
+  const hasActiveFilters = Object.values(filters).some((value) => value?.trim().length > 0);
   const hasActiveCriteria = hasActiveSearch || hasActiveFilters;
-  const searchSummary = [
-    hasActiveSearch ? `zoekterm “${activeSearchTerm}”` : null,
-    ...activeFilterEntries.map(([name, value]) => `${filterLabels[name]} “${name === 'setCode' ? setNameByCode.get(value) ?? 'Onbekende set' : value}”`),
-  ].filter(Boolean).join(' · ');
 
   collectionContextRef.current = {
     collectionId: collectionPageState.collectionId,
@@ -527,33 +390,44 @@ export function CollectionPage({ displayName }: { displayName: string }) {
   return (
     <>
       <section
-        className="collection-page collection-page--v2"
+        className="catalog-page-layout collection-page collection-page--v2"
         aria-labelledby="collection-page-title"
         inert={selectedDetailCard ? true : undefined}
         aria-hidden={selectedDetailCard ? true : undefined}
       >
-        <CollectionHeader
-          displayName={displayName}
-          status={collectionPageState.status}
-          message={collectionPageState.message}
+        <CatalogPageHeader
+          ariaLabel="Collectiefilters"
           errorMessage={collectionPageState.errorMessage}
-        />
-
-        <CollectionToolbar
-          activeSearchTerm={activeSearchTerm}
-          areFilterOptionsLoading={areFilterOptionsLoading}
-          filterOptions={filterOptions}
-          filterOptionsError={filterOptionsError}
-          filters={filters}
           hasActiveCriteria={hasActiveCriteria}
+          id="collection-page-title"
           onClearAll={clearAllCriteria}
           onClearSearch={clearSearch}
           onSearchChange={setSearchTerm}
           onSearchSubmit={applySearchImmediately}
-          onUpdateFilter={updateFilter}
-          searchSummary={searchSummary}
+          searchAriaLabel="Collectie zoeken"
+          searchPlaceholder="Zoek op Pokémon, set of nummer"
           searchTerm={searchTerm}
-        />
+          subtitle={`van ${displayName}`}
+          title="Collectie"
+        >
+          <CatalogFilterSelect
+            ariaLabel="Filter op rarity"
+            disabled={areFilterOptionsLoading && filterOptions.rarities.length === 0}
+            label="Rarity"
+            value={filters.rarity ?? ''}
+            onChange={(value) => updateFilter('rarity', value)}
+            options={filterOptions.rarities.map((value) => ({ value, label: value }))}
+          />
+          <CatalogFilterSelect
+            ariaLabel="Filter op set"
+            disabled={areFilterOptionsLoading && filterOptions.sets.length === 0}
+            label="Set"
+            value={filters.setCode ?? ''}
+            onChange={(value) => updateFilter('setCode', value)}
+            options={filterOptions.sets.map((set) => ({ value: set.setCode, label: set.name }))}
+          />
+        </CatalogPageHeader>
+        {filterOptionsError ? <p className="status-note">Slimme filters laden is mislukt: {filterOptionsError}</p> : null}
 
         {collectionPageState.status === 'ready' && collectionPageState.cards.length === 0 ? (
           <div className="collection-page-empty">

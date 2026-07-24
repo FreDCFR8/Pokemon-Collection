@@ -4,6 +4,7 @@ import { getCollectionCardOwnershipForCatalogCards, promoteWishlistToOwned, remo
 import { createWishlistCardDetailProductCopy, toWishlistCardDetailCard } from './wishlistCardDetailAdapter';
 import { getWishlistFilterOptions, loadWishlistPage } from './wishlistPageService';
 import { BinderCardGrid } from '../../components/BinderCardGrid';
+import { CatalogFilterSelect, CatalogPageHeader } from '../../components/catalogPage';
 import type { CollectionFilterOptions, CollectionPageFilters } from '../collectionPage/collectionPageTypes';
 import { createWishlistPageErrorState, createWishlistPageLoadingState, resolveWishlistRemovalRecovery, shouldApplyWishlistDetailResponse, WISHLIST_PAGE_SIZE, type WishlistPageCard, type WishlistPageState } from './wishlistPageTypes';
 
@@ -36,93 +37,6 @@ function WishlistPagination({ currentPage, isLoading, label, onNextPage, onPrevi
       <span aria-live="polite">Pagina {currentPage} van {totalPages}</span>
       <button type="button" onClick={onNextPage} disabled={isLoading || currentPage >= totalPages}>Volgende</button>
     </nav>
-  );
-}
-
-type WishlistToolbarProps = {
-  filterOptions: CollectionFilterOptions;
-  filters: CollectionPageFilters;
-  hasActiveCriteria: boolean;
-  isLoadingOptions: boolean;
-  onClearAll: () => void;
-  onClearSearch: () => void;
-  onSearchChange: (value: string) => void;
-  onSearchSubmit: () => void;
-  onUpdateFilter: (name: keyof CollectionPageFilters, value: string) => void;
-  searchTerm: string;
-};
-
-function WishlistToolbar({
-  filterOptions,
-  filters,
-  hasActiveCriteria,
-  isLoadingOptions,
-  onClearAll,
-  onClearSearch,
-  onSearchChange,
-  onSearchSubmit,
-  onUpdateFilter,
-  searchTerm,
-}: WishlistToolbarProps) {
-  return (
-    <div className="collection-page-toolbar">
-      <div className="collection-page-search-control">
-        <span className="collection-page-search-icon" aria-hidden="true">⌕</span>
-        <input
-          id="wishlist-page-search-input"
-          type="search"
-          aria-label="Wishlist zoeken"
-          value={searchTerm}
-          placeholder="Zoek op Pokémon, set of nummer"
-          onChange={(event) => onSearchChange(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') {
-              event.preventDefault();
-              onSearchSubmit();
-            }
-          }}
-        />
-        {searchTerm.length > 0 ? (
-          <button type="button" className="collection-page-search-clear" aria-label="Zoekterm wissen" onClick={onClearSearch}>×</button>
-        ) : null}
-      </div>
-
-      <div className="collection-page-filter-row" aria-label="Wishlistfilters">
-        <button
-          type="button"
-          className="collection-page-clear-filters"
-          aria-label="Zoekopdracht en filters wissen"
-          onClick={onClearAll}
-          disabled={!hasActiveCriteria}
-        >
-          ×
-        </button>
-        <label>
-          <span className="sr-only">Rarity</span>
-          <select
-            value={filters.rarity ?? ''}
-            aria-label="Filter op rarity"
-            onChange={(event) => onUpdateFilter('rarity', event.target.value)}
-            disabled={isLoadingOptions && filterOptions.rarities.length === 0}
-          >
-            <option value="">Rarity</option>
-            {filterOptions.rarities.map((rarity) => <option key={rarity} value={rarity}>{rarity}</option>)}
-          </select>
-        </label>
-        <label>
-          <span className="sr-only">Set</span>
-          <select
-            value={filters.setCode ?? ''}
-            aria-label="Filter op set"
-            onChange={(event) => onUpdateFilter('setCode', event.target.value)}
-            disabled={isLoadingOptions && filterOptions.sets.length === 0}
-          >
-            <option value="">Set</option>
-            {filterOptions.sets.map((set) => <option key={set.setCode} value={set.setCode}>{set.name}</option>)}
-          </select>
-        </label>
-      </div>
-    </div>
   );
 }
 
@@ -372,32 +286,45 @@ export function WishlistPage({ displayName }: { displayName: string }) {
 
   return (
     <>
-      <section className="collection-page collection-page--v2 wishlist-page" aria-labelledby="wishlist-page-title" inert={selectedCard ? true : undefined} aria-hidden={selectedCard ? true : undefined}>
-        <header className="collection-page-header">
-          <h2 id="wishlist-page-title">
-            <span aria-hidden="true">✦</span>
-            <strong>Wishlist</strong>
-            <em>van {displayName}</em>
-            <span aria-hidden="true">✦</span>
-          </h2>
-          {pageState.status !== 'ready' ? <p className="collection-page-status">{pageState.message}</p> : null}
-          {pageState.errorMessage ? <p className="status-note">Foutmelding: {pageState.errorMessage}</p> : null}
-          {pageState.status === 'error' ? <button type="button" onClick={retryWishlist}>Wishlist opnieuw laden</button> : null}
-        </header>
-
-        <WishlistToolbar
-          filterOptions={filterOptions}
-          filters={filters}
+      <section
+        className="catalog-page-layout collection-page collection-page--v2 wishlist-page"
+        aria-labelledby="wishlist-page-title"
+        inert={selectedCard ? true : undefined}
+        aria-hidden={selectedCard ? true : undefined}
+      >
+        <CatalogPageHeader
+          ariaLabel="Wishlistfilters"
+          errorMessage={pageState.errorMessage}
           hasActiveCriteria={hasActiveCriteria}
-          isLoadingOptions={isLoadingOptions}
+          headerAction={pageState.status === 'error' ? <button type="button" onClick={retryWishlist}>Wishlist opnieuw laden</button> : undefined}
+          id="wishlist-page-title"
           onClearAll={clearAllCriteria}
           onClearSearch={clearSearch}
           onSearchChange={setSearchTerm}
           onSearchSubmit={applySearchImmediately}
-          onUpdateFilter={updateFilter}
+          searchAriaLabel="Wishlist zoeken"
+          searchPlaceholder="Zoek op Pokémon, set of nummer"
           searchTerm={searchTerm}
-        />
-
+          subtitle={`van ${displayName}`}
+          title="Wishlist"
+        >
+          <CatalogFilterSelect
+            ariaLabel="Filter op rarity"
+            disabled={isLoadingOptions && filterOptions.rarities.length === 0}
+            label="Rarity"
+            value={filters.rarity ?? ''}
+            onChange={(value) => updateFilter('rarity', value)}
+            options={filterOptions.rarities.map((value) => ({ value, label: value }))}
+          />
+          <CatalogFilterSelect
+            ariaLabel="Filter op set"
+            disabled={isLoadingOptions && filterOptions.sets.length === 0}
+            label="Set"
+            value={filters.setCode ?? ''}
+            onChange={(value) => updateFilter('setCode', value)}
+            options={filterOptions.sets.map((set) => ({ value: set.setCode, label: set.name }))}
+          />
+        </CatalogPageHeader>
         {pageState.status === 'ready' && pageState.cards.length === 0 ? (
           <div className="collection-page-empty wishlist-page-empty">
             <p>{hasActiveCriteria ? 'Geen wishlistkaarten gevonden voor deze zoekopdracht en filters.' : 'Je wishlist is nog leeg.'}</p>

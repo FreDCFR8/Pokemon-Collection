@@ -41,10 +41,6 @@
    central surface/stat primitives; they must disappear as each page is
    migrated to ui-surface, ui-stat-tile and ui-page components. */
 .app-shell--child:not(.app-shell--dashboard) :where(
-  .sets-page-hero,
-  .sets-page-card,
-  .sets-page-summary > div,
-  .sets-page-set-card,
   .collection-page-summary > div,
   .collection-page-legacy-note,
   .collection-page-empty,
@@ -57,10 +53,6 @@
 }
 
 .app-shell--child:not(.app-shell--dashboard) :where(
-  .sets-page-hero,
-  .sets-page-card,
-  .sets-page-summary > div,
-  .sets-page-set-card,
   .collection-page-summary > div,
   .collection-page-legacy-note,
   .collection-page-empty,
@@ -70,10 +62,6 @@
 }
 
 .app-shell--child:not(.app-shell--dashboard) :where(
-  .sets-page-hero,
-  .sets-page-card,
-  .sets-page-summary > div,
-  .sets-page-set-card,
   .collection-page-summary > div,
   .collection-page-legacy-note,
   .collection-page-empty,
@@ -92,14 +80,8 @@
   color: var(--app-text) !important;
 }
 
-.app-shell--child:not(.app-shell--dashboard) .sets-page-set-card.is-open {
-  border-color: var(--app-accent) !important;
-  background: linear-gradient(145deg, #0d2147, #0b1933) !important;
-}
-
 /* Search wrappers and filter controls contain their own old white surfaces. */
 .app-shell--child:not(.app-shell--dashboard) .collection-page-search-control,
-.app-shell--child:not(.app-shell--dashboard) .sets-page-search-control,
 .app-shell--child:not(.app-shell--dashboard) .sets-page-set-card-search-control {
   border-color: var(--app-border-strong);
   background: var(--app-surface-strong);
@@ -107,14 +89,12 @@
 }
 
 .app-shell--child:not(.app-shell--dashboard) .collection-page-search-control:focus-within,
-.app-shell--child:not(.app-shell--dashboard) .sets-page-search-control:focus-within,
 .app-shell--child:not(.app-shell--dashboard) .sets-page-set-card-search-control:focus-within {
   border-color: var(--app-accent);
   box-shadow: 0 0 0 3px rgb(0 200 255 / 0.16);
 }
 
 .app-shell--child:not(.app-shell--dashboard) .collection-page-search-control input,
-.app-shell--child:not(.app-shell--dashboard) .sets-page-search-control input,
 .app-shell--child:not(.app-shell--dashboard) .sets-page-set-card-search-control input {
   border-color: transparent !important;
   background: transparent !important;
@@ -125,7 +105,6 @@
 .app-shell--child:not(.app-shell--dashboard) .collection-page-search-control button,
 .app-shell--child:not(.app-shell--dashboard) .collection-page-filter-actions button,
 .app-shell--child:not(.app-shell--dashboard) .collection-page-empty button,
-.app-shell--child:not(.app-shell--dashboard) .sets-page-search-control button,
 .app-shell--child:not(.app-shell--dashboard) .sets-page-set-card-search-control button,
 .app-shell--child:not(.app-shell--dashboard) .sets-page-set-overlay-back {
   border-color: var(--app-border-strong);
