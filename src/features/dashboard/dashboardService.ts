@@ -12,6 +12,8 @@ import type {
 import { buildRarityInsights, buildRecentSets, buildSetInsights, selectVisibleSetInsights } from './dashboardInsights';
 export { buildRarityInsights, buildRecentSets, buildSetInsights, selectVisibleSetInsights } from './dashboardInsights';
 
+const DASHBOARD_COLLECTION_ROWS_BATCH_SIZE = 500;
+
 type ProfileRow = { id: string; display_name: string };
 type CollectionRow = { id: string; profile_id: string };
 type CollectionCardRow = {
@@ -110,13 +112,29 @@ async function loadRows(collectionIds: string[]): Promise<CollectionCardRow[] | 
   const supabase = createBrowserSupabaseClient();
   if (!supabase || collectionIds.length === 0) return [];
 
-  const { data, error } = await supabase
-    .from('collection_cards')
-    .select('id, collection_id, quantity, status, added_at, created_at, cards_catalog(id, pokemon, set_name, set_code, number, rarity, image_small, image_large, card_details)')
-    .in('collection_id', collectionIds)
-    .or('status.eq.wishlist,and(status.eq.owned,quantity.gt.0)');
+  const rows: CollectionCardRow[] = [];
+  let from = 0;
 
-  return error ? null : ((data ?? []) as unknown as CollectionCardRow[]);
+  while (true) {
+    const to = from + DASHBOARD_COLLECTION_ROWS_BATCH_SIZE - 1;
+    const { data, error } = await supabase
+      .from('collection_cards')
+      .select('id, collection_id, quantity, status, added_at, created_at, cards_catalog(id, pokemon, set_name, set_code, number, rarity, image_small, image_large, card_details)')
+      .in('collection_id', collectionIds)
+      .or('status.eq.wishlist,and(status.eq.owned,quantity.gt.0)')
+      .order('id', { ascending: true })
+      .range(from, to);
+
+    if (error) return null;
+
+    const batchRows = (data ?? []) as unknown as CollectionCardRow[];
+    rows.push(...batchRows);
+
+    if (batchRows.length < DASHBOARD_COLLECTION_ROWS_BATCH_SIZE) break;
+    from += DASHBOARD_COLLECTION_ROWS_BATCH_SIZE;
+  }
+
+  return rows;
 }
 
 export async function loadChildDashboard(profileId: string, displayName: string, collectionId: string): Promise<DashboardState> {
@@ -173,3 +191,8 @@ export async function loadAdminDashboard(): Promise<DashboardState> {
     return safeErrorState();
   }
 }
+
+export const __dashboardServiceTestUtils = {
+  DASHBOARD_COLLECTION_ROWS_BATCH_SIZE,
+  toSummary,
+};
