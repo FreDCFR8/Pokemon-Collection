@@ -116,6 +116,7 @@ export function SetsPage({ requestedSetCode = null, requestedCardId = null }: { 
     progressBySetCode: new Map(),
   });
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedSeries, setSelectedSeries] = useState('all');
   const [openSetId, setOpenSetId] = useState<string | null>(null);
   const [selectedSetCardId, setSelectedSetCardId] = useState<string | null>(null);
   const [setCardSearchTerm, setSetCardSearchTerm] = useState('');
@@ -978,19 +979,31 @@ export function SetsPage({ requestedSetCode = null, requestedCardId = null }: { 
     [setsPageState.sets],
   );
 
+  const seriesOptions = useMemo(
+    () => Array.from(new Set(setsPageState.sets.map((set) => set.series ?? FALLBACK_SERIES_LABEL))).sort((a, b) => a.localeCompare(b, 'nl')),
+    [setsPageState.sets],
+  );
   const normalizedSearchTerm = searchTerm.trim().toLowerCase();
   const filteredSets = useMemo(() => {
-    if (!normalizedSearchTerm) {
-      return setsPageState.sets;
-    }
-
     return setsPageState.sets.filter((set) => {
-      const setName = set.name.toLowerCase();
-      const seriesName = set.series?.toLowerCase() ?? '';
+      const seriesName = set.series ?? FALLBACK_SERIES_LABEL;
+      const matchesSeries = selectedSeries === 'all' || seriesName === selectedSeries;
 
-      return setName.includes(normalizedSearchTerm) || seriesName.includes(normalizedSearchTerm);
+      if (!matchesSeries) {
+        return false;
+      }
+
+      if (!normalizedSearchTerm) {
+        return true;
+      }
+
+      return (
+        set.name.toLowerCase().includes(normalizedSearchTerm) ||
+        set.set_code.toLowerCase().includes(normalizedSearchTerm) ||
+        seriesName.toLowerCase().includes(normalizedSearchTerm)
+      );
     });
-  }, [normalizedSearchTerm, setsPageState.sets]);
+  }, [normalizedSearchTerm, selectedSeries, setsPageState.sets]);
 
   const groupedSets = useMemo(() => {
     return filteredSets.reduce<GroupedSets[]>((groups, set) => {
@@ -1014,11 +1027,13 @@ export function SetsPage({ requestedSetCode = null, requestedCardId = null }: { 
 
   return (
     <section className="sets-page" aria-labelledby="sets-page-title">
-      <div className="sets-page-hero">
-        <p className="eyebrow">Set-catalogus</p>
-        <h2 id="sets-page-title">Sets</h2>
-        <p>Volledige set-catalogus met collectievoortgang wanneer die beschikbaar is.</p>
-      </div>
+      <header className="sets-page-hero">
+        <h2 id="sets-page-title">
+          <strong>Mijn</strong>
+          <em>Sets</em>
+          <span aria-hidden="true">✦</span>
+        </h2>
+      </header>
 
       <dl className="sets-page-summary" aria-label="Samenvatting van de set-catalogus">
         <div>
@@ -1046,7 +1061,7 @@ export function SetsPage({ requestedSetCode = null, requestedCardId = null }: { 
             <input
               id="sets-page-search-input"
               type="search"
-              placeholder="Zoek set..."
+              placeholder="Zoek set, code of uitbreiding..."
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
             />
@@ -1055,6 +1070,37 @@ export function SetsPage({ requestedSetCode = null, requestedCardId = null }: { 
                 ×
               </button>
             ) : null}
+          </div>
+          <div className="sets-page-filter-row" aria-label="Sets filteren">
+            <button
+              type="button"
+              className={selectedSeries === 'all' ? 'is-active' : ''}
+              aria-pressed={selectedSeries === 'all'}
+              onClick={() => setSelectedSeries('all')}
+            >
+              Alle sets
+            </button>
+            <label>
+              <span className="sr-only">Filter op uitbreiding</span>
+              <select value={selectedSeries} onChange={(event) => setSelectedSeries(event.target.value)}>
+                <option value="all">Uitbreiding / serie</option>
+                {seriesOptions.map((series) => (
+                  <option key={series} value={series}>{series}</option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="button"
+              className="sets-page-reset-filters"
+              aria-label="Filters wissen"
+              disabled={!searchTerm && selectedSeries === 'all'}
+              onClick={() => {
+                setSearchTerm('');
+                setSelectedSeries('all');
+              }}
+            >
+              ↺
+            </button>
           </div>
         </div>
 
@@ -1114,6 +1160,7 @@ export function SetsPage({ requestedSetCode = null, requestedCardId = null }: { 
                             <span className="sets-page-set-content">
                               <span className="sets-page-set-heading">
                                 <strong className="sets-page-set-name">{set.name}</strong>
+                                <span className="sets-page-set-code" title="Voorlopige cataloguscode">{set.set_code}</span>
                               </span>
 
                               <span className="sets-page-set-progress" aria-label={`Collectievoortgang voor ${set.name}`}>
