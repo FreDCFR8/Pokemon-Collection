@@ -213,14 +213,8 @@ export function SetsPage({ requestedSetCode = null, requestedCardId = null }: { 
       return;
     }
 
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
     overlayScrollRef.current?.scrollTo({ top: 0 });
     window.setTimeout(() => overlayCloseButtonRef.current?.focus(), 0);
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
   }, [openSet]);
 
   useEffect(() => {
@@ -272,7 +266,6 @@ export function SetsPage({ requestedSetCode = null, requestedCardId = null }: { 
           searchTerm: searchTermForRequest,
           sortOption: sortOptionForRequest,
         });
-
         if (!isCancelled && setCardsRequestIdRef.current === requestId) {
           setSetCardsOverlayState({
             status: 'success',
@@ -714,8 +707,8 @@ export function SetsPage({ requestedSetCode = null, requestedCardId = null }: { 
       incrementSetProgress(openSet.set_code);
     } catch (error) {
       if (!isCurrentCardMutation(card.id, requestId, collectionIdForRequest, setIdForRequest)) return;
-      setCardMutationResult(card.id, requestId, 'error', error instanceof WishlistPromotionError && error.reason === 'conflict' ? 'Wishliststatus is intussen gewijzigd. Status is vernieuwd.' : 'Toevoegen aan collectie is mislukt. Probeer opnieuw.');
-      if (error instanceof WishlistPromotionError) await refreshVisibleCardCollectionState(collectionIdForRequest, setIdForRequest);
+      setCardMutationResult(card.id, requestId, 'error', error instanceof WishlistPromotionError && error.reason === 'stale' ? 'Wishliststatus is intussen gewijzigd. Probeer opnieuw.' : 'Naar collectie verplaatsen is mislukt. Probeer opnieuw.');
+      await refreshVisibleCardCollectionState(collectionIdForRequest, setIdForRequest);
     } finally {
       if (setCardMutationRequestIdsByCardRef.current.get(card.id) === requestId) {
         pendingSetCardMutationIdsRef.current.delete(card.id);
@@ -725,54 +718,22 @@ export function SetsPage({ requestedSetCode = null, requestedCardId = null }: { 
   }
 
   async function handleRemoveCardFromWishlist(card: SetCatalogCard) {
-    if (!openSet || !activeCollectionId || setCardCollectionState.status !== 'success') {
-      setSetCardMutationStates((currentStates) => ({
-        ...currentStates,
-        [card.id]: { status: 'error', message: 'Collectiestatus is nog niet bevestigd.' },
-      }));
-      return;
-    }
-
+    if (!openSet || !activeCollectionId || setCardCollectionState.status !== 'success') return;
     const collectionInfo = setCardCollectionState.infoByCardCatalogId.get(card.id);
-    const wishlistRows = collectionInfo?.ownership.kind === 'snapshot' ? collectionInfo.ownership.value.byStatus.wishlist : [];
-
-    if (!collectionInfo || collectionInfo.hasConflictingManageableRows || wishlistRows.length !== 1) {
-      setSetCardMutationStates((currentStates) => ({
-        ...currentStates,
-        [card.id]: { status: 'error', message: 'Wishliststatus is niet eenduidig.' },
-      }));
-      return;
-    }
-
+    if (!collectionInfo || !getSetWishlistCapabilities({ ownership: collectionInfo.ownership, hasConflictingRows: collectionInfo.hasConflictingManageableRows }).canRemoveWishlist) return;
     const requestId = beginCardMutation(card.id, 'removing-wishlist', 'remove-wishlist');
     if (requestId === null) return;
-
     const collectionIdForRequest = activeCollectionId;
     const setIdForRequest = openSet.id;
-
     try {
-      const result = await removeCardFromWishlist({ collectionId: collectionIdForRequest, cardCatalogId: card.id });
+      await removeCardFromWishlist({ collectionId: collectionIdForRequest, cardCatalogId: card.id });
       if (!isCurrentCardMutation(card.id, requestId, collectionIdForRequest, setIdForRequest)) return;
-      if (result.cardCatalogId !== card.id || result.collectionId !== collectionIdForRequest || result.status !== 'wishlist' || result.quantity !== 1 || result.condition !== null) {
-        throw new WishlistMutationError('De verwijderde wishlistrespons kon niet veilig worden bevestigd.', 'invalid-result');
-      }
-
       const refreshed = await refreshVisibleCardCollectionState(collectionIdForRequest, setIdForRequest);
       if (!refreshed || !isCurrentCardMutation(card.id, requestId, collectionIdForRequest, setIdForRequest)) return;
       setCardMutationResult(card.id, requestId, 'success', 'Van wishlist verwijderd');
-    } catch (error) {
+    } catch {
       if (!isCurrentCardMutation(card.id, requestId, collectionIdForRequest, setIdForRequest)) return;
-      setCardMutationResult(
-        card.id,
-        requestId,
-        'error',
-        error instanceof WishlistMutationError && error.reason === 'stale'
-          ? 'Wishliststatus is intussen gewijzigd. Status is vernieuwd.'
-          : 'Wishlist verwijderen is mislukt. Probeer opnieuw.',
-      );
-      if (error instanceof WishlistMutationError && (error.reason === 'stale' || error.reason === 'duplicate' || error.reason === 'invalid-result')) {
-        await refreshVisibleCardCollectionState(collectionIdForRequest, setIdForRequest);
-      }
+      setCardMutationResult(card.id, requestId, 'error', 'Wishlist verwijderen is mislukt. Probeer opnieuw.');
     } finally {
       if (setCardMutationRequestIdsByCardRef.current.get(card.id) === requestId) {
         pendingSetCardMutationIdsRef.current.delete(card.id);
@@ -782,112 +743,39 @@ export function SetsPage({ requestedSetCode = null, requestedCardId = null }: { 
   }
 
   async function handleCollectionCardQuantityChange(card: SetCatalogCard, direction: 'increase' | 'decrease') {
-    if (!openSet || !activeCollectionId || setCardCollectionState.status !== 'success') {
-      return;
-    }
-
+    if (!openSet || !activeCollectionId || setCardCollectionState.status !== 'success') return;
     const collectionInfo = setCardCollectionState.infoByCardCatalogId.get(card.id);
     const manageableRow = collectionInfo?.manageableOwnedNearMintRow;
-
-    if (!manageableRow || collectionInfo.hasConflictingManageableRows) {
-      return;
-    }
-
-    const mutationStatus = direction === 'increase'
-      ? 'increasing'
-      : manageableRow.quantity === 1
-        ? 'deleting'
-        : 'decreasing';
-    const quantityOperation: SetCardMutationOperation = direction === 'increase'
-      ? 'increase'
-      : manageableRow.quantity === 1
-        ? 'delete'
-        : 'decrease';
-    const requestId = beginCardMutation(card.id, mutationStatus, quantityOperation);
-
-    if (requestId === null) {
-      return;
-    }
-
+    if (!collectionInfo || !manageableRow || collectionInfo.hasConflictingManageableRows) return;
+    const requestId = beginCardMutation(card.id, direction === 'increase' ? 'increasing' : manageableRow.quantity === 1 ? 'deleting' : 'decreasing', direction);
+    if (requestId === null) return;
     const collectionIdForRequest = activeCollectionId;
-    const openSetIdForRequest = openSet.id;
-    const collectionCardIdForRequest = manageableRow.id;
-    const currentQuantityForRequest = manageableRow.quantity;
-
+    const setIdForRequest = openSet.id;
     try {
       if (direction === 'increase') {
-        const updatedCard = await increaseCollectionCardQuantity({
-          collectionId: collectionIdForRequest,
-          collectionCardId: collectionCardIdForRequest,
-          currentQuantity: currentQuantityForRequest,
-        });
-
-        if (!isCurrentCardMutation(card.id, requestId, collectionIdForRequest, openSetIdForRequest)) {
-          return;
+        const updated = await increaseCollectionCardQuantity({ collectionId: collectionIdForRequest, collectionCardId: manageableRow.id, currentQuantity: manageableRow.quantity });
+        if (!isCurrentCardMutation(card.id, requestId, collectionIdForRequest, setIdForRequest)) return;
+        setManagedCollectionCard(card.id, updated);
+        setCardMutationResult(card.id, requestId, 'success', 'Aantal bijgewerkt');
+      } else {
+        const result = await decreaseCollectionCardQuantity({ collectionId: collectionIdForRequest, collectionCardId: manageableRow.id, currentQuantity: manageableRow.quantity });
+        if (!isCurrentCardMutation(card.id, requestId, collectionIdForRequest, setIdForRequest)) return;
+        if (result.action === 'updated') {
+          setManagedCollectionCard(card.id, result.card);
+        } else {
+          await refreshVisibleCardCollectionState(collectionIdForRequest, setIdForRequest);
+          await refreshSetProgress(collectionIdForRequest);
         }
-
-        if (updatedCard.card_catalog_id !== card.id) {
-          throw new CollectionCardQuantityStateError('De gewijzigde kaartidentiteit wijkt af.', 'invalid-result');
-        }
-
-        setManagedCollectionCard(card.id, updatedCard);
-        setCardMutationResult(card.id, requestId, 'success');
-        return;
-      }
-
-      const result = await decreaseCollectionCardQuantity({
-        collectionId: collectionIdForRequest,
-        collectionCardId: collectionCardIdForRequest,
-        currentQuantity: currentQuantityForRequest,
-      });
-
-      if (!isCurrentCardMutation(card.id, requestId, collectionIdForRequest, openSetIdForRequest)) {
-        return;
-      }
-
-      if (result.action === 'updated') {
-        if (result.card.card_catalog_id !== card.id) {
-          throw new CollectionCardQuantityStateError('De gewijzigde kaartidentiteit wijkt af.', 'invalid-result');
-        }
-
-        setManagedCollectionCard(card.id, result.card);
-        setCardMutationResult(card.id, requestId, 'success');
-        return;
-      }
-
-      await Promise.all([
-        refreshVisibleCardCollectionState(collectionIdForRequest, openSetIdForRequest),
-        refreshSetProgress(collectionIdForRequest),
-      ]);
-
-      if (isCurrentCardMutation(card.id, requestId, collectionIdForRequest, openSetIdForRequest)) {
-        setCardMutationResult(card.id, requestId, 'success');
+        setCardMutationResult(card.id, requestId, 'success', result.action === 'deleted' ? 'Uit collectie verwijderd' : 'Aantal bijgewerkt');
       }
     } catch (error) {
-      if (!isCurrentCardMutation(card.id, requestId, collectionIdForRequest, openSetIdForRequest)) {
-        return;
+      if (!isCurrentCardMutation(card.id, requestId, collectionIdForRequest, setIdForRequest)) return;
+      if (error instanceof CollectionCardQuantityStateError && error.reason === 'stale') {
+        await Promise.all([refreshVisibleCardCollectionState(collectionIdForRequest, setIdForRequest), refreshSetProgress(collectionIdForRequest)]);
+        setCardMutationResult(card.id, requestId, 'error', 'Aantal is intussen gewijzigd. Status is vernieuwd.');
+      } else {
+        setCardMutationResult(card.id, requestId, 'error', 'Aantal bijwerken is mislukt. Probeer opnieuw.');
       }
-
-      if (error instanceof CollectionCardQuantityStateError) {
-        await Promise.all([
-          refreshVisibleCardCollectionState(collectionIdForRequest, openSetIdForRequest),
-          refreshSetProgress(collectionIdForRequest),
-        ]);
-
-        if (isCurrentCardMutation(card.id, requestId, collectionIdForRequest, openSetIdForRequest)) {
-          setCardMutationResult(
-            card.id,
-            requestId,
-            'error',
-            error.reason === 'stale'
-              ? 'Aantal is intussen gewijzigd. Status is vernieuwd.'
-              : 'Aantal kon niet veilig worden bevestigd. Status is vernieuwd.',
-          );
-        }
-        return;
-      }
-
-      setCardMutationResult(card.id, requestId, 'error', 'Aantal bijwerken is mislukt. Probeer opnieuw.');
     } finally {
       if (setCardMutationRequestIdsByCardRef.current.get(card.id) === requestId) {
         pendingSetCardMutationIdsRef.current.delete(card.id);
@@ -1556,15 +1444,11 @@ export function SetsPage({ requestedSetCode = null, requestedCardId = null }: { 
                     canPromoteWishlist,
                     canIncrease: isManageable,
                     canDecrease: isManageable,
-                    unavailableReason: setCardCollectionState.status === 'error' ? 'Collectiestatus kon niet worden geladen.' : undefined,
+                    unavailableReason: hasConflictingRows ? 'Deze kaart heeft meerdere conflicterende collectieregels.' : undefined,
                   }}
                   copy={copy}
                   onClose={closeSetCardDetail}
-                  onRetryOwnership={() => {
-                    if (activeCollectionId && openSet) {
-                      void refreshVisibleCardCollectionState(activeCollectionId, openSet.id);
-                    }
-                  }}
+                  onRetryOwnership={() => void refreshVisibleCardCollectionState(activeCollectionId!, openSet.id)}
                   onAdd={() => void handleAddCardToCollection(selectedSetCard)}
                   onAddWishlist={() => void handleAddCardToWishlist(selectedSetCard)}
                   onRemoveWishlist={() => void handleRemoveCardFromWishlist(selectedSetCard)}
