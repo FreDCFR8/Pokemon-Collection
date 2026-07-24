@@ -1,0 +1,138 @@
+.sets-page-catalog-grid {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sets-page-set-card,
+.sets-page-set-card.is-open {
+  box-sizing: border-box;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.sets-page-set-summary-button {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  padding: 8px 0;
+  text-align: left;
+}
+
+.sets-page-set-summary-button:focus-visible {
+  outline: 3px solid rgb(37 99 235 / 0.32);
+  outline-offset: -3px;
+}
+
+.sets-page-set-media {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  width: 100%;
+  height: 44px;
+  border-radius: 0;
+  background: transparent;
+}
+
+.sets-page-set-media img {
+  width: auto;
+  max-width: 100%;
+  max-height: 40px;
+  object-fit: contain;
+}
+
+.sets-page-set-media-placeholder {
+  color: #94a3b8;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.sets-page-set-content {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.sets-page-set-heading {
+  display: grid;
+  align-items: start;
+  min-width: 0;
+}
+
+.sets-page-set-name {
+  display: block;
+  color: #172033;
+  font-size: 0.98rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.sets-page-set-code {
+  color: #64748b;
+  font-size: 0.75rem;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.sets-page-set-chevron {
+  color: #64748b;
+  font-size: 1.8rem;
+  line-height: 1;
+}
+
+.sets-page-set-progress {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  color: #2563eb;
+  font-size: 0.82rem;
+  font-weight: 900;
+  overflow-wrap: anywhere;
+}
+
+.sets-page-set-progress-bar {
+  overflow: hidden;
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: #dbeafe;
+}
+
+.sets-page-set-progress-bar span {
+  display: block;
+  height: 100%;
+  max-width: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #2563eb 0%, #38bdf8 100%);
+}
+
+@media (min-width: 820px) {
+  .sets-page-catalog-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

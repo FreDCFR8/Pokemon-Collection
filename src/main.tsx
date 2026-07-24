@@ -7,6 +7,7 @@ import './ui/app-foundation.css';
 import './ui/app-foundation-compat.css';
 import './features/collectionPage/collectionPageV2.css';
 import './features/wishlistPage/wishlistPageV2.css';
+import './features/setsPage/setsPageV2.css';
 import './components/catalogPage/catalogPageHeader.css';
 import './features/cardDetail/cardDetailPolish.css';
 import './features/cardDetail/cardDetailContrastPolish.css';

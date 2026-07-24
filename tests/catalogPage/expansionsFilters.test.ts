@@ -26,12 +26,32 @@ test('Expansions progress filters distinguish not started, started and complete'
   assert.deepEqual(filterExpansions(sets, progress, { searchTerm: '', series: '', progress: 'complete' }).map((set) => set.id), ['c']);
 });
 
+test('Expansions combine series and progress filters', () => {
+  assert.deepEqual(
+    filterExpansions(sets, progress, { searchTerm: '', series: 'Neo', progress: 'started' }).map((set) => set.id),
+    ['b'],
+  );
+});
+
+test('Expansions with an unknown or zero total are never complete', () => {
+  const incompleteSets = [
+    { ...sets[0], id: 'unknown-total', set_code: 'unknown-total', total: null, printed_total: null },
+    { ...sets[0], id: 'zero-total', set_code: 'zero-total', total: 0, printed_total: 0 },
+  ];
+  const completeProgress = new Map(incompleteSets.map((set) => [set.set_code, { ownedCount: 999 }]));
+
+  assert.deepEqual(
+    filterExpansions(incompleteSets, completeProgress, { searchTerm: '', series: '', progress: 'complete' }),
+    [],
+  );
+});
+
 test('Expansions clear-all inputs restore every set', () => {
   const cleared = { searchTerm: '', series: '', progress: '' as const };
   assert.equal(filterExpansions(sets, progress, cleared).length, 3);
 });
 
-test('catalog pages compose the shared header and select components', async () => {
+test('catalog pages use only the shared header and filter controls', async () => {
   const [collection, wishlist, expansions] = await Promise.all([
     readFile('src/features/collectionPage/CollectionPage.tsx', 'utf8'),
     readFile('src/features/wishlistPage/WishlistPage.tsx', 'utf8'),
@@ -41,5 +61,7 @@ test('catalog pages compose the shared header and select components', async () =
   for (const source of [collection, wishlist, expansions]) {
     assert.match(source, /CatalogPageHeader/);
     assert.match(source, /CatalogFilterSelect/);
+    assert.doesNotMatch(source, /CollectionHeader|CollectionToolbar|WishlistToolbar/);
+    assert.doesNotMatch(source, /\{\/\*[\s\S]*?(?:header|toolbar)[\s\S]*?\*\/\}/i);
   }
 });

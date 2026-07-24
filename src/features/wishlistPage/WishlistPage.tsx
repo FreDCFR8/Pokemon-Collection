@@ -286,10 +286,46 @@ export function WishlistPage({ displayName }: { displayName: string }) {
 
   return (
     <>
-      <section className="collection-page collection-page--v2 wishlist-page" aria-labelledby="wishlist-page-title" inert={selectedCard ? true : undefined} aria-hidden={selectedCard ? true : undefined}>
-        <CatalogPageHeader ariaLabel="Wishlistfilters" errorMessage={pageState.errorMessage} hasActiveCriteria={hasActiveCriteria} headerAction={pageState.status === 'error' ? <button type="button" onClick={retryWishlist}>Wishlist opnieuw laden</button> : undefined} id="wishlist-page-title" message={pageState.message} onClearAll={clearAllCriteria} onClearSearch={clearSearch} onSearchChange={setSearchTerm} onSearchSubmit={applySearchImmediately} searchAriaLabel="Wishlist zoeken" searchPlaceholder="Zoek op Pokémon, set of nummer" searchTerm={searchTerm} status={pageState.status} subtitle={`van ${displayName}`} title="Wishlist">
-          <CatalogFilterSelect ariaLabel="Filter op rarity" disabled={isLoadingOptions && filterOptions.rarities.length === 0} label="Rarity" value={filters.rarity ?? ''} onChange={(value) => updateFilter('rarity', value)} options={filterOptions.rarities.map((value) => ({ value, label: value }))} />
-          <CatalogFilterSelect ariaLabel="Filter op set" disabled={isLoadingOptions && filterOptions.sets.length === 0} label="Set" value={filters.setCode ?? ''} onChange={(value) => updateFilter('setCode', value)} options={filterOptions.sets.map((set) => ({ value: set.setCode, label: set.name }))} />
+      <section
+        className="collection-page collection-page--v2 wishlist-page"
+        aria-labelledby="wishlist-page-title"
+        inert={selectedCard ? true : undefined}
+        aria-hidden={selectedCard ? true : undefined}
+      >
+        <CatalogPageHeader
+          ariaLabel="Wishlistfilters"
+          errorMessage={pageState.errorMessage}
+          hasActiveCriteria={hasActiveCriteria}
+          headerAction={pageState.status === 'error' ? <button type="button" onClick={retryWishlist}>Wishlist opnieuw laden</button> : undefined}
+          id="wishlist-page-title"
+          message={pageState.message}
+          onClearAll={clearAllCriteria}
+          onClearSearch={clearSearch}
+          onSearchChange={setSearchTerm}
+          onSearchSubmit={applySearchImmediately}
+          searchAriaLabel="Wishlist zoeken"
+          searchPlaceholder="Zoek op Pokémon, set of nummer"
+          searchTerm={searchTerm}
+          status={pageState.status}
+          subtitle={`van ${displayName}`}
+          title="Wishlist"
+        >
+          <CatalogFilterSelect
+            ariaLabel="Filter op rarity"
+            disabled={isLoadingOptions && filterOptions.rarities.length === 0}
+            label="Rarity"
+            value={filters.rarity ?? ''}
+            onChange={(value) => updateFilter('rarity', value)}
+            options={filterOptions.rarities.map((value) => ({ value, label: value }))}
+          />
+          <CatalogFilterSelect
+            ariaLabel="Filter op set"
+            disabled={isLoadingOptions && filterOptions.sets.length === 0}
+            label="Set"
+            value={filters.setCode ?? ''}
+            onChange={(value) => updateFilter('setCode', value)}
+            options={filterOptions.sets.map((set) => ({ value: set.setCode, label: set.name }))}
+          />
         </CatalogPageHeader>
         {pageState.status === 'ready' && pageState.cards.length === 0 ? (
           <div className="collection-page-empty wishlist-page-empty">

@@ -974,10 +974,24 @@ export function SetsPage({ requestedSetCode = null, requestedCardId = null }: { 
   }, []);
 
   const normalizedSearchTerm = searchTerm.trim().toLowerCase();
-  const filteredSets = useMemo(() => filterExpansions(setsPageState.sets, setsProgressState.progressBySetCode, {
-    searchTerm: normalizedSearchTerm, series: seriesFilter, progress: progressFilter,
-  }), [normalizedSearchTerm, progressFilter, seriesFilter, setsPageState.sets, setsProgressState.progressBySetCode]);
-  const seriesOptions = useMemo(() => [...new Set(setsPageState.sets.map((set) => set.series).filter((series): series is string => Boolean(series)))].sort((a, b) => a.localeCompare(b)).map((value) => ({ value, label: value })), [setsPageState.sets]);
+  const filteredSets = useMemo(
+    () => filterExpansions(setsPageState.sets, setsProgressState.progressBySetCode, {
+      searchTerm: normalizedSearchTerm,
+      series: seriesFilter,
+      progress: progressFilter,
+    }),
+    [normalizedSearchTerm, progressFilter, seriesFilter, setsPageState.sets, setsProgressState.progressBySetCode],
+  );
+  const seriesOptions = useMemo(
+    () => [...new Set(
+      setsPageState.sets
+        .map((set) => set.series)
+        .filter((series): series is string => Boolean(series)),
+    )]
+      .sort((first, second) => first.localeCompare(second))
+      .map((value) => ({ value, label: value })),
+    [setsPageState.sets],
+  );
 
   const groupedSets = useMemo(() => {
     return filteredSets.reduce<GroupedSets[]>((groups, set) => {
@@ -999,13 +1013,46 @@ export function SetsPage({ requestedSetCode = null, requestedCardId = null }: { 
   const isEmpty = setsPageState.status === 'success' && setsPageState.sets.length === 0;
   const hasNoSearchResults = setsPageState.status === 'success' && setsPageState.sets.length > 0 && filteredSets.length === 0;
   const hasActiveCriteria = Boolean(searchTerm.trim() || seriesFilter || progressFilter);
-  const clearAllCriteria = () => { setSearchTerm(''); setSeriesFilter(''); setProgressFilter(''); };
+  const clearAllCriteria = () => {
+    setSearchTerm('');
+    setSeriesFilter('');
+    setProgressFilter('');
+  };
 
   return (
     <section className="sets-page" aria-labelledby="sets-page-title">
-      <CatalogPageHeader ariaLabel="Expansionsfilters" hasActiveCriteria={hasActiveCriteria} id="sets-page-title" message={isLoading ? 'Expansions worden geladen...' : undefined} onClearAll={clearAllCriteria} onClearSearch={() => setSearchTerm('')} onSearchChange={setSearchTerm} searchAriaLabel="Expansions zoeken" searchPlaceholder="Zoek op naam, code of serie" searchTerm={searchTerm} status={isLoading ? 'loading' : 'ready'} title="Expansions">
-        <CatalogFilterSelect ariaLabel="Filter op uitbreiding of serie" label="Uitbreiding / serie" value={seriesFilter} onChange={setSeriesFilter} options={seriesOptions} />
-        <CatalogFilterSelect ariaLabel="Filter op voortgang" label="Voortgang" value={progressFilter} onChange={(value) => setProgressFilter(value as ExpansionProgressFilter)} options={[{ value: 'not-started', label: 'Niet gestart' }, { value: 'started', label: 'Gestart' }, { value: 'complete', label: 'Compleet' }]} />
+      <CatalogPageHeader
+        ariaLabel="Expansionsfilters"
+        hasActiveCriteria={hasActiveCriteria}
+        id="sets-page-title"
+        message={isLoading ? 'Expansions worden geladen...' : undefined}
+        onClearAll={clearAllCriteria}
+        onClearSearch={() => setSearchTerm('')}
+        onSearchChange={setSearchTerm}
+        searchAriaLabel="Expansions zoeken"
+        searchPlaceholder="Zoek op naam, code of serie"
+        searchTerm={searchTerm}
+        status={isLoading ? 'loading' : 'ready'}
+        title="Expansions"
+      >
+        <CatalogFilterSelect
+          ariaLabel="Filter op uitbreiding of serie"
+          label="Uitbreiding / serie"
+          value={seriesFilter}
+          onChange={setSeriesFilter}
+          options={seriesOptions}
+        />
+        <CatalogFilterSelect
+          ariaLabel="Filter op voortgang"
+          label="Voortgang"
+          value={progressFilter}
+          onChange={(value) => setProgressFilter(value as ExpansionProgressFilter)}
+          options={[
+            { value: 'not-started', label: 'Niet gestart' },
+            { value: 'started', label: 'Gestart' },
+            { value: 'complete', label: 'Compleet' },
+          ]}
+        />
       </CatalogPageHeader>
       <section className="sets-page-expansions" aria-label="Expansions-overzicht">
         {isLoading ? <p role="status">Expansions worden geladen...</p> : null}

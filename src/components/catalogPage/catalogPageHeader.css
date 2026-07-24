@@ -28,8 +28,4 @@
 .app-shell--child .catalog-page-filter-select select { width: auto; min-width: 118px; max-width: 190px; height: 42px; min-height: 42px; box-sizing: border-box; border: 1px solid var(--app-border-strong); border-radius: 999px; background-color: var(--app-surface-soft); color: var(--app-text); padding: 0 34px 0 14px; font-size: .84rem; font-weight: 780; white-space: nowrap; }
 .app-shell--child .catalog-page-filter-select:first-of-type select { min-width: 132px; }
 .app-shell--child .catalog-page-search-summary, .app-shell--child .catalog-page-toolbar > .status-note { margin: 0 4px; color: var(--app-text-muted); font-size: .74rem; line-height: 1.35; }
-.app-shell--child .wishlist-page .catalog-page-header h2 strong { background: linear-gradient(100deg, #ff77c8 0%, #d88cff 48%, #8aa8ff 100%); background-clip: text; color: transparent; text-shadow: 0 12px 34px rgb(217 124 255 / .15); }
-.app-shell--child .wishlist-page .catalog-page-header h2 em::after { background: linear-gradient(90deg, transparent, #d88cff, transparent); }
-.app-shell--child .wishlist-page .catalog-page-header h2 > span:first-child { color: #ff77c8; }
-.app-shell--child .wishlist-page .catalog-page-header h2 > span:last-child { color: #8aa8ff; }
 @media (min-width: 720px) { .app-shell--child .catalog-page-toolbar { padding-inline: 20px; } }
