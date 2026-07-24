@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { readFile } from 'node:fs/promises';
 
 import { filterExpansions } from '../../src/components/catalogPage/catalogPageHelpers.ts';
 
@@ -28,4 +29,17 @@ test('Expansions progress filters distinguish not started, started and complete'
 test('Expansions clear-all inputs restore every set', () => {
   const cleared = { searchTerm: '', series: '', progress: '' as const };
   assert.equal(filterExpansions(sets, progress, cleared).length, 3);
+});
+
+test('catalog pages compose the shared header and select components', async () => {
+  const [collection, wishlist, expansions] = await Promise.all([
+    readFile('src/features/collectionPage/CollectionPage.tsx', 'utf8'),
+    readFile('src/features/wishlistPage/WishlistPage.tsx', 'utf8'),
+    readFile('src/features/setsPage/SetsPage.tsx', 'utf8'),
+  ]);
+
+  for (const source of [collection, wishlist, expansions]) {
+    assert.match(source, /CatalogPageHeader/);
+    assert.match(source, /CatalogFilterSelect/);
+  }
 });

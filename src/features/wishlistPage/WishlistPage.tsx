@@ -40,93 +40,6 @@ function WishlistPagination({ currentPage, isLoading, label, onNextPage, onPrevi
   );
 }
 
-type WishlistToolbarProps = {
-  filterOptions: CollectionFilterOptions;
-  filters: CollectionPageFilters;
-  hasActiveCriteria: boolean;
-  isLoadingOptions: boolean;
-  onClearAll: () => void;
-  onClearSearch: () => void;
-  onSearchChange: (value: string) => void;
-  onSearchSubmit: () => void;
-  onUpdateFilter: (name: keyof CollectionPageFilters, value: string) => void;
-  searchTerm: string;
-};
-
-function WishlistToolbar({
-  filterOptions,
-  filters,
-  hasActiveCriteria,
-  isLoadingOptions,
-  onClearAll,
-  onClearSearch,
-  onSearchChange,
-  onSearchSubmit,
-  onUpdateFilter,
-  searchTerm,
-}: WishlistToolbarProps) {
-  return (
-    <div className="collection-page-toolbar">
-      <div className="collection-page-search-control">
-        <span className="collection-page-search-icon" aria-hidden="true">⌕</span>
-        <input
-          id="wishlist-page-search-input"
-          type="search"
-          aria-label="Wishlist zoeken"
-          value={searchTerm}
-          placeholder="Zoek op Pokémon, set of nummer"
-          onChange={(event) => onSearchChange(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') {
-              event.preventDefault();
-              onSearchSubmit();
-            }
-          }}
-        />
-        {searchTerm.length > 0 ? (
-          <button type="button" className="collection-page-search-clear" aria-label="Zoekterm wissen" onClick={onClearSearch}>×</button>
-        ) : null}
-      </div>
-
-      <div className="collection-page-filter-row" aria-label="Wishlistfilters">
-        <button
-          type="button"
-          className="collection-page-clear-filters"
-          aria-label="Zoekopdracht en filters wissen"
-          onClick={onClearAll}
-          disabled={!hasActiveCriteria}
-        >
-          ×
-        </button>
-        <label>
-          <span className="sr-only">Rarity</span>
-          <select
-            value={filters.rarity ?? ''}
-            aria-label="Filter op rarity"
-            onChange={(event) => onUpdateFilter('rarity', event.target.value)}
-            disabled={isLoadingOptions && filterOptions.rarities.length === 0}
-          >
-            <option value="">Rarity</option>
-            {filterOptions.rarities.map((rarity) => <option key={rarity} value={rarity}>{rarity}</option>)}
-          </select>
-        </label>
-        <label>
-          <span className="sr-only">Set</span>
-          <select
-            value={filters.setCode ?? ''}
-            aria-label="Filter op set"
-            onChange={(event) => onUpdateFilter('setCode', event.target.value)}
-            disabled={isLoadingOptions && filterOptions.sets.length === 0}
-          >
-            <option value="">Set</option>
-            {filterOptions.sets.map((set) => <option key={set.setCode} value={set.setCode}>{set.name}</option>)}
-          </select>
-        </label>
-      </div>
-    </div>
-  );
-}
-
 export function WishlistPage({ displayName }: { displayName: string }) {
   const [pageState, setPageState] = useState(initialState);
   const [page, setPage] = useState(1);
@@ -378,32 +291,6 @@ export function WishlistPage({ displayName }: { displayName: string }) {
           <CatalogFilterSelect ariaLabel="Filter op rarity" disabled={isLoadingOptions && filterOptions.rarities.length === 0} label="Rarity" value={filters.rarity ?? ''} onChange={(value) => updateFilter('rarity', value)} options={filterOptions.rarities.map((value) => ({ value, label: value }))} />
           <CatalogFilterSelect ariaLabel="Filter op set" disabled={isLoadingOptions && filterOptions.sets.length === 0} label="Set" value={filters.setCode ?? ''} onChange={(value) => updateFilter('setCode', value)} options={filterOptions.sets.map((set) => ({ value: set.setCode, label: set.name }))} />
         </CatalogPageHeader>
-        {/*
-        <header className="collection-page-header">
-          <h2 id="wishlist-page-title">
-            <span aria-hidden="true">✦</span>
-            <strong>Wishlist</strong>
-            <em>van {displayName}</em>
-            <span aria-hidden="true">✦</span>
-          </h2>
-          {pageState.status !== 'ready' ? <p className="collection-page-status">{pageState.message}</p> : null}
-          {pageState.errorMessage ? <p className="status-note">Foutmelding: {pageState.errorMessage}</p> : null}
-          {pageState.status === 'error' ? <button type="button" onClick={retryWishlist}>Wishlist opnieuw laden</button> : null}
-        </header>
-
-        <WishlistToolbar
-          filterOptions={filterOptions}
-          filters={filters}
-          hasActiveCriteria={hasActiveCriteria}
-          isLoadingOptions={isLoadingOptions}
-          onClearAll={clearAllCriteria}
-          onClearSearch={clearSearch}
-          onSearchChange={setSearchTerm}
-          onSearchSubmit={applySearchImmediately}
-          onUpdateFilter={updateFilter}
-          searchTerm={searchTerm}
-        /> */}
-
         {pageState.status === 'ready' && pageState.cards.length === 0 ? (
           <div className="collection-page-empty wishlist-page-empty">
             <p>{hasActiveCriteria ? 'Geen wishlistkaarten gevonden voor deze zoekopdracht en filters.' : 'Je wishlist is nog leeg.'}</p>

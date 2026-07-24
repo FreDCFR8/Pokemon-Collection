@@ -973,14 +973,6 @@ export function SetsPage({ requestedSetCode = null, requestedCardId = null }: { 
     };
   }, []);
 
-  const catalogSummary = useMemo(
-    () => ({
-      loadedSetsCount: setsPageState.sets.length,
-      setsWithMetadataCount: setsPageState.sets.filter((set) => set.release_date || hasKnownSetTotal(getEffectiveSetTotal(set))).length,
-    }),
-    [setsPageState.sets],
-  );
-
   const normalizedSearchTerm = searchTerm.trim().toLowerCase();
   const filteredSets = useMemo(() => filterExpansions(setsPageState.sets, setsProgressState.progressBySetCode, {
     searchTerm: normalizedSearchTerm, series: seriesFilter, progress: progressFilter,
@@ -1015,52 +1007,7 @@ export function SetsPage({ requestedSetCode = null, requestedCardId = null }: { 
         <CatalogFilterSelect ariaLabel="Filter op uitbreiding of serie" label="Uitbreiding / serie" value={seriesFilter} onChange={setSeriesFilter} options={seriesOptions} />
         <CatalogFilterSelect ariaLabel="Filter op voortgang" label="Voortgang" value={progressFilter} onChange={(value) => setProgressFilter(value as ExpansionProgressFilter)} options={[{ value: 'not-started', label: 'Niet gestart' }, { value: 'started', label: 'Gestart' }, { value: 'complete', label: 'Compleet' }]} />
       </CatalogPageHeader>
-      {/*
-      <div className="sets-page-hero">
-        <p className="eyebrow">Set-catalogus</p>
-        <h2 id="sets-page-title">Sets</h2>
-        <p>Volledige set-catalogus met collectievoortgang wanneer die beschikbaar is.</p>
-      </div>
-
-      <dl className="sets-page-summary" aria-label="Samenvatting van de set-catalogus">
-        <div>
-          <dt>Sets geladen</dt>
-          <dd>{catalogSummary.loadedSetsCount}</dd>
-        </div>
-        <div>
-          <dt>Sets met metadata</dt>
-          <dd>{catalogSummary.setsWithMetadataCount}</dd>
-        </div>
-      </dl>
-
-      {setsProgressState.status === 'loading' ? (
-        <p className="sets-page-progress-note" role="status">
-          Collectievoortgang wordt geladen...
-        </p>
-      ) : null}
-
-      <section className="sets-page-card" aria-labelledby="sets-page-catalog-title">
-        <h3 id="sets-page-catalog-title">Set-catalog</h3>
-
-        <div className="sets-page-search">
-          <label htmlFor="sets-page-search-input">Zoeken</label>
-          <div className="sets-page-search-control">
-            <input
-              id="sets-page-search-input"
-              type="search"
-              placeholder="Zoek set..."
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-            />
-            {searchTerm ? (
-              <button type="button" aria-label="Zoekterm wissen" onClick={() => setSearchTerm('')}>
-                ×
-              </button>
-            ) : null}
-          </div>
-        </div> */}
-
-      <section className="sets-page-card" aria-label="Expansions-overzicht">
+      <section className="sets-page-expansions" aria-label="Expansions-overzicht">
         {isLoading ? <p role="status">Expansions worden geladen...</p> : null}
 
         {isError ? (
