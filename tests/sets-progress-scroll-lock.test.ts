@@ -26,8 +26,9 @@ test('set progress query includes quantity so the ownership rule can be enforced
   assert.match(source, /row\.quantity > 0/);
 });
 
-test('Sets overlay uses the iOS-safe fixed-body scroll lock and restores position', async () => {
+test('Sets overlay uses one iOS-safe fixed-body scroll lock and restores position', async () => {
   const source = await readFile('src/features/setsPage/setsOverlayScrollLock.ts', 'utf8');
+  const setsPage = await readFile('src/features/setsPage/SetsPage.tsx', 'utf8');
   const entry = await readFile('src/main.tsx', 'utf8');
 
   assert.match(source, /bodyStyle\.position = 'fixed'/);
@@ -36,4 +37,6 @@ test('Sets overlay uses the iOS-safe fixed-body scroll lock and restores positio
   assert.match(source, /window\.scrollTo\(0, previous\.scrollY\)/);
   assert.match(source, /\.sets-page-set-overlay/);
   assert.match(entry, /features\/setsPage\/setsOverlayScrollLock/);
+  assert.doesNotMatch(setsPage, /document\.body\.style\.overflow = 'hidden'/);
+  assert.doesNotMatch(setsPage, /const previousOverflow = document\.body\.style\.overflow/);
 });
