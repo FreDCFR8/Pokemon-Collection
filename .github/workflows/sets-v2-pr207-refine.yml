@@ -1,0 +1,30 @@
+name: Refine Sets V2 PR 207
+
+on:
+  push:
+    branches:
+      - agent/sets-v2-overview
+
+permissions:
+  contents: write
+
+jobs:
+  refine:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/sets-v2-overview
+          fetch-depth: 0
+      - name: Apply reviewed refinement
+        run: |
+          python3 scripts/apply-sets-v2-pr207.py
+          rm scripts/apply-sets-v2-pr207.py
+          rm .github/workflows/sets-v2-pr207-refine.yml
+          rm -f .github/sets-v2-pr207-trigger
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "Refine Sets V2 rows and filters"
+          git push origin HEAD:agent/sets-v2-overview
