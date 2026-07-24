@@ -8,12 +8,28 @@ export function DashboardHero({ displayName }: { displayName: string }) {
   return <section className="dashboard-v2-hero" aria-labelledby="dashboard-welcome"><div className="dashboard-v2-hero__cosmos" aria-hidden="true" /><div className="dashboard-v2-avatar" aria-hidden="true">{displayName.trim().charAt(0).toUpperCase()}</div><div className="dashboard-v2-hero__copy"><p>Jouw persoonlijke collectie</p><h1 id="dashboard-welcome">Hallo {displayName}!</h1><span>Klaar om je collectie verder uit te breiden?</span></div><div className="dashboard-v2-hero__cards" aria-hidden="true"><i /><i /><i /></div></section>;
 }
 
-const metrics = (summary: DashboardSummary) => [
-  ['Kaarten totaal', summary.totalQuantity, 'cards', '#collection'], ['Unieke kaarten', summary.uniqueOwnedCards, 'unique', '#collection'], ['Wishlist', summary.wishlistCards, 'wishlist', '#wishlist'], ['Dubbels', summary.duplicateQuantity, 'duplicates', '#collection'],
-] as const;
+type DashboardMetric = {
+  label: string;
+  value: number | 'Binnenkort';
+  tone: 'cards' | 'wishlist' | 'pokedex' | 'value';
+  href?: string;
+};
+
+const metrics = (summary: DashboardSummary): DashboardMetric[] => [
+  { label: 'Kaarten in collectie', value: summary.totalQuantity, tone: 'cards', href: '#collection' },
+  { label: 'Kaarten op wishlist', value: summary.wishlistCards, tone: 'wishlist', href: '#wishlist' },
+  { label: 'Pokémon verzameld', value: 'Binnenkort', tone: 'pokedex' },
+  { label: 'Geschatte waarde', value: 'Binnenkort', tone: 'value' },
+];
 
 export function DashboardStatsBand({ summary }: { summary: DashboardSummary }) {
-  return <section className="dashboard-v2-stats" aria-label="Collectiestatistieken">{metrics(summary).map(([label, value, tone, href]) => <a className={`dashboard-v2-stat dashboard-v2-stat--${tone}`} href={href} key={label} aria-label={`${label}: ${number.format(value)}. Open ${href === '#wishlist' ? 'wishlist' : 'collectie'}.`}><span aria-hidden="true">✦</span><strong>{number.format(value)}</strong><small>{label}</small></a>)}</section>;
+  return <section className="dashboard-v2-stats" aria-label="Collectiestatistieken">{metrics(summary).map(({ label, value, tone, href }) => {
+    const displayValue = typeof value === 'number' ? number.format(value) : value;
+    const content = <><span aria-hidden="true">✦</span><strong>{displayValue}</strong><small>{label}</small></>;
+    return href
+      ? <a className={`dashboard-v2-stat dashboard-v2-stat--${tone}`} href={href} key={label} aria-label={`${label}: ${displayValue}. Open ${href === '#wishlist' ? 'wishlist' : 'collectie'}.`}>{content}</a>
+      : <article className={`dashboard-v2-stat dashboard-v2-stat--${tone} dashboard-v2-stat--future`} key={label} aria-label={`${label}: binnenkort beschikbaar.`}>{content}</article>;
+  })}</section>;
 }
 
 export function DashboardRecentCards({ summary, onOpenCard }: { summary: DashboardSummary; onOpenCard(card: DashboardRecentCard): void }) {
