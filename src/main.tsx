@@ -10,6 +10,7 @@ import './features/wishlistPage/wishlistPageV2.css';
 import './features/cardDetail/cardDetailPolish.css';
 import './features/cardDetail/cardDetailContrastPolish.css';
 import './features/cardDetail/cardDetailSwipeLock';
+import './features/setsPage/setsPageV2.css';
 import './features/setsPage/setsOverlayScrollLock';
 
 createRoot(document.querySelector('#root') as Element).render(<IdentityProvider><App /></IdentityProvider>);
