@@ -1020,19 +1020,17 @@ export function SetsPage({ requestedSetCode = null, requestedCardId = null }: { 
   };
 
   return (
-    <section className="sets-page" aria-labelledby="sets-page-title">
+    <section className="catalog-page-layout sets-page" aria-labelledby="sets-page-title">
       <CatalogPageHeader
         ariaLabel="Expansionsfilters"
         hasActiveCriteria={hasActiveCriteria}
         id="sets-page-title"
-        message={isLoading ? 'Expansions worden geladen...' : undefined}
         onClearAll={clearAllCriteria}
         onClearSearch={() => setSearchTerm('')}
         onSearchChange={setSearchTerm}
         searchAriaLabel="Expansions zoeken"
         searchPlaceholder="Zoek op naam, code of serie"
         searchTerm={searchTerm}
-        status={isLoading ? 'loading' : 'ready'}
         title="Expansions"
       >
         <CatalogFilterSelect

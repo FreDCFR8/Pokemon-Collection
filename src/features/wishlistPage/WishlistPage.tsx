@@ -287,7 +287,7 @@ export function WishlistPage({ displayName }: { displayName: string }) {
   return (
     <>
       <section
-        className="collection-page collection-page--v2 wishlist-page"
+        className="catalog-page-layout collection-page collection-page--v2 wishlist-page"
         aria-labelledby="wishlist-page-title"
         inert={selectedCard ? true : undefined}
         aria-hidden={selectedCard ? true : undefined}
@@ -298,7 +298,6 @@ export function WishlistPage({ displayName }: { displayName: string }) {
           hasActiveCriteria={hasActiveCriteria}
           headerAction={pageState.status === 'error' ? <button type="button" onClick={retryWishlist}>Wishlist opnieuw laden</button> : undefined}
           id="wishlist-page-title"
-          message={pageState.message}
           onClearAll={clearAllCriteria}
           onClearSearch={clearSearch}
           onSearchChange={setSearchTerm}
@@ -306,7 +305,6 @@ export function WishlistPage({ displayName }: { displayName: string }) {
           searchAriaLabel="Wishlist zoeken"
           searchPlaceholder="Zoek op Pokémon, set of nummer"
           searchTerm={searchTerm}
-          status={pageState.status}
           subtitle={`van ${displayName}`}
           title="Wishlist"
         >

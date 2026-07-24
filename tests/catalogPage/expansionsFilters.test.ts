@@ -52,7 +52,8 @@ test('Expansions clear-all inputs restore every set', () => {
 });
 
 test('catalog pages use only the shared header and filter controls', async () => {
-  const [collection, wishlist, expansions] = await Promise.all([
+  const [header, collection, wishlist, expansions] = await Promise.all([
+    readFile('src/components/catalogPage/CatalogPageHeader.tsx', 'utf8'),
     readFile('src/features/collectionPage/CollectionPage.tsx', 'utf8'),
     readFile('src/features/wishlistPage/WishlistPage.tsx', 'utf8'),
     readFile('src/features/setsPage/SetsPage.tsx', 'utf8'),
@@ -63,5 +64,11 @@ test('catalog pages use only the shared header and filter controls', async () =>
     assert.match(source, /CatalogFilterSelect/);
     assert.doesNotMatch(source, /CollectionHeader|CollectionToolbar|WishlistToolbar/);
     assert.doesNotMatch(source, /\{\/\*[\s\S]*?(?:header|toolbar)[\s\S]*?\*\/\}/i);
+    assert.match(source, /catalog-page-layout/);
   }
+
+  assert.doesNotMatch(collection, /catalog-page-search-summary|searchSummary=/);
+  assert.doesNotMatch(header, /status !== 'ready' && message/);
+  assert.match(header, /errorMessage \? <p className="status-note">/);
+  assert.match(header, /\{headerAction\}/);
 });

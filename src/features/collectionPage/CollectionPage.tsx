@@ -42,11 +42,6 @@ const emptyCollectionFilterOptions: CollectionFilterOptions = {
   rarities: [],
 };
 
-const filterLabels: Record<keyof CollectionPageFilters, string> = {
-  rarity: 'rarity',
-  setCode: 'set',
-};
-
 const initialCollectionPageState: CollectionPageState = {
   status: 'loading',
   message: 'Collectiepagina wordt voorbereid.',
@@ -115,20 +110,11 @@ export function CollectionPage({ displayName }: { displayName: string }) {
     () => Math.max(1, Math.ceil(collectionPageState.totalCount / collectionPageState.pageSize)),
     [collectionPageState.pageSize, collectionPageState.totalCount],
   );
-  const setNameByCode = useMemo(
-    () => new Map(filterOptions.sets.map((set) => [set.setCode, set.name])),
-    [filterOptions.sets],
-  );
   const isLoading = collectionPageState.status === 'loading';
   const trimmedSearchTerm = searchTerm.trim();
   const hasActiveSearch = activeSearchTerm.trim().length > 0;
-  const activeFilterEntries = Object.entries(filters).filter((entry): entry is [keyof CollectionPageFilters, string] => entry[1] !== undefined && entry[1].trim().length > 0);
-  const hasActiveFilters = activeFilterEntries.length > 0;
+  const hasActiveFilters = Object.values(filters).some((value) => value?.trim().length > 0);
   const hasActiveCriteria = hasActiveSearch || hasActiveFilters;
-  const searchSummary = [
-    hasActiveSearch ? `zoekterm “${activeSearchTerm}”` : null,
-    ...activeFilterEntries.map(([name, value]) => `${filterLabels[name]} “${name === 'setCode' ? setNameByCode.get(value) ?? 'Onbekende set' : value}”`),
-  ].filter(Boolean).join(' · ');
 
   collectionContextRef.current = {
     collectionId: collectionPageState.collectionId,
@@ -404,7 +390,7 @@ export function CollectionPage({ displayName }: { displayName: string }) {
   return (
     <>
       <section
-        className="collection-page collection-page--v2"
+        className="catalog-page-layout collection-page collection-page--v2"
         aria-labelledby="collection-page-title"
         inert={selectedDetailCard ? true : undefined}
         aria-hidden={selectedDetailCard ? true : undefined}
@@ -414,16 +400,13 @@ export function CollectionPage({ displayName }: { displayName: string }) {
           errorMessage={collectionPageState.errorMessage}
           hasActiveCriteria={hasActiveCriteria}
           id="collection-page-title"
-          message={collectionPageState.message}
           onClearAll={clearAllCriteria}
           onClearSearch={clearSearch}
           onSearchChange={setSearchTerm}
           onSearchSubmit={applySearchImmediately}
           searchAriaLabel="Collectie zoeken"
           searchPlaceholder="Zoek op Pokémon, set of nummer"
-          searchSummary={hasActiveCriteria ? `Actief: ${searchSummary || activeSearchTerm}` : undefined}
           searchTerm={searchTerm}
-          status={collectionPageState.status}
           subtitle={`van ${displayName}`}
           title="Collectie"
         >

@@ -7,23 +7,20 @@ type CatalogPageHeaderProps = {
   headerAction?: ReactNode;
   hasActiveCriteria: boolean;
   id: string;
-  message?: string;
   onClearAll: () => void;
   onClearSearch: () => void;
   onSearchChange: (value: string) => void;
   onSearchSubmit?: () => void;
   searchAriaLabel: string;
   searchPlaceholder: string;
-  searchSummary?: string;
   searchTerm: string;
-  status?: string;
   subtitle?: string;
   title: string;
 };
 
 export function CatalogPageHeader({
-  ariaLabel, children, errorMessage, headerAction, hasActiveCriteria, id, message, onClearAll, onClearSearch,
-  onSearchChange, onSearchSubmit, searchAriaLabel, searchPlaceholder, searchSummary, searchTerm, status = 'ready', subtitle, title,
+  ariaLabel, children, errorMessage, headerAction, hasActiveCriteria, id, onClearAll, onClearSearch,
+  onSearchChange, onSearchSubmit, searchAriaLabel, searchPlaceholder, searchTerm, subtitle, title,
 }: CatalogPageHeaderProps) {
   const submitOnEnter = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Enter' && onSearchSubmit) {
@@ -41,7 +38,6 @@ export function CatalogPageHeader({
           {subtitle ? <em>{subtitle}</em> : null}
           <span aria-hidden="true">✦</span>
         </h2>
-        {status !== 'ready' && message ? <p className="catalog-page-status">{message}</p> : null}
         {errorMessage ? <p className="status-note">Foutmelding: {errorMessage}</p> : null}
         {headerAction}
       </header>
@@ -55,7 +51,6 @@ export function CatalogPageHeader({
           <button type="button" className="catalog-page-clear-filters" aria-label="Zoekopdracht en filters wissen" onClick={onClearAll} disabled={!hasActiveCriteria}>×</button>
           {children}
         </div>
-        {searchSummary ? <p className="catalog-page-search-summary">{searchSummary}</p> : null}
       </div>
     </>
   );

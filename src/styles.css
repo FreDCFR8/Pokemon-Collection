@@ -867,22 +867,6 @@ button {
   margin-top: 18px;
 }
 
-.sets-page-expansions {
-  min-width: 0;
-  width: 100%;
-  max-width: 100%;
-  border: 1px solid #dbe3ef;
-  border-radius: 24px;
-  background: #ffffff;
-  box-shadow: 0 18px 50px rgb(15 23 42 / 0.08);
-  padding: 22px;
-}
-
-.sets-page-expansions p {
-  color: #475569;
-  line-height: 1.6;
-}
-
 .sets-page-series-list {
   display: grid;
   gap: 18px;
