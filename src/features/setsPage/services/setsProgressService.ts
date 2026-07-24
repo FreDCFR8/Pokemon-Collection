@@ -19,6 +19,7 @@ type CollectionCardCollectionStatus = 'owned' | 'wishlist' | 'trade' | 'missing'
 type CollectionCardSetCodeRow = {
   id: string;
   card_catalog_id: string | null;
+  quantity: number | null;
   status: CollectionCardCollectionStatus | null;
   cards_catalog: CollectionCardSetCodeRelation | CollectionCardSetCodeRelation[] | null;
 };
@@ -32,12 +33,12 @@ type SetsCatalogTotalsRow = {
 const COLLECTION_CARD_SET_CODE_SELECT = `
   id,
   card_catalog_id,
+  quantity,
   status,
   cards_catalog!inner (
     set_code
   )
 `;
-
 const SETS_CATALOG_TOTALS_SELECT = 'set_code, total, printed_total';
 const COLLECTION_CARD_SET_CODE_BATCH_SIZE = 500;
 
@@ -47,8 +48,10 @@ function getSetCodeFromCollectionCardRow(row: CollectionCardSetCodeRow): string 
   return relation?.set_code ?? null;
 }
 
-function isCollectionCardStatusCollected(status: CollectionCardSetCodeRow['status']): boolean {
-  return status === 'owned' || status === 'trade';
+export function isCollectedSetProgressRow(
+  row: Pick<CollectionCardSetCodeRow, 'status' | 'quantity'>,
+): boolean {
+  return row.status === 'owned' && typeof row.quantity === 'number' && row.quantity > 0;
 }
 
 async function fetchAllCollectionCardSetCodeRows(
@@ -103,7 +106,7 @@ export async function getSetProgressForCollection(collectionId: string): Promise
   for (const row of ownershipRows) {
     const setCode = getSetCodeFromCollectionCardRow(row);
 
-    if (!setCode || !row.card_catalog_id || !isCollectionCardStatusCollected(row.status)) {
+    if (!setCode || !row.card_catalog_id || !isCollectedSetProgressRow(row)) {
       continue;
     }
 
