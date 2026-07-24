@@ -1,20 +1,21 @@
 name: Refactor catalog page chrome
 
 on:
-  push:
-    branches:
-      - agent/sets-v2-overview
-    paths:
-      - .github/catalog-page-refactor-trigger
+  pull_request:
+    types:
+      - ready_for_review
 
 permissions:
   contents: write
 
 jobs:
   refactor:
+    if: github.head_ref == 'agent/shared-catalog-page-chrome'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: agent/shared-catalog-page-chrome
       - uses: actions/setup-node@v4
         with:
           node-version: 22
